@@ -51,7 +51,7 @@ func (p *restPolicies) List(ctx context.Context, params ListParams) (*PolicyPage
 	if err != nil {
 		// Transport-level failure (connection refused, redirect rejection,
 		// context cancellation) — no HTTP status is available.
-		return nil, mapRESTTransportError(err)
+		return nil, mapRESTTransportError("policy", err)
 	}
 	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)

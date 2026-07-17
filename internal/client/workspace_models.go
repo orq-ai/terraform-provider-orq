@@ -71,7 +71,7 @@ type workspaceModels struct {
 func (w *workspaceModels) Enable(ctx context.Context, modelID string) error {
 	resp, err := w.rest.ModelEnableWithResponse(ctx, restgen.ModelEnableJSONRequestBody{ModelId: modelID})
 	if err != nil {
-		return mapRESTTransportError(err)
+		return mapRESTTransportError("workspace model", err)
 	}
 	switch resp.StatusCode() {
 	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
@@ -84,7 +84,7 @@ func (w *workspaceModels) Enable(ctx context.Context, modelID string) error {
 func (w *workspaceModels) Disable(ctx context.Context, modelID string) error {
 	resp, err := w.rest.ModelDisableWithResponse(ctx, modelID)
 	if err != nil {
-		return mapRESTTransportError(err)
+		return mapRESTTransportError("workspace model", err)
 	}
 	switch resp.StatusCode() {
 	case http.StatusOK, http.StatusNoContent, http.StatusAccepted:
@@ -97,7 +97,7 @@ func (w *workspaceModels) Disable(ctx context.Context, modelID string) error {
 func (w *workspaceModels) Get(ctx context.Context, modelID string) (*WorkspaceModel, error) {
 	resp, err := w.rest.ModelListWithResponse(ctx)
 	if err != nil {
-		return nil, mapRESTTransportError(err)
+		return nil, mapRESTTransportError("workspace model", err)
 	}
 	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
@@ -152,5 +152,5 @@ func (w *workspaceModels) SetSharing(ctx context.Context, modelID string, in Sha
 		sh.Mode = &platformv1.Sharing_Selected{Selected: &platformv1.SharingSelectedProjects{ProjectIds: in.ProjectIDs}}
 	}
 	_, err := w.sharing.SetModelSharing(ctx, &platformv1.SetModelSharingRequest{ModelId: modelID, Sharing: sh})
-	return mapConnectError(err)
+	return mapConnectError("model sharing", err)
 }

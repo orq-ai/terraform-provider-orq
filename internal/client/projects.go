@@ -93,7 +93,7 @@ func (p *connectProjects) List(ctx context.Context, params ListParams) (*Project
 
 	resp, err := p.c.ListProjects(ctx, req)
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("project", err)
 	}
 
 	out := &ProjectPage{HasMore: resp.GetHasMore()}
@@ -106,7 +106,7 @@ func (p *connectProjects) List(ctx context.Context, params ListParams) (*Project
 func (p *connectProjects) Get(ctx context.Context, id string) (*Project, error) {
 	resp, err := p.c.GetProject(ctx, &platformv1.GetProjectRequest{ProjectId: id})
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("project", err)
 	}
 	pr := projectFromProto(resp.GetProject())
 	return &pr, nil
@@ -119,7 +119,7 @@ func (p *connectProjects) Create(ctx context.Context, in ProjectCreateInput) (*P
 	}
 	resp, err := p.c.CreateProject(ctx, req)
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("project", err)
 	}
 	pr := projectFromProto(resp.GetProject())
 	return &pr, nil
@@ -135,7 +135,7 @@ func (p *connectProjects) Update(ctx context.Context, in ProjectUpdateInput) (*P
 	}
 	resp, err := p.c.UpdateProject(ctx, req)
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("project", err)
 	}
 	pr := projectFromProto(resp.GetProject())
 	return &pr, nil
@@ -143,5 +143,5 @@ func (p *connectProjects) Update(ctx context.Context, in ProjectUpdateInput) (*P
 
 func (p *connectProjects) Delete(ctx context.Context, id string) error {
 	_, err := p.c.DeleteProject(ctx, &platformv1.DeleteProjectRequest{ProjectId: id})
-	return mapConnectError(err)
+	return mapConnectError("project", err)
 }

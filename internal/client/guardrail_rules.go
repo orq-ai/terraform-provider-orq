@@ -23,13 +23,16 @@ type GuardrailRule struct {
 	UpdatedAt   string
 }
 
-// GuardrailRef is a reference to a guardrail evaluator from a rule. Options
-// (an arbitrary per-guardrail JSON map) is not surfaced by the provider yet.
+// GuardrailRef is a reference to a guardrail evaluator from a rule. Options is
+// arbitrary per-guardrail config (PII language/threshold/entities, etc.); it is
+// carried transport-neutrally as a decoded JSON object so an update never drops
+// it. A nil map means "no options" (omitted from the write).
 type GuardrailRef struct {
 	ID          string
 	ExecuteOn   string // input / output / both
 	SampleRate  *float64
 	IsGuardrail *bool
+	Options     map[string]any
 }
 
 // GuardrailRulePage is one page of a cursor-paginated list.
@@ -84,10 +87,11 @@ type guardrailRuleWire struct {
 	ProjectID   string  `json:"project_id"`
 	Timeout     int64   `json:"timeout"`
 	Guardrails  []struct {
-		ID          string   `json:"id"`
-		ExecuteOn   string   `json:"execute_on"`
-		SampleRate  *float64 `json:"sample_rate"`
-		IsGuardrail *bool    `json:"is_guardrail"`
+		ID          string         `json:"id"`
+		ExecuteOn   string         `json:"execute_on"`
+		SampleRate  *float64       `json:"sample_rate"`
+		IsGuardrail *bool          `json:"is_guardrail"`
+		Options     map[string]any `json:"options"`
 	} `json:"guardrails"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -112,6 +116,7 @@ func (w *guardrailRuleWire) toRule() GuardrailRule {
 			ExecuteOn:   g.ExecuteOn,
 			SampleRate:  g.SampleRate,
 			IsGuardrail: g.IsGuardrail,
+			Options:     g.Options,
 		})
 	}
 	return r
@@ -139,6 +144,10 @@ func guardrailRefsToRest(refs []GuardrailRef) *[]restgen.GuardrailRef {
 			SampleRate:  g.SampleRate,
 			IsGuardrail: g.IsGuardrail,
 		}
+		if g.Options != nil {
+			opts := map[string]interface{}(g.Options)
+			rg.Options = &opts
+		}
 		out = append(out, rg)
 	}
 	return &out
@@ -155,7 +164,7 @@ func (p *restGuardrailRules) List(ctx context.Context, params ListParams) (*Guar
 	}
 	resp, err := p.c.GuardrailRuleListWithResponse(ctx, restParams)
 	if err != nil {
-		return nil, mapRESTTransportError(err)
+		return nil, mapRESTTransportError("guardrail rule", err)
 	}
 	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
@@ -175,12 +184,17 @@ func (p *restGuardrailRules) List(ctx context.Context, params ListParams) (*Guar
 			}
 			if g.Guardrails != nil {
 				for _, ref := range *g.Guardrails {
+					var opts map[string]any
+					if ref.Options != nil {
+						opts = *ref.Options
+					}
 					w.Guardrails = append(w.Guardrails, struct {
-						ID          string   `json:"id"`
-						ExecuteOn   string   `json:"execute_on"`
-						SampleRate  *float64 `json:"sample_rate"`
-						IsGuardrail *bool    `json:"is_guardrail"`
-					}{ID: ref.Id, ExecuteOn: string(ref.ExecuteOn), SampleRate: ref.SampleRate, IsGuardrail: ref.IsGuardrail})
+						ID          string         `json:"id"`
+						ExecuteOn   string         `json:"execute_on"`
+						SampleRate  *float64       `json:"sample_rate"`
+						IsGuardrail *bool          `json:"is_guardrail"`
+						Options     map[string]any `json:"options"`
+					}{ID: ref.Id, ExecuteOn: string(ref.ExecuteOn), SampleRate: ref.SampleRate, IsGuardrail: ref.IsGuardrail, Options: opts})
 				}
 			}
 			out.Rules = append(out.Rules, w.toRule())
@@ -192,7 +206,7 @@ func (p *restGuardrailRules) List(ctx context.Context, params ListParams) (*Guar
 func (p *restGuardrailRules) Get(ctx context.Context, id string) (*GuardrailRule, error) {
 	resp, err := p.c.GuardrailRuleGetWithResponse(ctx, id)
 	if err != nil {
-		return nil, mapRESTTransportError(err)
+		return nil, mapRESTTransportError("guardrail rule", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
 		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
@@ -211,7 +225,7 @@ func (p *restGuardrailRules) Create(ctx context.Context, in GuardrailRuleCreateI
 	}
 	resp, err := p.c.GuardrailRuleCreateWithResponse(ctx, body)
 	if err != nil {
-		return nil, mapRESTTransportError(err)
+		return nil, mapRESTTransportError("guardrail rule", err)
 	}
 	if resp.StatusCode() != http.StatusCreated && resp.StatusCode() != http.StatusOK {
 		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
@@ -229,7 +243,7 @@ func (p *restGuardrailRules) Update(ctx context.Context, in GuardrailRuleUpdateI
 	}
 	resp, err := p.c.GuardrailRuleUpdateWithResponse(ctx, in.ID, body)
 	if err != nil {
-		return nil, mapRESTTransportError(err)
+		return nil, mapRESTTransportError("guardrail rule", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
 		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
@@ -240,7 +254,7 @@ func (p *restGuardrailRules) Update(ctx context.Context, in GuardrailRuleUpdateI
 func (p *restGuardrailRules) Delete(ctx context.Context, id string) error {
 	resp, err := p.c.GuardrailRuleDeleteWithResponse(ctx, id)
 	if err != nil {
-		return mapRESTTransportError(err)
+		return mapRESTTransportError("guardrail rule", err)
 	}
 	switch resp.StatusCode() {
 	case http.StatusOK, http.StatusNoContent, http.StatusAccepted:

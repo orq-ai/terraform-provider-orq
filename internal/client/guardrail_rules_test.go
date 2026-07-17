@@ -95,6 +95,81 @@ func TestGuardrailRules_UpdateOmitsProjectID(t *testing.T) {
 	}
 }
 
+// TestGuardrailRules_OptionsRoundTrip proves per-guardrail options are sent on
+// a write and read back, so an update never silently drops them.
+func TestGuardrailRules_OptionsRoundTrip(t *testing.T) {
+	opts := map[string]any{"language": "en", "threshold": 0.8, "entities": []any{"EMAIL", "PHONE"}}
+	echo := guardrailRuleJSON("proj_7")
+	echo["guardrails"] = []map[string]any{
+		{"id": "guard_1", "execute_on": "input", "options": opts},
+	}
+
+	var gotBody map[string]any
+	c := newGuardrailServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(echo)
+	})
+
+	created, err := c.GuardrailRules().Create(context.Background(), GuardrailRuleCreateInput{
+		DisplayName: "pii",
+		Guardrails:  []GuardrailRef{{ID: "guard_1", ExecuteOn: "input", Options: opts}},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	// The request body must carry the options object.
+	gs, ok := gotBody["guardrails"].([]any)
+	if !ok || len(gs) != 1 {
+		t.Fatalf("guardrails not in request body: %v", gotBody["guardrails"])
+	}
+	sentOpts, ok := gs[0].(map[string]any)["options"].(map[string]any)
+	if !ok || sentOpts["language"] != "en" {
+		t.Errorf("options not sent on create: %v", gs[0])
+	}
+	// The read-back must preserve the options map.
+	if len(created.Guardrails) != 1 || created.Guardrails[0].Options == nil {
+		t.Fatalf("options dropped on read-back: %+v", created.Guardrails)
+	}
+	if created.Guardrails[0].Options["language"] != "en" || created.Guardrails[0].Options["threshold"] != 0.8 {
+		t.Errorf("options not read back: %+v", created.Guardrails[0].Options)
+	}
+}
+
+// TestGuardrailRules_UpdateCarriesOptions proves an update re-sends options so
+// they are not wiped from the stored guardrail ref.
+func TestGuardrailRules_UpdateCarriesOptions(t *testing.T) {
+	opts := map[string]any{"language": "fr"}
+	echo := guardrailRuleJSON("proj_7")
+	echo["guardrails"] = []map[string]any{{"id": "guard_1", "execute_on": "input", "options": opts}}
+
+	var gotBody map[string]any
+	c := newGuardrailServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(echo)
+	})
+
+	name := "pii"
+	updated, err := c.GuardrailRules().Update(context.Background(), GuardrailRuleUpdateInput{
+		ID:          "gr_1",
+		DisplayName: &name,
+		Guardrails:  []GuardrailRef{{ID: "guard_1", ExecuteOn: "input", Options: opts}},
+	})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	gs := gotBody["guardrails"].([]any)
+	sentOpts, ok := gs[0].(map[string]any)["options"].(map[string]any)
+	if !ok || sentOpts["language"] != "fr" {
+		t.Errorf("update did not carry options: %v", gs[0])
+	}
+	if updated.Guardrails[0].Options["language"] != "fr" {
+		t.Errorf("options not read back on update: %+v", updated.Guardrails[0].Options)
+	}
+}
+
 func TestGuardrailRules_NotFoundNormalized(t *testing.T) {
 	c := newGuardrailServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

@@ -81,6 +81,17 @@ func float64Ptr(v types.Float64) *float64 {
 	return &f
 }
 
+// concreteBool collapses a null or unknown bool to a known false, leaving a
+// known true/false untouched. Used when persisting a partial (taint) state:
+// the framework rejects unknown values in post-apply state, so every attribute
+// must be concrete.
+func concreteBool(b types.Bool) types.Bool {
+	if b.IsNull() || b.IsUnknown() {
+		return types.BoolValue(false)
+	}
+	return b
+}
+
 // optString maps an empty string to a null attribute, else a string value. Used
 // for optional server fields that come back as "" when unset.
 func optString(s string) types.String {

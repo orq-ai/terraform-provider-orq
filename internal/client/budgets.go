@@ -108,7 +108,7 @@ func budgetPeriodToProto(short string) (platformv1.BudgetPeriod, error) {
 	}
 	v, ok := platformv1.BudgetPeriod_value["BUDGET_PERIOD_"+strings.ToUpper(short)]
 	if !ok {
-		return 0, fmt.Errorf("unknown budget period %q", short)
+		return 0, &Error{Code: CodeInvalid, Message: fmt.Sprintf("unknown budget period %q", short)}
 	}
 	return platformv1.BudgetPeriod(v), nil
 }
@@ -126,7 +126,7 @@ func budgetDimensionToProto(short string) (platformv1.BudgetAlertDimension, erro
 	}
 	v, ok := platformv1.BudgetAlertDimension_value["BUDGET_ALERT_DIMENSION_"+strings.ToUpper(short)]
 	if !ok {
-		return 0, fmt.Errorf("unknown budget alert dimension %q", short)
+		return 0, &Error{Code: CodeInvalid, Message: fmt.Sprintf("unknown budget alert dimension %q", short)}
 	}
 	return platformv1.BudgetAlertDimension(v), nil
 }
@@ -269,7 +269,7 @@ func (c *connectBudgets) List(ctx context.Context, params ListParams) (*BudgetPa
 	}
 	resp, err := c.c.ListBudgets(ctx, req)
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("budget", err)
 	}
 	out := &BudgetPage{HasMore: resp.GetHasMore()}
 	for _, b := range resp.GetData() {
@@ -285,7 +285,7 @@ func (c *connectBudgets) List(ctx context.Context, params ListParams) (*BudgetPa
 func (c *connectBudgets) Get(ctx context.Context, id string) (*Budget, error) {
 	resp, err := c.c.GetBudget(ctx, &platformv1.GetBudgetRequest{BudgetId: id})
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("budget", err)
 	}
 	b, err := budgetFromProto(resp.GetBudget())
 	if err != nil {
@@ -331,7 +331,7 @@ func (c *connectBudgets) Create(ctx context.Context, in BudgetWriteInput) (*Budg
 
 	resp, err := c.c.CreateBudget(ctx, req)
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("budget", err)
 	}
 	b, err := budgetFromProto(resp.GetBudget())
 	if err != nil {
@@ -382,7 +382,7 @@ func (c *connectBudgets) Update(ctx context.Context, id string, in BudgetWriteIn
 
 	resp, err := c.c.UpdateBudget(ctx, req)
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("budget", err)
 	}
 	b, err := budgetFromProto(resp.GetBudget())
 	if err != nil {
@@ -393,5 +393,5 @@ func (c *connectBudgets) Update(ctx context.Context, id string, in BudgetWriteIn
 
 func (c *connectBudgets) Delete(ctx context.Context, id string) error {
 	_, err := c.c.DeleteBudget(ctx, &platformv1.DeleteBudgetRequest{BudgetId: id})
-	return mapConnectError(err)
+	return mapConnectError("budget", err)
 }

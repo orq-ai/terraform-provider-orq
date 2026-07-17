@@ -7,6 +7,7 @@ tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 require (
 	connectrpc.com/connect v1.20.0
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
+	github.com/hashicorp/terraform-plugin-framework-jsontypes v0.2.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.19.0
 	github.com/hashicorp/terraform-plugin-go v0.31.0
 	github.com/hashicorp/terraform-plugin-testing v1.16.0

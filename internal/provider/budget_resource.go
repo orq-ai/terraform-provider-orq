@@ -40,7 +40,7 @@ type budgetResourceModel struct {
 	Limits          *budgetLimitsModel `tfsdk:"limits"`
 	RateLimitPerMin types.Int64        `tfsdk:"rate_limit_per_minute"`
 	IsActive        types.Bool         `tfsdk:"is_active"`
-	ExpiresAt       types.String       `tfsdk:"expires_at"`
+	ExpiresAt       rfc3339Instant     `tfsdk:"expires_at"`
 	Alerts          []budgetAlertModel `tfsdk:"alerts"`
 	CreatedAt       types.String       `tfsdk:"created_at"`
 	UpdatedAt       types.String       `tfsdk:"updated_at"`
@@ -137,8 +137,9 @@ func (r *budgetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				MarkdownDescription: "Whether the budget is active. Defaults to true.",
 			},
 			"expires_at": schema.StringAttribute{
+				CustomType:          rfc3339InstantType{},
 				Optional:            true,
-				MarkdownDescription: "Optional expiration (RFC 3339). Must be in the future when the budget is active.",
+				MarkdownDescription: "Optional expiration (RFC 3339). Must be in the future when the budget is active. Compared as an instant, so an equivalent value in a different UTC offset does not produce a diff.",
 			},
 			"created_at": schema.StringAttribute{
 				Computed:            true,
@@ -158,6 +159,7 @@ func (r *budgetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 						"id": schema.StringAttribute{
 							Computed:            true,
 							MarkdownDescription: "Alert ID assigned by orq.",
+							PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 						},
 						"threshold_percent": schema.Int64Attribute{
 							Required:            true,
@@ -249,7 +251,15 @@ func (r *budgetResource) writeInput(ctx context.Context, m *budgetResourceModel)
 		if !a.Dimension.IsNull() && !a.Dimension.IsUnknown() {
 			dim = a.Dimension.ValueString()
 		}
+		// Carry the existing alert id (when known) so the server edits the alert
+		// in place instead of deleting + recreating it, which would re-mint the
+		// id on every update. Empty id => a new alert the server assigns.
+		id := ""
+		if !a.ID.IsNull() && !a.ID.IsUnknown() {
+			id = a.ID.ValueString()
+		}
 		in.Alerts = append(in.Alerts, client.BudgetAlert{
+			ID:               id,
 			ThresholdPercent: int32(a.ThresholdPercent.ValueInt64()),
 			NotifierIDs:      ids,
 			Dimension:        dim,
@@ -281,7 +291,9 @@ func (r *budgetResource) apply(b *client.Budget, m *budgetResourceModel) {
 		m.RateLimitPerMin = types.Int64Null()
 	}
 	m.IsActive = types.BoolValue(b.IsActive)
-	m.ExpiresAt = optString(b.ExpiresAt)
+	// Store the server's normalized (UTC) value; the rfc3339Instant custom type
+	// compares by instant, so this converges with a non-UTC config value.
+	m.ExpiresAt = rfc3339InstantValue(b.ExpiresAt)
 	m.CreatedAt = types.StringValue(b.CreatedAt)
 	m.UpdatedAt = types.StringValue(b.UpdatedAt)
 
@@ -349,10 +361,21 @@ func (r *budgetResource) Read(ctx context.Context, req resource.ReadRequest, res
 }
 
 func (r *budgetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan budgetResourceModel
+	var plan, state budgetResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// Carry existing alert ids from prior state into the plan by position so the
+	// update edits alerts in place rather than deleting + recreating them (which
+	// re-mints every id). UseStateForUnknown covers the stable-ordering case;
+	// this positional backfill covers ids the framework left unknown/null.
+	for i := range plan.Alerts {
+		if (plan.Alerts[i].ID.IsNull() || plan.Alerts[i].ID.IsUnknown()) && i < len(state.Alerts) {
+			plan.Alerts[i].ID = state.Alerts[i].ID
+		}
 	}
 
 	in, err := r.writeInput(ctx, &plan)

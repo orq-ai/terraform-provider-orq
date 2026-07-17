@@ -2,9 +2,12 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -43,10 +46,11 @@ type guardrailRuleResourceModel struct {
 }
 
 type guardrailRefModel struct {
-	ID          types.String  `tfsdk:"id"`
-	ExecuteOn   types.String  `tfsdk:"execute_on"`
-	SampleRate  types.Float64 `tfsdk:"sample_rate"`
-	IsGuardrail types.Bool    `tfsdk:"is_guardrail"`
+	ID          types.String         `tfsdk:"id"`
+	ExecuteOn   types.String         `tfsdk:"execute_on"`
+	SampleRate  types.Float64        `tfsdk:"sample_rate"`
+	IsGuardrail types.Bool           `tfsdk:"is_guardrail"`
+	Options     jsontypes.Normalized `tfsdk:"options"`
 }
 
 func (r *guardrailRuleResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -124,6 +128,13 @@ func (r *guardrailRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 							Optional:            true,
 							MarkdownDescription: "Whether this reference is enforced as a guardrail (blocking).",
 						},
+						"options": schema.StringAttribute{
+							CustomType: jsontypes.NormalizedType{},
+							Optional:   true,
+							MarkdownDescription: "Arbitrary per-guardrail configuration as a JSON object string " +
+								"(e.g. PII language/threshold/entities). Compared semantically, so key order " +
+								"and insignificant whitespace do not produce a diff. Preserved across updates.",
+						},
 					},
 				},
 			},
@@ -144,20 +155,36 @@ func (r *guardrailRuleResource) Configure(_ context.Context, req resource.Config
 	r.rules = c.GuardrailRules()
 }
 
-func guardrailRefsFromModel(models []guardrailRefModel) []client.GuardrailRef {
+func guardrailRefsFromModel(models []guardrailRefModel) ([]client.GuardrailRef, diag.Diagnostics) {
+	var diags diag.Diagnostics
 	if models == nil {
-		return nil
+		return nil, diags
 	}
 	out := make([]client.GuardrailRef, 0, len(models))
-	for _, m := range models {
-		out = append(out, client.GuardrailRef{
+	for i, m := range models {
+		ref := client.GuardrailRef{
 			ID:          m.ID.ValueString(),
 			ExecuteOn:   m.ExecuteOn.ValueString(),
 			SampleRate:  float64Ptr(m.SampleRate),
 			IsGuardrail: boolPtr(m.IsGuardrail),
-		})
+		}
+		// Decode the JSON-string options back into the transport-neutral map so
+		// the per-guardrail config round-trips and is never dropped on update.
+		if !m.Options.IsNull() && !m.Options.IsUnknown() {
+			var opts map[string]any
+			if err := json.Unmarshal([]byte(m.Options.ValueString()), &opts); err != nil {
+				diags.AddAttributeError(
+					path.Root("guardrails").AtListIndex(i).AtName("options"),
+					"Invalid guardrail options",
+					"options must be a JSON object: "+err.Error(),
+				)
+				continue
+			}
+			ref.Options = opts
+		}
+		out = append(out, ref)
 	}
-	return out
+	return out, diags
 }
 
 func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleResourceModel) {
@@ -190,6 +217,18 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 		} else {
 			rm.IsGuardrail = types.BoolNull()
 		}
+		// Encode the server's options map back to a JSON string. jsontypes
+		// compares semantically, so this converges with the operator's config
+		// regardless of key order / whitespace.
+		if ref.Options != nil {
+			if b, err := json.Marshal(ref.Options); err == nil {
+				rm.Options = jsontypes.NewNormalizedValue(string(b))
+			} else {
+				rm.Options = jsontypes.NewNormalizedNull()
+			}
+		} else {
+			rm.Options = jsontypes.NewNormalizedNull()
+		}
 		refs = append(refs, rm)
 	}
 	m.Guardrails = refs
@@ -202,13 +241,18 @@ func (r *guardrailRuleResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
+	refs, refDiags := guardrailRefsFromModel(plan.Guardrails)
+	resp.Diagnostics.Append(refDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	g, err := r.rules.Create(ctx, client.GuardrailRuleCreateInput{
 		DisplayName: plan.DisplayName.ValueString(),
 		Description: strPtr(plan.Description),
 		Enabled:     boolPtr(plan.Enabled),
 		ProjectID:   strPtr(plan.ProjectID),
 		Timeout:     int64Ptr(plan.Timeout),
-		Guardrails:  guardrailRefsFromModel(plan.Guardrails),
+		Guardrails:  refs,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to create guardrail rule", errDetail(err))
@@ -247,6 +291,11 @@ func (r *guardrailRuleResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
+	refs, refDiags := guardrailRefsFromModel(plan.Guardrails)
+	resp.Diagnostics.Append(refDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	name := plan.DisplayName.ValueString()
 	g, err := r.rules.Update(ctx, client.GuardrailRuleUpdateInput{
 		ID:          plan.ID.ValueString(),
@@ -254,7 +303,7 @@ func (r *guardrailRuleResource) Update(ctx context.Context, req resource.UpdateR
 		Description: strPtr(plan.Description),
 		Enabled:     boolPtr(plan.Enabled),
 		Timeout:     int64Ptr(plan.Timeout),
-		Guardrails:  guardrailRefsFromModel(plan.Guardrails),
+		Guardrails:  refs,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to update guardrail rule", errDetail(err))

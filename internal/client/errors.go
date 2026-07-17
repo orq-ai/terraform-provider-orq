@@ -57,20 +57,27 @@ func CodeOf(err error) Code {
 }
 
 // mapConnectError normalizes a connect-go client error. A nil error maps to nil.
-func mapConnectError(err error) error {
+// domain is a static, transport-neutral noun for the affected resource domain
+// (e.g. "budget") used only on the transport-error path — see below.
+func mapConnectError(domain string, err error) error {
 	if err == nil {
 		return nil
 	}
-	code := connectCodeToCode(connect.CodeOf(err))
 
-	// Prefer the server-supplied message over the connect envelope wrapper
-	// ("unauthenticated: <msg>") so we don't double-print the code.
-	message := err.Error()
+	// An RPC that reached the server carries a *connect.Error whose Message()
+	// is server-supplied (not the wire route); prefer it over the connect
+	// envelope wrapper ("unauthenticated: <msg>") so we don't double-print the
+	// code — and so it never contains the RPC URL.
 	var ce *connect.Error
 	if errors.As(err, &ce) {
-		message = ce.Message()
+		return &Error{Code: connectCodeToCode(ce.Code()), Message: ce.Message(), err: err}
 	}
-	return &Error{Code: code, Message: message, err: err}
+
+	// Transport-level failure (dial/DNS/redirect rejection/context cancel)
+	// before any RPC response. err.Error() renders the full RPC URL here, which
+	// would leak the protocol + route across the seam, so build the message
+	// from the static per-domain noun instead of the raw error.
+	return &Error{Code: CodeUnavailable, Message: "the " + domain + " service is unavailable", err: err}
 }
 
 func connectCodeToCode(c connect.Code) Code {
@@ -138,10 +145,14 @@ func httpStatusToCode(status int) Code {
 
 // mapRESTTransportError normalizes a transport-level REST error (connection
 // refused, DNS failure, redirect rejection, context cancellation) that occurs
-// before any HTTP status is available.
-func mapRESTTransportError(err error) error {
+// before any HTTP status is available. domain is a static, transport-neutral
+// noun for the affected resource domain (e.g. "guardrail rule"). The raw error
+// is NOT folded into the message: a Go *url.Error renders as
+// `Delete "https://host/v2/workspace-models/…": …`, leaking the REST route and
+// protocol across the seam; the wrapped err stays reachable via errors.Is/As.
+func mapRESTTransportError(domain string, err error) error {
 	if err == nil {
 		return nil
 	}
-	return &Error{Code: CodeUnavailable, Message: err.Error(), err: err}
+	return &Error{Code: CodeUnavailable, Message: "the " + domain + " service is unavailable", err: err}
 }

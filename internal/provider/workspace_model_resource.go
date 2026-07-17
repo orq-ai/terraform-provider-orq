@@ -246,6 +246,16 @@ func (r *workspaceModelResource) Create(ctx context.Context, req resource.Create
 		plan.ID = types.StringValue(modelID)
 		plan.Enabled = types.BoolValue(true)
 		plan.DisplayName = types.StringNull()
+		// The three sharing booleans are Optional+Computed and may still be
+		// UNKNOWN on Create when unset in config. A post-apply state carrying
+		// unknown values is rejected by the framework, which would abort this
+		// State.Set and defeat the taint we are trying to persist — so pin them
+		// to concrete values first.
+		if plan.Sharing != nil {
+			plan.Sharing.AllowVersionPin = concreteBool(plan.Sharing.AllowVersionPin)
+			plan.Sharing.AllowFork = concreteBool(plan.Sharing.AllowFork)
+			plan.Sharing.AutoGrantNewProjects = concreteBool(plan.Sharing.AutoGrantNewProjects)
+		}
 		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 		resp.Diagnostics.AddError("Model enabled but sharing write failed",
 			"The model was enabled but its sharing config could not be written, so it currently "+
@@ -329,11 +339,33 @@ func (r *workspaceModelResource) Delete(ctx context.Context, req resource.Delete
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.models.Disable(ctx, state.ModelID.ValueString()); err != nil {
+	modelID := state.ModelID.ValueString()
+
+	// A system model id contains a slash, so the disable call can silently
+	// no-op server-side. Do NOT trust the disable status (nor treat not_found
+	// as done) — a hard error still surfaces, but success/not_found only lets
+	// us proceed to the confirming read below.
+	if err := r.models.Disable(ctx, modelID); err != nil && !isNotFound(err) {
+		resp.Diagnostics.AddError("Unable to disable model", errDetail(err))
+		return
+	}
+
+	// Confirm the model is actually gone from the catalog. If it is still
+	// enabled, the disable did not take effect; surface that instead of
+	// dropping the resource from state (which would strand an enabled model).
+	wm, err := r.models.Get(ctx, modelID)
+	if err != nil {
 		if isNotFound(err) {
 			return
 		}
-		resp.Diagnostics.AddError("Unable to disable model", errDetail(err))
+		resp.Diagnostics.AddError("Unable to confirm model was disabled", errDetail(err))
+		return
+	}
+	if wm != nil && wm.Enabled {
+		resp.Diagnostics.AddError("Model still enabled after disable",
+			"The disable request reported success but the model is still enabled in the workspace catalog. "+
+				"System model ids contain a slash, which can cause the disable to no-op server-side. The "+
+				"resource was left in state; retry the destroy.")
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -157,5 +158,121 @@ func TestValidateBudgetScopeXOR(t *testing.T) {
 				t.Errorf("HasError = %v, want %v", diags.HasError(), tc.wantError)
 			}
 		})
+	}
+}
+
+// --- budget alert id threading (M2) ---------------------------------------
+
+// TestBudgetWriteInputCarriesAlertID proves an existing alert id is threaded
+// into the write so the server edits the alert in place instead of re-minting
+// its id, while a new (unknown) alert still maps to an empty id.
+func TestBudgetWriteInputCarriesAlertID(t *testing.T) {
+	r := &budgetResource{}
+	mk := func(id types.String) *budgetResourceModel {
+		return &budgetResourceModel{
+			Limits: &budgetLimitsModel{Amount: types.Float64Value(100)},
+			Alerts: []budgetAlertModel{{
+				ID:               id,
+				ThresholdPercent: types.Int64Value(80),
+				NotifierIDs:      stringListValue([]string{"nf_1"}),
+				Dimension:        types.StringNull(),
+			}},
+		}
+	}
+
+	in, err := r.writeInput(context.Background(), mk(types.StringValue("al_1")))
+	if err != nil {
+		t.Fatalf("writeInput: %v", err)
+	}
+	if len(in.Alerts) != 1 || in.Alerts[0].ID != "al_1" {
+		t.Errorf("existing alert id not threaded: %+v", in.Alerts)
+	}
+
+	in2, err := r.writeInput(context.Background(), mk(types.StringUnknown()))
+	if err != nil {
+		t.Fatalf("writeInput: %v", err)
+	}
+	if in2.Alerts[0].ID != "" {
+		t.Errorf("a new (unknown) alert id must map to empty, got %q", in2.Alerts[0].ID)
+	}
+}
+
+// --- budget expires_at instant convergence (M3) ---------------------------
+
+// TestBudgetExpiresAtInstantConverges proves a non-UTC config value and the
+// server's normalized UTC read-back are semantically equal (no perpetual diff),
+// while genuinely different instants are not.
+func TestBudgetExpiresAtInstantConverges(t *testing.T) {
+	ctx := context.Background()
+	config := rfc3339InstantValue("2026-01-01T00:00:00+01:00")
+	normalized := rfc3339InstantValue("2025-12-31T23:00:00Z") // same instant, UTC
+
+	eq, diags := config.StringSemanticEquals(ctx, normalized)
+	if diags.HasError() {
+		t.Fatalf("semantic-equality diags: %v", diags)
+	}
+	if !eq {
+		t.Errorf("config %q and normalized %q must be semantically equal",
+			config.ValueString(), normalized.ValueString())
+	}
+
+	different := rfc3339InstantValue("2025-12-31T22:00:00Z")
+	if neq, _ := config.StringSemanticEquals(ctx, different); neq {
+		t.Error("genuinely different instants must not be semantically equal")
+	}
+}
+
+// TestBudgetApplyExpiresAtConverges proves apply() stores the server's
+// normalized value and that it converges with the operator's non-UTC config.
+func TestBudgetApplyExpiresAtConverges(t *testing.T) {
+	ctx := context.Background()
+	r := &budgetResource{}
+	m := &budgetResourceModel{ExpiresAt: rfc3339InstantValue("2026-01-01T00:00:00+01:00")}
+	config := m.ExpiresAt
+
+	// Server echoes the same instant normalized to UTC.
+	r.apply(&client.Budget{ID: "b1", ExpiresAt: "2025-12-31T23:00:00Z"}, m)
+
+	eq, _ := config.StringSemanticEquals(ctx, m.ExpiresAt)
+	if !eq {
+		t.Errorf("read-back %q does not converge with config %q", m.ExpiresAt.ValueString(), config.ValueString())
+	}
+}
+
+// --- guardrail options round-trip through the model (H2) ------------------
+
+// TestGuardrailOptionsModelRoundTrip proves the provider decodes an options
+// JSON string to the client map on write and re-encodes it on read such that
+// the value survives and stays semantically stable.
+func TestGuardrailOptionsModelRoundTrip(t *testing.T) {
+	models := []guardrailRefModel{{
+		ID:        types.StringValue("guard_1"),
+		ExecuteOn: types.StringValue("input"),
+		Options:   jsontypes.NewNormalizedValue(`{"language":"en","threshold":0.8}`),
+	}}
+
+	refs, diags := guardrailRefsFromModel(models)
+	if diags.HasError() {
+		t.Fatalf("guardrailRefsFromModel: %v", diags)
+	}
+	if len(refs) != 1 || refs[0].Options == nil || refs[0].Options["language"] != "en" {
+		t.Fatalf("options not decoded to map: %+v", refs)
+	}
+
+	// Encode the server-shaped ref back into the model and confirm the options
+	// survive and are semantically equal to the original config.
+	var back guardrailRuleResourceModel
+	res := &guardrailRuleResource{}
+	res.apply(&client.GuardrailRule{
+		ID:         "gr_1",
+		Guardrails: refs,
+	}, &back)
+	if len(back.Guardrails) != 1 || back.Guardrails[0].Options.IsNull() {
+		t.Fatalf("options dropped on read-back: %+v", back.Guardrails)
+	}
+	eq, _ := models[0].Options.StringSemanticEquals(context.Background(), back.Guardrails[0].Options)
+	if !eq {
+		t.Errorf("options did not round-trip: in=%s out=%s",
+			models[0].Options.ValueString(), back.Guardrails[0].Options.ValueString())
 	}
 }

@@ -79,7 +79,7 @@ func notifierTypeToProto(short string) (platformv1.NotifierType, error) {
 	}
 	v, ok := platformv1.NotifierType_value["NOTIFIER_TYPE_"+strings.ToUpper(short)]
 	if !ok {
-		return 0, fmt.Errorf("unknown notifier type %q", short)
+		return 0, &Error{Code: CodeInvalid, Message: fmt.Sprintf("unknown notifier type %q", short)}
 	}
 	return platformv1.NotifierType(v), nil
 }
@@ -115,7 +115,7 @@ func (c *connectNotifiers) List(ctx context.Context, params ListParams) (*Notifi
 	}
 	resp, err := c.c.ListNotifiers(ctx, req)
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("notifier", err)
 	}
 	out := &NotifierPage{HasMore: resp.GetHasMore()}
 	for _, n := range resp.GetData() {
@@ -127,7 +127,7 @@ func (c *connectNotifiers) List(ctx context.Context, params ListParams) (*Notifi
 func (c *connectNotifiers) Get(ctx context.Context, id string) (*Notifier, error) {
 	resp, err := c.c.GetNotifier(ctx, &platformv1.GetNotifierRequest{NotifierId: id})
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("notifier", err)
 	}
 	n := notifierFromProto(resp.GetNotifier())
 	return &n, nil
@@ -148,7 +148,7 @@ func (c *connectNotifiers) Create(ctx context.Context, in NotifierCreateInput) (
 	}
 	resp, err := c.c.CreateNotifier(ctx, req)
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("notifier", err)
 	}
 	n := notifierFromProto(resp.GetNotifier())
 	return &n, nil
@@ -177,7 +177,7 @@ func (c *connectNotifiers) Update(ctx context.Context, in NotifierUpdateInput) (
 	}
 	resp, err := c.c.UpdateNotifier(ctx, req)
 	if err != nil {
-		return nil, mapConnectError(err)
+		return nil, mapConnectError("notifier", err)
 	}
 	n := notifierFromProto(resp.GetNotifier())
 	return &n, nil
@@ -185,5 +185,5 @@ func (c *connectNotifiers) Update(ctx context.Context, in NotifierUpdateInput) (
 
 func (c *connectNotifiers) Delete(ctx context.Context, id string) error {
 	_, err := c.c.DeleteNotifier(ctx, &platformv1.DeleteNotifierRequest{NotifierId: id})
-	return mapConnectError(err)
+	return mapConnectError("notifier", err)
 }
