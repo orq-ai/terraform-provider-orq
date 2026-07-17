@@ -73,8 +73,8 @@ func TestResolveString(t *testing.T) {
 			name:     "fallback when attr null and env unset",
 			attr:     types.StringNull(),
 			env:      "",
-			fallback: "https://api.orq.ai",
-			want:     "https://api.orq.ai",
+			fallback: "https://my.orq.ai",
+			want:     "https://my.orq.ai",
 		},
 		{
 			name: "unknown attr treated as unset, env wins",

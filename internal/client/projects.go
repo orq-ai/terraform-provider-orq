@@ -53,7 +53,7 @@ func (p *connectProjects) List(ctx context.Context, params ListParams) (*Project
 
 	resp, err := p.c.ListProjects(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, mapConnectError(err)
 	}
 
 	out := &ProjectPage{HasMore: resp.GetHasMore()}

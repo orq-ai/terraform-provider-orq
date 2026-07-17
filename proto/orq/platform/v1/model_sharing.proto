@@ -20,7 +20,7 @@ option (openapi.v3.document) = {
 service ModelSharingService {
   rpc SetModelSharing(SetModelSharingRequest) returns (SetModelSharingResponse) {
     option (orq.authz.v1.authz) = {
-      verb: "model.toggle"
+      verb: "workspace-model.update"
       scope: AUTHZ_SCOPE_WORKSPACE
     };
     option (google.api.http) = {

@@ -5,7 +5,6 @@ package provider
 import (
 	"context"
 	"os"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -18,7 +17,7 @@ import (
 )
 
 const (
-	defaultURL = "https://api.orq.ai"
+	defaultURL = "https://my.orq.ai"
 	envURL     = "ORQ_URL"
 	envToken   = "ORQ_TOKEN"
 )
@@ -56,7 +55,7 @@ func (p *orqProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 			"url": schema.StringAttribute{
 				Optional: true,
 				MarkdownDescription: "Base URL of the orq API. Falls back to the `ORQ_URL` environment " +
-					"variable, then `https://api.orq.ai`.",
+					"variable, then `https://my.orq.ai`. Override for on-prem installs or staging.",
 			},
 			"token": schema.StringAttribute{
 				Optional:  true,
@@ -113,12 +112,14 @@ func (p *orqProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		resp.Diagnostics.AddAttributeError(path.Root("token"), "Missing orq management key",
 			"Set the `token` attribute or the ORQ_TOKEN environment variable to an sk-orq-... management key.")
 	}
+	// Full structural URL validation: an absolute http(s) URL with a host, no
+	// embedded userinfo/query/fragment. A bare `https://` or a hostless value is
+	// rejected here rather than surfacing as an opaque dial error at first use.
 	if url == "" {
 		resp.Diagnostics.AddAttributeError(path.Root("url"), "Missing orq URL",
 			"Set the `url` attribute or the ORQ_URL environment variable.")
-	} else if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		resp.Diagnostics.AddAttributeError(path.Root("url"), "Malformed orq URL",
-			"The url must start with http:// or https://. Got: "+url)
+	} else if _, err := client.ParseBaseURL(url); err != nil {
+		resp.Diagnostics.AddAttributeError(path.Root("url"), "Malformed orq URL", err.Error()+" (got: "+url+")")
 	}
 	if resp.Diagnostics.HasError() {
 		return

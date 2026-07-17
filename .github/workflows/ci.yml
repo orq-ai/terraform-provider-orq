@@ -21,7 +21,12 @@ jobs:
         with:
           go-version: "1.26"
 
+      # Pin the buf CLI so `make check-generated` compares against the exact
+      # generator the codegen was committed with (the remote plugin versions are
+      # pinned in buf.gen.yaml; the CLI version is pinned here).
       - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.69.0"
 
       - name: Verify generated code is reproducible
         run: make check-generated

@@ -9,7 +9,7 @@ BINARY  := terraform-provider-orq
 # Sync sources in the platform monorepo (adjust MONOREPO if checked out elsewhere).
 MONOREPO ?= ../orquesta-web
 
-.PHONY: build test testacc generate proto-sync openapi-sync check-generated tidy
+.PHONY: build test testacc generate generate-connect generate-rest proto-sync openapi-sync record-source-commit check-generated tidy
 
 build:
 	go build -o $(BINARY) .
@@ -40,8 +40,25 @@ tidy:
 
 # --- codegen source sync (from the platform monorepo) ------------------------
 # proto/ and openapi/openapi.json are COMMITTED COPIES. Re-sync then regenerate.
+#
+# Every sync stamps SOURCE_COMMIT with the exact orquesta-web git revision the
+# copies were taken from, so drift between the committed proto/OpenAPI snapshot
+# and the monorepo is auditable. Sync BOTH (`make proto-sync openapi-sync`) from
+# the same checkout so the stamp is meaningful.
 
-proto-sync:
+# record-source-commit writes the monorepo HEAD (with a dirty marker) into
+# SOURCE_COMMIT. Called by both sync targets.
+record-source-commit:
+	@{ \
+		rev=$$(git -C $(MONOREPO) rev-parse HEAD); \
+		branch=$$(git -C $(MONOREPO) rev-parse --abbrev-ref HEAD); \
+		dirty=$$(git -C $(MONOREPO) status --porcelain | head -1); \
+		if [ -n "$$dirty" ]; then rev="$$rev (working tree dirty at sync time)"; fi; \
+		printf 'orquesta-web %s\nbranch %s\nsynced %s\n' "$$rev" "$$branch" "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > SOURCE_COMMIT; \
+		echo "recorded source commit $$rev"; \
+	}
+
+proto-sync: record-source-commit
 	@set -e; \
 	for f in projects budgets management_keys notifiers model_sharing api_keys identities sharing; do \
 		cp $(MONOREPO)/apps/platform-api/proto/orq/platform/v1/$$f.proto proto/orq/platform/v1/; \
@@ -53,6 +70,6 @@ proto-sync:
 	cp $(MONOREPO)/apps/platform-api/proto/openapiv3/annotations.proto proto/openapiv3/; \
 	echo "synced protos from $(MONOREPO)"
 
-openapi-sync:
+openapi-sync: record-source-commit
 	cp $(MONOREPO)/.openapi/v2/public/openapi.json openapi/openapi.json
 	@echo "synced openapi.json from $(MONOREPO)"

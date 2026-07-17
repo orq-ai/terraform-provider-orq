@@ -6,15 +6,59 @@
 #
 # Only router-entity domains are generated here (guardrail-rules, routing-rules,
 # policies, models, workspace-models). Everything else in the provider goes over
-# Connect. include-tags prunes operations; unused schemas are pruned by default.
+# Connect.
+#
+# Generation is scoped by an EXACT operation-ID allowlist rather than by tag.
+# The `Models` tag also covers `GET /v3/router/models` (operationId
+# `list-models`), the OpenAI-compatible router garden endpoint, which is NOT a
+# phase-1 provider surface; a tag include would pull it (and its transitive
+# schemas) in. Listing operationIds explicitly keeps the generated client to the
+# intended `/v2/{models,workspace-models}` + guardrail/routing/policy surface.
+# Unused schemas are pruned by default. Keep this list in sync as phase-1 grows.
 package: restgen
 output: internal/restgen/client.gen.go
 generate:
   models: true
   client: true
 output-options:
-  include-tags:
-    - Guardrail Rules
-    - Routing Rules
-    - Policies
-    - Models
+  include-operation-ids:
+    # Guardrail Rules (/v2/guardrail-rules)
+    - GuardrailRuleList
+    - GuardrailRuleCreate
+    - GuardrailRuleListUsedGuardrails
+    - GuardrailRuleGet
+    - GuardrailRuleUpdate
+    - GuardrailRuleDelete
+    # Routing Rules (/v2/routing-rules)
+    - RoutingRuleList
+    - RoutingRuleCreate
+    - RoutingRuleListUsedModels
+    - RoutingRuleGet
+    - RoutingRuleUpdate
+    - RoutingRuleDelete
+    # Policies (/v2/policies)
+    - PolicyList
+    - PolicyCreate
+    - PolicyGet
+    - PolicyUpdate
+    - PolicyDelete
+    # Models (/v2/models) — router-entity CRUD, NOT /v3/router/models
+    - ModelList
+    - ModelCreate
+    - ModelUpdate
+    - ModelDelete
+    - ModelValidate
+    - ModelCreateAutorouter
+    - ModelUpdateAutorouter
+    - ModelCreateAwsBedrock
+    - ModelUpdateAwsBedrock
+    - ModelValidateAwsBedrock
+    - ModelCreateOpenAILike
+    - ModelUpdateOpenAILike
+    - ModelCreateVertex
+    - ModelAzureFoundryDeployments
+    - ModelLiteLLMImport
+    - ModelListLitellm
+    # Workspace Models (/v2/workspace-models)
+    - ModelEnable
+    - ModelDisable

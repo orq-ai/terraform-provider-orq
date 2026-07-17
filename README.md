@@ -68,7 +68,18 @@ monorepo (`../orquesta-web` by default; override `MONOREPO=`):
 - `proto/orq/{authz,apikeys,managementkeys}/**` ← `libs/catalog/orq/...`
 - `openapi/openapi.json` ← `.openapi/v2/public/openapi.json`
 
-Re-sync with `make proto-sync` / `make openapi-sync`, then `make generate`.
+Re-sync with `make proto-sync` / `make openapi-sync`, then `make generate`. Each
+sync stamps [`SOURCE_COMMIT`](./SOURCE_COMMIT) with the exact orquesta-web git
+revision the copies were taken from, so drift between this repo's committed
+snapshot and the monorepo is auditable.
+
+Codegen is byte-for-byte reproducible: the buf remote plugin versions are pinned
+in `buf.gen.yaml` (`protocolbuffers/go`, `connectrpc/gosimple`), the buf CLI is
+pinned in `.github/workflows/ci.yml`, and `oapi-codegen` is pinned via `go tool`.
+`buf.gen.yaml` sets `clean: true` so a proto removed from the sync leaves no
+orphaned `*.pb.go`. The REST client is scoped by an exact operation-ID allowlist
+in `openapi/oapi-codegen.yaml` (not a tag include) so the OpenAI-compatible
+`/v3/router/models` garden endpoint is not pulled into the provider surface.
 
 ## Make targets
 

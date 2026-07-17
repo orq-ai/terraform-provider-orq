@@ -140,15 +140,15 @@ const file_orq_platform_v1_model_sharing_proto_rawDesc = "" +
 	"\asharing\x18\x02 \x01(\v2\x18.orq.platform.v1.SharingB\x06\xbaH\x03\xc8\x01\x01R\asharing\"h\n" +
 	"\x17SetModelSharingResponse\x12\x19\n" +
 	"\bmodel_id\x18\x01 \x01(\tR\amodelId\x122\n" +
-	"\asharing\x18\x02 \x01(\v2\x18.orq.platform.v1.SharingR\asharing2\xfe\x03\n" +
-	"\x13ModelSharingService\x12\xe6\x03\n" +
-	"\x0fSetModelSharing\x12'.orq.platform.v1.SetModelSharingRequest\x1a(.orq.platform.v1.SetModelSharingResponse\"\xff\x02\xbaG\xb9\x02\n" +
+	"\asharing\x18\x02 \x01(\v2\x18.orq.platform.v1.SharingR\asharing2\x88\x04\n" +
+	"\x13ModelSharingService\x12\xf0\x03\n" +
+	"\x0fSetModelSharing\x12'.orq.platform.v1.SetModelSharingRequest\x1a(.orq.platform.v1.SetModelSharingResponse\"\x89\x03\xbaG\xb9\x02\n" +
 	"\rModel Sharing\x12\x1cSet a model's sharing config\x1azPersists the project sharing config for a workspace model. Exactly one sharing mode must be set (all_projects / selected).*\x0fModelSharingSetj#\n" +
 	"\x11x-speakeasy-group\x12\x0e\x12\fmodelSharingj\"\n" +
 	"\x19x-speakeasy-name-override\x12\x05\x12\x03setj\x16\n" +
 	"\fx-cli-hidden\x12\x06\x12\x04truej\x1c\n" +
-	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x10\n" +
-	"\fmodel.toggle\x10\x02\x82\xd3\xe4\x93\x02(:\asharing\x1a\x1d/v2/models/{model_id}/sharingB\xe6\x03\xbaG\x8a\x02:\x87\x02\n" +
+	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x1a\n" +
+	"\x16workspace-model.update\x10\x02\x82\xd3\xe4\x93\x02(:\asharing\x1a\x1d/v2/models/{model_id}/sharingB\xe6\x03\xbaG\x8a\x02:\x87\x02\n" +
 	"\rModel Sharing\x12\xf5\x01Model sharing controls which projects a workspace model is available to. Workspace admins configure a model's Sharing (all projects / selected projects); the config ships inline on the models list response, so there is no separate read endpoint.\n" +
 	"\x13com.orq.platform.v1B\x11ModelSharingProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"
 

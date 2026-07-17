@@ -8885,6 +8885,39 @@
         ],
         "type": "object"
       },
+      "Config": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_fork": {
+            "type": "boolean"
+          },
+          "allow_version_pin": {
+            "type": "boolean"
+          },
+          "auto_grant_new_projects": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "project_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "mode",
+          "allow_version_pin",
+          "allow_fork",
+          "auto_grant_new_projects"
+        ],
+        "type": "object"
+      },
       "ModelDocument": {
         "additionalProperties": false,
         "properties": {
@@ -8989,6 +9022,9 @@
           },
           "refId": {
             "type": "string"
+          },
+          "sharing": {
+            "$ref": "#/components/schemas/Config"
           },
           "updated": {
             "format": "date-time",
