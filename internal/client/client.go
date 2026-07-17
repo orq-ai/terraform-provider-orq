@@ -57,6 +57,7 @@ type Client struct {
 	routingRules    RoutingRulesAPI
 	apiKeys         APIKeysAPI
 	managementKeys  ManagementKeysAPI
+	models          ModelsAPI
 
 	rest *restgen.ClientWithResponses
 }
@@ -171,6 +172,7 @@ func New(cfg Config) (*Client, error) {
 		routingRules:    &restRoutingRules{c: rest},
 		apiKeys:         &connectAPIKeys{c: apiKeysClient},
 		managementKeys:  &connectManagementKeys{c: managementKeysClient},
+		models:          &restModels{c: rest},
 		rest:            rest,
 	}, nil
 }
@@ -202,3 +204,6 @@ func (c *Client) APIKeys() APIKeysAPI { return c.apiKeys }
 
 // ManagementKeys returns the transport-agnostic management-keys API (Connect-backed).
 func (c *Client) ManagementKeys() ManagementKeysAPI { return c.managementKeys }
+
+// Models returns the transport-agnostic custom-models API (REST-backed).
+func (c *Client) Models() ModelsAPI { return c.models }

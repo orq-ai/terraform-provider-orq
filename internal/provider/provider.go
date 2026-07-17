@@ -152,5 +152,6 @@ func (p *orqProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewPolicyResource,
 		NewAPIKeyResource,
 		NewManagementKeyResource,
+		NewModelResource,
 	}
 }
