@@ -11,15 +11,15 @@ import (
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
 )
 
-// TestResourcesRegistered checks all five first-wave resources are registered
-// and that each builds its schema and resolves its type name without errors.
+// TestResourcesRegistered checks all resources are registered and that each
+// builds its schema and resolves its type name without errors.
 func TestResourcesRegistered(t *testing.T) {
 	ctx := context.Background()
 	p := New("test")()
 
 	factories := p.Resources(ctx)
-	if len(factories) != 5 {
-		t.Fatalf("expected 5 resources, got %d", len(factories))
+	if len(factories) != 9 {
+		t.Fatalf("expected 9 resources, got %d", len(factories))
 	}
 
 	want := map[string]bool{
@@ -28,6 +28,10 @@ func TestResourcesRegistered(t *testing.T) {
 		"orq_notifier":        false,
 		"orq_guardrail_rule":  false,
 		"orq_workspace_model": false,
+		"orq_routing_rule":    false,
+		"orq_policy":          false,
+		"orq_api_key":         false,
+		"orq_management_key":  false,
 	}
 	for _, f := range factories {
 		r := f()

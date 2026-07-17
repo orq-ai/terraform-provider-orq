@@ -54,11 +54,10 @@ type Client struct {
 	guardrailRules  GuardrailRulesAPI
 	workspaceModels WorkspaceModelsAPI
 	policies        PoliciesAPI
+	routingRules    RoutingRulesAPI
+	apiKeys         APIKeysAPI
+	managementKeys  ManagementKeysAPI
 
-	// Wired for the resource set that follows; not all domains have a resource
-	// yet. Kept here so the transport seam is established up front.
-	//   Connect-backed (not yet surfaced): managementKeys, apiKeys, identities
-	//   REST-backed (not yet surfaced):    routingRules
 	rest *restgen.ClientWithResponses
 }
 
@@ -147,6 +146,8 @@ func New(cfg Config) (*Client, error) {
 	budgetsClient := platformv1connect.NewBudgetsServiceClient(connectHTTP, connectURL, connectOpts)
 	notifiersClient := platformv1connect.NewNotifiersServiceClient(connectHTTP, connectURL, connectOpts)
 	modelSharingClient := platformv1connect.NewModelSharingServiceClient(connectHTTP, connectURL, connectOpts)
+	apiKeysClient := platformv1connect.NewApiKeysServiceClient(connectHTTP, connectURL, connectOpts)
+	managementKeysClient := platformv1connect.NewManagementKeysServiceClient(connectHTTP, connectURL, connectOpts)
 
 	// REST transport: shared token injected via an origin-scoped bearer
 	// round-tripper, with the same redirect policy as the Connect client.
@@ -167,6 +168,9 @@ func New(cfg Config) (*Client, error) {
 		guardrailRules:  &restGuardrailRules{c: rest},
 		workspaceModels: &workspaceModels{rest: rest, sharing: modelSharingClient},
 		policies:        &restPolicies{c: rest},
+		routingRules:    &restRoutingRules{c: rest},
+		apiKeys:         &connectAPIKeys{c: apiKeysClient},
+		managementKeys:  &connectManagementKeys{c: managementKeysClient},
 		rest:            rest,
 	}, nil
 }
@@ -187,7 +191,14 @@ func (c *Client) GuardrailRules() GuardrailRulesAPI { return c.guardrailRules }
 // enable/disable + Connect sharing write + inline sharing read).
 func (c *Client) WorkspaceModels() WorkspaceModelsAPI { return c.workspaceModels }
 
-// Policies returns the transport-agnostic policies API (REST-backed). It is the
-// phase-1 proof that the seam and error normalization work identically over the
-// REST transport; the full policy resource arrives in a later task.
+// Policies returns the transport-agnostic policies API (REST-backed).
 func (c *Client) Policies() PoliciesAPI { return c.policies }
+
+// RoutingRules returns the transport-agnostic routing-rules API (REST-backed).
+func (c *Client) RoutingRules() RoutingRulesAPI { return c.routingRules }
+
+// APIKeys returns the transport-agnostic api-keys API (Connect-backed).
+func (c *Client) APIKeys() APIKeysAPI { return c.apiKeys }
+
+// ManagementKeys returns the transport-agnostic management-keys API (Connect-backed).
+func (c *Client) ManagementKeys() ManagementKeysAPI { return c.managementKeys }

@@ -2,7 +2,9 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -99,4 +101,50 @@ func optString(s string) types.String {
 		return types.StringNull()
 	}
 	return types.StringValue(s)
+}
+
+// normalizedToRaw converts a jsontypes.Normalized attribute into raw JSON bytes,
+// or nil when the attribute is null/unknown (so the field is omitted from a
+// sparse write).
+func normalizedToRaw(v jsontypes.Normalized) json.RawMessage {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	return json.RawMessage(v.ValueString())
+}
+
+// rawToNormalized wraps raw JSON bytes into a jsontypes.Normalized value, or a
+// null when empty. jsontypes compares semantically, so key order / whitespace
+// never produce a diff against the operator's config.
+func rawToNormalized(raw json.RawMessage) jsontypes.Normalized {
+	if len(raw) == 0 {
+		return jsontypes.NewNormalizedNull()
+	}
+	return jsontypes.NewNormalizedValue(string(raw))
+}
+
+// stringMap converts a types.Map of strings into a map[string]string. A
+// null/unknown map yields nil.
+func stringMap(ctx context.Context, m types.Map) (map[string]string, diag.Diagnostics) {
+	if m.IsNull() || m.IsUnknown() {
+		return nil, nil
+	}
+	out := make(map[string]string, len(m.Elements()))
+	diags := m.ElementsAs(ctx, &out, false)
+	return out, diags
+}
+
+// stringMapValue builds a types.Map from a map[string]string. A nil/empty map
+// yields a null map so a server that omits the field never reads as an empty
+// (non-null) map and produces a diff.
+func stringMapValue(m map[string]string) types.Map {
+	if len(m) == 0 {
+		return types.MapNull(types.StringType)
+	}
+	elems := make(map[string]types.String, len(m))
+	for k, v := range m {
+		elems[k] = types.StringValue(v)
+	}
+	out, _ := types.MapValueFrom(context.Background(), types.StringType, elems)
+	return out
 }
