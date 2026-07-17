@@ -98,9 +98,15 @@ func (r *routingRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"models_config": schema.StringAttribute{
 				CustomType: jsontypes.NormalizedType{},
 				Optional:   true,
+				Computed:   true,
 				MarkdownDescription: "Model routing configuration as a JSON object string " +
 					"(`{\"mode\":...,\"models\":[...]}`). Compared semantically, so key order and " +
-					"insignificant whitespace do not produce a diff. Preserved across updates.",
+					"insignificant whitespace do not produce a diff. A model with an omitted or " +
+					"zero `weight` is stored by the server with `weight` = 0.5; that default is " +
+					"canonicalized into the plan so config and read-back converge. Preserved across updates.",
+				PlanModifiers: []planmodifier.String{
+					jsonCanonPlanModifier{fn: modelsConfigWeightCanon, retainOnNull: true, description: "canonicalize model weights to the server default"},
+				},
 			},
 			"created_at": schema.StringAttribute{
 				Computed:            true,
@@ -131,7 +137,11 @@ func (r *routingRuleResource) Configure(_ context.Context, req resource.Configur
 func (r *routingRuleResource) apply(g *client.RoutingRule, m *routingRuleResourceModel) {
 	m.ID = types.StringValue(g.ID)
 	m.DisplayName = types.StringValue(g.DisplayName)
-	m.Description = optString(g.Description)
+	// description is Optional+Computed: the server elides an empty description
+	// (omitempty), so a "" config would otherwise read back null and error as an
+	// inconsistent apply. Normalize empty to "" and let Computed absorb an
+	// omitted config (prior state is retained, so no perpetual diff).
+	m.Description = types.StringValue(g.Description)
 	m.Enabled = types.BoolValue(g.Enabled)
 	m.ProjectID = optString(g.ProjectID)
 	m.Priority = types.Int64Value(g.Priority)
@@ -151,6 +161,20 @@ func (m *routingRuleResourceModel) expressionCEL() *string {
 	}
 	s := m.Expression.Cel.ValueString()
 	return &s
+}
+
+// expressionCELForUpdate returns the CEL to send on a sparse update. Unlike
+// create, a removed expression sends an explicit empty string: the server
+// unsets the expression when it receives `expression.cel == ""`
+// (routingrules/routes.go), which is the only way a PATCH can clear it. Without
+// this, dropping the block would leave the server's prior expression in place
+// and drift forever.
+func (m *routingRuleResourceModel) expressionCELForUpdate() *string {
+	if s := m.expressionCEL(); s != nil {
+		return s
+	}
+	empty := ""
+	return &empty
 }
 
 func (r *routingRuleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -208,7 +232,7 @@ func (r *routingRuleResource) Update(ctx context.Context, req resource.UpdateReq
 		Description:   strPtr(plan.Description),
 		Enabled:       boolPtr(plan.Enabled),
 		Priority:      int64Ptr(plan.Priority),
-		ExpressionCEL: plan.expressionCEL(),
+		ExpressionCEL: plan.expressionCELForUpdate(),
 		ModelsConfig:  normalizedToRaw(plan.ModelsConfig),
 	})
 	if err != nil {

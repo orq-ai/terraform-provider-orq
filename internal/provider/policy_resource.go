@@ -105,14 +105,26 @@ func (r *policyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				MarkdownDescription: "Budget / request / token limits as a JSON object string. Compared semantically.",
 			},
 			"models_config": schema.StringAttribute{
-				CustomType:          jsontypes.NormalizedType{},
-				Optional:            true,
-				MarkdownDescription: "Model routing configuration as a JSON object string. Compared semantically.",
+				CustomType: jsontypes.NormalizedType{},
+				Optional:   true,
+				Computed:   true,
+				MarkdownDescription: "Model routing configuration as a JSON object string. Compared semantically. " +
+					"A model with an omitted or zero `weight` is stored by the server with `weight` = 0.5; " +
+					"that default is canonicalized into the plan so config and read-back converge.",
+				PlanModifiers: []planmodifier.String{
+					jsonCanonPlanModifier{fn: modelsConfigWeightCanon, retainOnNull: true, description: "canonicalize model weights to the server default"},
+				},
 			},
 			"retry_config": schema.StringAttribute{
-				CustomType:          jsontypes.NormalizedType{},
-				Optional:            true,
-				MarkdownDescription: "Retry configuration as a JSON object string (`{\"count\":...,\"on_codes\":[...]}`). Compared semantically.",
+				CustomType: jsontypes.NormalizedType{},
+				Optional:   true,
+				Computed:   true,
+				MarkdownDescription: "Retry configuration as a JSON object string (`{\"count\":...,\"on_codes\":[...]}`). " +
+					"Compared semantically. An empty `on_codes` is elided by the server on read; that is " +
+					"canonicalized into the plan so config and read-back converge.",
+				PlanModifiers: []planmodifier.String{
+					jsonCanonPlanModifier{fn: retryConfigOnCodesCanon, retainOnNull: true, description: "canonicalize empty on_codes to the server's elided form"},
+				},
 			},
 			"created_at": schema.StringAttribute{
 				Computed:            true,
@@ -145,14 +157,22 @@ func (r *policyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 							MarkdownDescription: "Fraction of requests to evaluate (0-1).",
 						},
 						"is_guardrail": schema.BoolAttribute{
-							Optional:            true,
-							MarkdownDescription: "Whether this reference is enforced as a guardrail (blocking).",
+							Optional: true,
+							Computed: true,
+							MarkdownDescription: "Whether this reference is enforced as a guardrail (blocking). " +
+								"The server stores a non-pointer bool defaulting to `false` and elides it on read; " +
+								"an omitted value reads back as `false`.",
 						},
 						"options": schema.StringAttribute{
 							CustomType: jsontypes.NormalizedType{},
 							Optional:   true,
+							Computed:   true,
 							MarkdownDescription: "Arbitrary per-evaluator configuration as a JSON object string. " +
-								"Compared semantically. Preserved across updates.",
+								"Compared semantically. An empty object is elided by the server on read; that is " +
+								"canonicalized to null in the plan so config and read-back converge. Preserved across updates.",
+							PlanModifiers: []planmodifier.String{
+								jsonCanonPlanModifier{fn: optionsEmptyToNullCanon, retainOnNull: false, description: "canonicalize an empty options object to null"},
+							},
 						},
 					},
 				},
@@ -207,7 +227,11 @@ func policyEvaluatorsFromModel(models []policyEvaluatorModel) ([]client.Evaluato
 func (r *policyResource) apply(p *client.Policy, m *policyResourceModel) {
 	m.ID = types.StringValue(p.ID)
 	m.DisplayName = types.StringValue(p.DisplayName)
-	m.Description = optString(p.Description)
+	// description is Optional+Computed: the server elides an empty description
+	// (omitempty), so a "" config would otherwise read back null and error as an
+	// inconsistent apply. Normalize empty to "" and let Computed absorb an
+	// omitted config (prior state is retained, so no perpetual diff).
+	m.Description = types.StringValue(p.Description)
 	m.Enabled = types.BoolValue(p.Enabled)
 	m.ProjectID = optString(p.ProjectID)
 	m.Slug = types.StringValue(p.Slug)
@@ -233,10 +257,14 @@ func (r *policyResource) apply(p *client.Policy, m *policyResourceModel) {
 		} else {
 			em.SampleRate = types.Float64Null()
 		}
+		// The server stores is_guardrail as a non-pointer bool defaulting to
+		// false and elides it on read (omitempty), so a nil pointer means false.
+		// Surfacing false (not null) keeps state == an explicit `is_guardrail =
+		// false` config; the attribute is Computed so an omitted config converges.
 		if e.IsGuardrail != nil {
 			em.IsGuardrail = types.BoolValue(*e.IsGuardrail)
 		} else {
-			em.IsGuardrail = types.BoolNull()
+			em.IsGuardrail = types.BoolValue(false)
 		}
 		if e.Options != nil {
 			if b, err := json.Marshal(e.Options); err == nil {
@@ -312,13 +340,24 @@ func (r *policyResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	// Removing every evaluator block must clear them server-side. The server
+	// fully replaces evaluators when the field is present (policies/routes.go),
+	// so send an explicit empty (non-nil) slice — a nil would omit the field and
+	// leave the prior evaluators in place, drifting forever.
+	if evs == nil {
+		evs = []client.EvaluatorRef{}
+	}
 	name := plan.DisplayName.ValueString()
+	// project_id is mutable and clearable: send it explicitly (empty when the
+	// config omits it) so dropping project_id reverts the policy to
+	// workspace-global instead of retaining the server's prior value.
+	projectID := plan.ProjectID.ValueString()
 	p, err := r.policies.Update(ctx, client.PolicyUpdateInput{
 		ID:           plan.ID.ValueString(),
 		DisplayName:  &name,
 		Description:  strPtr(plan.Description),
 		Enabled:      boolPtr(plan.Enabled),
-		ProjectID:    strPtr(plan.ProjectID),
+		ProjectID:    &projectID,
 		Timeout:      int64Ptr(plan.Timeout),
 		Evaluators:   evs,
 		Limits:       normalizedToRaw(plan.Limits),

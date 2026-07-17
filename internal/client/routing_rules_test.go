@@ -18,7 +18,7 @@ func routingRuleJSON(projectID string) map[string]any {
 		"project_id":    projectID,
 		"priority":      5,
 		"expression":    map[string]any{"cel": `model == "gpt-4"`, "config": map[string]any{"x": 1}},
-		"models_config": map[string]any{"mode": "fallback", "models": []any{map[string]any{"id": "m1"}}},
+		"models_config": map[string]any{"mode": "fallback", "models": []any{map[string]any{"model": "m1", "weight": 0.5}}},
 		"created_at":    "2020-01-01T00:00:00Z",
 		"updated_at":    "2020-01-02T00:00:00Z",
 		"created_by_id": "u",
@@ -50,7 +50,7 @@ func TestRoutingRules_CreateRoundTrip(t *testing.T) {
 
 	pid := "proj_7"
 	cel := `model == "gpt-4"`
-	mc := json.RawMessage(`{"mode":"fallback","models":[{"id":"m1"}]}`)
+	mc := json.RawMessage(`{"mode":"fallback","models":[{"model":"m1"}]}`)
 	rule, err := c.RoutingRules().Create(context.Background(), RoutingRuleCreateInput{
 		DisplayName:   "route",
 		ProjectID:     &pid,

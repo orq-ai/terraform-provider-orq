@@ -63,6 +63,41 @@ func TestMapConnectError_TransportPathNoLeak(t *testing.T) {
 	}
 }
 
+// TestMapRESTStatus_NoTransportLeak proves a non-2xx REST status renders a
+// transport-neutral message: it never embeds "HTTP", the numeric status, or the
+// raw response body/HTML, while the status+body stay reachable via errors.As on
+// the wrapped error for callers that want the detail.
+func TestMapRESTStatus_NoTransportLeak(t *testing.T) {
+	body := []byte(`<html><body>500 Internal Server Error: upstream boom</body></html>`)
+	e := mapRESTStatus(500, body)
+
+	if CodeOf(e) != CodeInternal {
+		t.Errorf("code = %v, want %v", CodeOf(e), CodeInternal)
+	}
+	msg := e.Error()
+	for _, leak := range []string{"HTTP", "500", "<html>", "boom", "Internal Server Error"} {
+		if strings.Contains(msg, leak) {
+			t.Errorf("rendered message leaks %q: %q", leak, msg)
+		}
+	}
+	// The underlying detail must stay reachable (not rendered, but unwrappable).
+	if errors.Unwrap(e) == nil {
+		t.Error("wrapped detail must remain reachable via errors.Unwrap")
+	}
+}
+
+// TestMapRESTStatus_NeutralPhrasePerCode proves the neutral phrase reflects the
+// normalized code without naming the transport.
+func TestMapRESTStatus_NeutralPhrasePerCode(t *testing.T) {
+	e := mapRESTStatus(404, nil)
+	if CodeOf(e) != CodeNotFound {
+		t.Errorf("code = %v, want %v", CodeOf(e), CodeNotFound)
+	}
+	if !strings.Contains(e.Error(), "not found") {
+		t.Errorf("expected a neutral not-found phrase, got %q", e.Error())
+	}
+}
+
 // TestMapConnectError_ServerErrorKeepsMessage proves a genuine connect.Error
 // (server response) still surfaces the server-supplied message and mapped code.
 func TestMapConnectError_ServerErrorKeepsMessage(t *testing.T) {

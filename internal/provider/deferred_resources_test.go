@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/defaults"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
@@ -128,5 +131,60 @@ func TestPolicyEvaluatorsModelRoundTrip(t *testing.T) {
 	if !eq {
 		t.Errorf("options did not round-trip: in=%s out=%s",
 			models[0].Options.ValueString(), back.Evaluators[0].Options.ValueString())
+	}
+}
+
+// TestPolicyEvaluatorIsGuardrailFalseConverges proves a server read-back that
+// elides is_guardrail (a nil pointer, meaning the non-pointer server bool
+// defaulted to false) surfaces as an explicit `false`, so it converges with an
+// operator's `is_guardrail = false` config instead of reading back null.
+func TestPolicyEvaluatorIsGuardrailFalseConverges(t *testing.T) {
+	res := &policyResource{}
+	var m policyResourceModel
+	res.apply(&client.Policy{
+		ID:         "pol_1",
+		Evaluators: []client.EvaluatorRef{{ID: "ev_1", ExecuteOn: "input", IsGuardrail: nil}},
+	}, &m)
+	if len(m.Evaluators) != 1 {
+		t.Fatalf("expected 1 evaluator, got %d", len(m.Evaluators))
+	}
+	if m.Evaluators[0].IsGuardrail.IsNull() {
+		t.Error("elided is_guardrail must read back as an explicit false, not null")
+	}
+	if m.Evaluators[0].IsGuardrail.ValueBool() {
+		t.Error("elided is_guardrail must read back as false")
+	}
+}
+
+// TestKeyPermissionModeSchemaDefaultsToAll proves both key resources default
+// permission_mode to the ALL enum so an omitted value never reaches the server
+// as UNSPECIFIED (which the server rejects on create).
+func TestKeyPermissionModeSchemaDefaultsToAll(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name string
+		res  resource.Resource
+		want string
+	}{
+		{"api_key", NewAPIKeyResource(), client.PermissionModeAll},
+		{"management_key", NewManagementKeyResource(), client.ManagementPermissionModeAll},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var sch resource.SchemaResponse
+			tc.res.Schema(ctx, resource.SchemaRequest{}, &sch)
+			attr, ok := sch.Schema.Attributes["permission_mode"].(schema.StringAttribute)
+			if !ok {
+				t.Fatalf("permission_mode is not a StringAttribute")
+			}
+			if attr.Default == nil {
+				t.Fatal("permission_mode must declare a schema Default")
+			}
+			dresp := defaults.StringResponse{}
+			attr.Default.DefaultString(ctx, defaults.StringRequest{}, &dresp)
+			if dresp.PlanValue.ValueString() != tc.want {
+				t.Errorf("default = %q, want %q", dresp.PlanValue.ValueString(), tc.want)
+			}
+		})
 	}
 }

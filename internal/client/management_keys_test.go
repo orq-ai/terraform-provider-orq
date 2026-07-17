@@ -96,6 +96,27 @@ func TestManagementKeys_CreateReturnsOneTimeToken(t *testing.T) {
 	}
 }
 
+// TestManagementKeys_CreateDefaultsPermissionModeToAll proves an omitted
+// permission mode is coerced to ALL on the wire. The server rejects the zero
+// UNSPECIFIED enum on create (management-keys/connect_routes.go), so the adapter
+// must never send it.
+func TestManagementKeys_CreateDefaultsPermissionModeToAll(t *testing.T) {
+	key := &platformv1.ManagementKey{
+		ManagementKeyId: "mk_2",
+		Name:            "defaulted",
+		PermissionMode:  platformv1.ManagementPermissionMode_MANAGEMENT_PERMISSION_MODE_ALL,
+	}
+	h := &fakeManagementKeysHandler{key: key, token: "tok"}
+	c := newManagementKeysClient(t, h)
+
+	if _, err := c.ManagementKeys().Create(context.Background(), ManagementKeyCreateInput{Name: "defaulted"}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if got := h.lastCreate.GetPermissionMode(); got != platformv1.ManagementPermissionMode_MANAGEMENT_PERMISSION_MODE_ALL {
+		t.Errorf("omitted permission_mode must be sent as ALL, got %v", got)
+	}
+}
+
 func TestManagementKeys_UpdateClearsExpiry(t *testing.T) {
 	h := &fakeManagementKeysHandler{key: sampleManagementKey()}
 	c := newManagementKeysClient(t, h)

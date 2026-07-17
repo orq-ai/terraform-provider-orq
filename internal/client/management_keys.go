@@ -47,7 +47,8 @@ type ManagementKeyPage struct {
 }
 
 // ManagementKeyCreateInput carries the fields for a create. An empty
-// PermissionMode lets the server apply its default (ALL).
+// PermissionMode is coerced to ALL by Create (the server rejects UNSPECIFIED on
+// create rather than defaulting it).
 type ManagementKeyCreateInput struct {
 	Name           string
 	PermissionMode string
@@ -183,6 +184,14 @@ func (c *connectManagementKeys) Get(ctx context.Context, id string) (*Management
 }
 
 func (c *connectManagementKeys) Create(ctx context.Context, in ManagementKeyCreateInput) (*ManagementKeyCreateResult, error) {
+	// Defensively coerce an omitted permission mode to ALL. The server rejects
+	// the zero UNSPECIFIED enum on create (management-keys/connect_routes.go —
+	// fails closed rather than defaulting), so an empty mode must never reach the
+	// wire as UNSPECIFIED. The schema also defaults this to ALL, so this is a
+	// belt-and-suspenders guard for any non-schema caller.
+	if in.PermissionMode == "" {
+		in.PermissionMode = ManagementPermissionModeAll
+	}
 	mode, err := mgmtPermissionModeToProto(in.PermissionMode)
 	if err != nil {
 		return nil, err

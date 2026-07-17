@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -73,6 +74,10 @@ func (r *apiKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Computed: true,
 				MarkdownDescription: "Permission preset. One of `PERMISSION_MODE_ALL`, `PERMISSION_MODE_RESTRICTED`, " +
 					"`PERMISSION_MODE_READ_ONLY`. Defaults to `PERMISSION_MODE_ALL`.",
+				// The server rejects an omitted (UNSPECIFIED) permission mode on
+				// create, so default it here rather than relying on a server-side
+				// default that does not exist.
+				Default: stringdefault.StaticString(client.PermissionModeAll),
 				Validators: []validator.String{
 					stringvalidator.OneOf(client.PermissionModeAll, client.PermissionModeRestricted, client.PermissionModeReadOnly),
 				},
@@ -171,7 +176,16 @@ func (r *apiKeyResource) apply(k *client.APIKey, m *apiKeyResourceModel) {
 		m.ProjectID = optString(k.ProjectID)
 	}
 	m.PermissionMode = optString(k.PermissionMode)
-	m.Access = stringMapValue(k.Access)
+	// Only surface access when the key is RESTRICTED. After a RESTRICTED→ALL/
+	// READ_ONLY switch the server retains the prior access map (a nil access in
+	// the sparse update means "keep"), which would otherwise read back as a
+	// non-null map against a null config and drift forever. ValidateConfig
+	// already forbids access unless RESTRICTED, so null here matches config.
+	if k.PermissionMode == client.PermissionModeRestricted {
+		m.Access = stringMapValue(k.Access)
+	} else {
+		m.Access = types.MapNull(types.StringType)
+	}
 	m.ExpiresAt = rfc3339InstantValue(k.ExpiresAt)
 	m.TokenPrefix = types.StringValue(k.TokenPrefix)
 	m.Status = types.StringValue(k.Status)

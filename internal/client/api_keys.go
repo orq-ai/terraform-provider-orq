@@ -207,6 +207,14 @@ func (c *connectAPIKeys) Get(ctx context.Context, id string) (*APIKey, error) {
 }
 
 func (c *connectAPIKeys) Create(ctx context.Context, in APIKeyCreateInput) (*APIKeyCreateResult, error) {
+	// Defensively coerce an omitted permission mode to ALL. The server rejects
+	// the zero UNSPECIFIED enum on create (api-keys/connect_routes.go — fails
+	// closed rather than defaulting), so an empty mode must never reach the wire
+	// as UNSPECIFIED. The schema also defaults this to ALL, so this is a
+	// belt-and-suspenders guard for any non-schema caller.
+	if in.PermissionMode == "" {
+		in.PermissionMode = PermissionModeAll
+	}
 	mode, err := apiKeyPermissionModeToProto(in.PermissionMode)
 	if err != nil {
 		return nil, err

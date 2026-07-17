@@ -19,8 +19,8 @@ func policyJSON(projectID string) map[string]any {
 		"slug":          "prod-policy",
 		"timeout":       300000,
 		"evaluators":    []map[string]any{{"id": "ev_1", "execute_on": "input", "sample_rate": 0.5, "options": map[string]any{"k": "v"}}},
-		"limits":        map[string]any{"requests": map[string]any{"amount": 10, "period": "minute"}},
-		"models_config": map[string]any{"mode": "fallback", "models": []any{map[string]any{"id": "m1"}}},
+		"limits":        map[string]any{"requests": map[string]any{"amount": 10, "period": "day"}},
+		"models_config": map[string]any{"mode": "fallback", "models": []any{map[string]any{"model": "m1", "weight": 0.5}}},
 		"retry_config":  map[string]any{"count": 2, "on_codes": []any{429, 503}},
 		"created_at":    "2020-01-01T00:00:00Z",
 		"updated_at":    "2020-01-02T00:00:00Z",
@@ -56,8 +56,8 @@ func TestPolicies_CreateRoundTrip(t *testing.T) {
 		DisplayName:  "prod policy",
 		ProjectID:    &pid,
 		Evaluators:   []EvaluatorRef{{ID: "ev_1", ExecuteOn: "input", Options: map[string]any{"k": "v"}}},
-		Limits:       json.RawMessage(`{"requests":{"amount":10,"period":"minute"}}`),
-		ModelsConfig: json.RawMessage(`{"mode":"fallback","models":[{"id":"m1"}]}`),
+		Limits:       json.RawMessage(`{"requests":{"amount":10,"period":"day"}}`),
+		ModelsConfig: json.RawMessage(`{"mode":"fallback","models":[{"model":"m1"}]}`),
 		RetryConfig:  json.RawMessage(`{"count":2,"on_codes":[429,503]}`),
 	})
 	if err != nil {

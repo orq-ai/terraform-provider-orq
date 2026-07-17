@@ -121,6 +121,27 @@ func TestAPIKeys_CreateAllProjectsWhenNoProjectID(t *testing.T) {
 	}
 }
 
+// TestAPIKeys_CreateDefaultsPermissionModeToAll proves an omitted permission
+// mode is coerced to ALL on the wire. The server rejects the zero UNSPECIFIED
+// enum on create (api-keys/connect_routes.go), so the adapter must never send it.
+func TestAPIKeys_CreateDefaultsPermissionModeToAll(t *testing.T) {
+	all := &platformv1.ApiKey{
+		ApiKeyId:       "ak_3",
+		Name:           "defaulted",
+		PermissionMode: platformv1.PermissionMode_PERMISSION_MODE_ALL,
+		ProjectScope:   &platformv1.ProjectScope{Kind: &platformv1.ProjectScope_All{All: &platformv1.AllProjects{}}},
+	}
+	h := &fakeAPIKeysHandler{key: all, token: "tok"}
+	c := newAPIKeysClient(t, h)
+
+	if _, err := c.APIKeys().Create(context.Background(), APIKeyCreateInput{Name: "defaulted"}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if got := h.lastCreate.GetPermissionMode(); got != platformv1.PermissionMode_PERMISSION_MODE_ALL {
+		t.Errorf("omitted permission_mode must be sent as ALL, got %v", got)
+	}
+}
+
 func TestAPIKeys_UpdateReconcilesScope(t *testing.T) {
 	h := &fakeAPIKeysHandler{key: sampleAPIKeySingleProject()}
 	c := newAPIKeysClient(t, h)

@@ -100,19 +100,48 @@ func connectCodeToCode(c connect.Code) Code {
 }
 
 // mapRESTStatus normalizes a non-2xx HTTP status from a REST adapter. body is
-// the raw response body (may be nil) and is folded into the message on a
-// best-effort basis. Only call this for status >= 300.
+// the raw response body (may be nil). Only call this for status >= 300.
+//
+// The rendered Message is transport-neutral: it never embeds "HTTP", the numeric
+// status, a route, or the raw response body/HTML, so a diagnostic built from it
+// does not leak the wire protocol across the client seam (mirroring the Connect
+// path). The status and (capped) body are preserved on a wrapped error that stays
+// reachable via errors.Is/As for callers that want the gory detail — but that
+// wrapped error is never folded into Message.
 func mapRESTStatus(status int, body []byte) error {
 	code := httpStatusToCode(status)
-	msg := fmt.Sprintf("HTTP %d %s", status, http.StatusText(status))
+	var underlying error
 	if trimmed := strings.TrimSpace(string(body)); trimmed != "" {
-		// Cap the body so a large HTML error page can't flood a diagnostic.
+		// Cap the body so a large HTML error page can't flood a wrapped detail.
 		if len(trimmed) > 512 {
 			trimmed = trimmed[:512] + "…"
 		}
-		msg = msg + ": " + trimmed
+		underlying = fmt.Errorf("status %d: %s", status, trimmed)
+	} else {
+		underlying = fmt.Errorf("status %d", status)
 	}
-	return &Error{Code: code, Message: msg}
+	return &Error{Code: code, Message: neutralRESTMessage(code), err: underlying}
+}
+
+// neutralRESTMessage renders a transport-neutral human phrase for a normalized
+// code. It names neither the wire protocol nor the route/body.
+func neutralRESTMessage(code Code) string {
+	switch code {
+	case CodeUnauthenticated:
+		return "the request was not authenticated"
+	case CodePermissionDenied:
+		return "the request was not authorized"
+	case CodeNotFound:
+		return "the requested resource was not found"
+	case CodeConflict:
+		return "the request conflicts with the current state of the resource"
+	case CodeInvalid:
+		return "the request was rejected as invalid"
+	case CodeUnavailable:
+		return "the service is temporarily unavailable"
+	default:
+		return "the request failed"
+	}
 }
 
 func httpStatusToCode(status int) Code {
