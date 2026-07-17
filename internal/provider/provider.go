@@ -142,6 +142,11 @@ func (p *orqProvider) DataSources(_ context.Context) []func() datasource.DataSou
 }
 
 func (p *orqProvider) Resources(_ context.Context) []func() resource.Resource {
-	// Full resource set arrives in a later task.
-	return nil
+	return []func() resource.Resource{
+		NewProjectResource,
+		NewBudgetResource,
+		NewNotifierResource,
+		NewGuardrailRuleResource,
+		NewWorkspaceModelResource,
+	}
 }

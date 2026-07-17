@@ -48,13 +48,17 @@ type Config struct {
 // this and reach domains through the accessor methods (Projects(), ...), never
 // through connect-go or restgen types directly.
 type Client struct {
-	projects ProjectsAPI
-	policies PoliciesAPI
+	projects        ProjectsAPI
+	budgets         BudgetsAPI
+	notifiers       NotifiersAPI
+	guardrailRules  GuardrailRulesAPI
+	workspaceModels WorkspaceModelsAPI
+	policies        PoliciesAPI
 
-	// Wired for the phase-1 resource set that follows; unused by the current
-	// smoke test. Kept here so the transport seam is established up front.
-	//   Connect-backed: budgets, notifiers, managementKeys, modelSharing, apiKeys, identities
-	//   REST-backed:    guardrailRules, routingRules, models, workspaceModels
+	// Wired for the resource set that follows; not all domains have a resource
+	// yet. Kept here so the transport seam is established up front.
+	//   Connect-backed (not yet surfaced): managementKeys, apiKeys, identities
+	//   REST-backed (not yet surfaced):    routingRules
 	rest *restgen.ClientWithResponses
 }
 
@@ -140,6 +144,9 @@ func New(cfg Config) (*Client, error) {
 	connectURL := baseStr + connectBasePath
 
 	projectsClient := platformv1connect.NewProjectsServiceClient(connectHTTP, connectURL, connectOpts)
+	budgetsClient := platformv1connect.NewBudgetsServiceClient(connectHTTP, connectURL, connectOpts)
+	notifiersClient := platformv1connect.NewNotifiersServiceClient(connectHTTP, connectURL, connectOpts)
+	modelSharingClient := platformv1connect.NewModelSharingServiceClient(connectHTTP, connectURL, connectOpts)
 
 	// REST transport: shared token injected via an origin-scoped bearer
 	// round-tripper, with the same redirect policy as the Connect client.
@@ -154,14 +161,31 @@ func New(cfg Config) (*Client, error) {
 	}
 
 	return &Client{
-		projects: &connectProjects{c: projectsClient},
-		policies: &restPolicies{c: rest},
-		rest:     rest,
+		projects:        &connectProjects{c: projectsClient},
+		budgets:         &connectBudgets{c: budgetsClient},
+		notifiers:       &connectNotifiers{c: notifiersClient},
+		guardrailRules:  &restGuardrailRules{c: rest},
+		workspaceModels: &workspaceModels{rest: rest, sharing: modelSharingClient},
+		policies:        &restPolicies{c: rest},
+		rest:            rest,
 	}, nil
 }
 
 // Projects returns the transport-agnostic projects API (Connect-backed).
 func (c *Client) Projects() ProjectsAPI { return c.projects }
+
+// Budgets returns the transport-agnostic budgets API (Connect-backed).
+func (c *Client) Budgets() BudgetsAPI { return c.budgets }
+
+// Notifiers returns the transport-agnostic notifiers API (Connect-backed).
+func (c *Client) Notifiers() NotifiersAPI { return c.notifiers }
+
+// GuardrailRules returns the transport-agnostic guardrail-rules API (REST-backed).
+func (c *Client) GuardrailRules() GuardrailRulesAPI { return c.guardrailRules }
+
+// WorkspaceModels returns the transport-agnostic workspace-models API (REST
+// enable/disable + Connect sharing write + inline sharing read).
+func (c *Client) WorkspaceModels() WorkspaceModelsAPI { return c.workspaceModels }
 
 // Policies returns the transport-agnostic policies API (REST-backed). It is the
 // phase-1 proof that the seam and error normalization work identically over the

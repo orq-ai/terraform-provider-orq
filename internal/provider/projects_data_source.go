@@ -21,12 +21,20 @@ func NewProjectsDataSource() datasource.DataSource {
 	return &projectsDataSource{}
 }
 
+// projectLister is the read-only slice of the projects domain this data source
+// needs. Depending on List alone (not the full client.ProjectsAPI, which also
+// carries the write methods the resource uses) keeps the data source's surface
+// minimal and its fakes tiny.
+type projectLister interface {
+	List(ctx context.Context, params client.ListParams) (*client.ProjectPage, error)
+}
+
 // projectsDataSource is a minimal read-only data source that lists projects. It
 // is the end-to-end smoke test of the client interface + auth transport. It
-// holds ONLY its narrow domain interface (client.ProjectsAPI), never the
-// concrete *client.Client, so the resource layer stays transport-agnostic.
+// holds ONLY its narrow domain interface, never the concrete *client.Client, so
+// the resource layer stays transport-agnostic.
 type projectsDataSource struct {
-	projects client.ProjectsAPI
+	projects projectLister
 }
 
 // projectsPageLimit is the per-request page size for the paginated list. The

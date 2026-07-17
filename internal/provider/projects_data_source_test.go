@@ -59,7 +59,7 @@ func (f *errProjects) List(_ context.Context, _ client.ListParams) (*client.Proj
 
 // runRead drives the data source Read against a fake and returns the resulting
 // state model + diagnostics.
-func runRead(t *testing.T, api client.ProjectsAPI) (projectsDataSourceModel, tfsdk.State, *datasource.ReadResponse) {
+func runRead(t *testing.T, api projectLister) (projectsDataSourceModel, tfsdk.State, *datasource.ReadResponse) {
 	t.Helper()
 	ctx := context.Background()
 	d := &projectsDataSource{projects: api}

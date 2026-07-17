@@ -8885,7 +8885,7 @@
         ],
         "type": "object"
       },
-      "Config": {
+      "ModelSharingConfig": {
         "additionalProperties": false,
         "properties": {
           "allow_fork": {
@@ -9024,7 +9024,7 @@
             "type": "string"
           },
           "sharing": {
-            "$ref": "#/components/schemas/Config"
+            "$ref": "#/components/schemas/ModelSharingConfig"
           },
           "updated": {
             "format": "date-time",

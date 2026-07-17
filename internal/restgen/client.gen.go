@@ -250,15 +250,6 @@ type BudgetLimitCurrency string
 // BudgetLimitPeriod defines model for BudgetLimit.Period.
 type BudgetLimitPeriod string
 
-// Config defines model for Config.
-type Config struct {
-	AllowFork            bool      `json:"allow_fork"`
-	AllowVersionPin      bool      `json:"allow_version_pin"`
-	AutoGrantNewProjects bool      `json:"auto_grant_new_projects"`
-	Mode                 string    `json:"mode"`
-	ProjectIds           *[]string `json:"project_ids,omitempty"`
-}
-
 // CreateModelParameter defines model for CreateModelParameter.
 type CreateModelParameter struct {
 	Config        map[string]interface{} `json:"config"`
@@ -415,7 +406,7 @@ type ModelDocument struct {
 	PricingUrl           *string                    `json:"pricing_url"`
 	Provider             string                     `json:"provider"`
 	RefId                string                     `json:"refId"`
-	Sharing              *Config                    `json:"sharing,omitempty"`
+	Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
 	Updated              time.Time                  `json:"updated"`
 }
 
@@ -555,6 +546,15 @@ type ModelRef struct {
 	IntegrationId *string  `json:"integration_id,omitempty"`
 	Model         string   `json:"model"`
 	Weight        *float64 `json:"weight,omitempty"`
+}
+
+// ModelSharingConfig defines model for ModelSharingConfig.
+type ModelSharingConfig struct {
+	AllowFork            bool      `json:"allow_fork"`
+	AllowVersionPin      bool      `json:"allow_version_pin"`
+	AutoGrantNewProjects bool      `json:"auto_grant_new_projects"`
+	Mode                 string    `json:"mode"`
+	ProjectIds           *[]string `json:"project_ids,omitempty"`
 }
 
 // ModelsConfig defines model for ModelsConfig.
