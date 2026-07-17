@@ -1,0 +1,36 @@
+# CI for terraform-provider-orq.
+#
+# NOTE: not active until the GitHub upstream orq-ai/terraform-provider-orq
+# exists. Kept in-repo so it runs the moment the repo is pushed. It enforces
+# that generated code is reproducible (never hand-edited): `make check-generated`
+# regenerates both clients and fails on any diff.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - uses: bufbuild/buf-setup-action@v1
+
+      - name: Verify generated code is reproducible
+        run: make check-generated
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: make build
+
+      - name: Test
+        run: make test

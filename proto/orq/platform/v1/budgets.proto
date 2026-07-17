@@ -1,0 +1,689 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Budgets"
+      description: "Budgets govern spend, token usage, and request rate across six scopes: workspace, project, identity, api-key, provider, and model. A budget is hierarchical and defense-in-depth — every applicable budget is a hard gate, and the most restrictive one wins per dimension (see ADR 0007)."
+    }
+  ]
+};
+
+service BudgetsService {
+  rpc CreateBudget(CreateBudgetRequest) returns (CreateBudgetResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "budget.create"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v2/budgets"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create a new budget"
+      description: "Creates a new budget in the workspace. Exactly one scope variant must be set (workspace / project / identity / api_key / provider / model). At least one of `limits.amount`, `limits.token_limit`, or `rate_limit.requests_per_minute` MUST be provided. Uniqueness is enforced across (workspace_id, scope_kind, scope_target_id)."
+      operation_id: "BudgetCreate"
+      tags: ["Budgets"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "budgets"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "create"}
+        },
+        {
+          name: "x-code-samples"
+          value: {yaml:
+              "- lang: typescript\n"
+              "  label: \"Node.js\"\n"
+              "  source: |\n"
+              "    await orq.budgets.create({ scope: { kind: \"workspace\" }, limits: { period: \"MONTHLY\", amount: 1000 } });\n"
+}
+        }
+      ]
+    };
+  }
+
+  rpc GetBudget(GetBudgetRequest) returns (GetBudgetResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "budget.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/budgets/{budget_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a budget"
+      description: "Retrieves the metadata for an existing budget by its unique identifier. Returns `NotFound` when the budget does not exist in the caller's workspace."
+      operation_id: "BudgetGet"
+      tags: ["Budgets"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "budgets"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        }
+      ]
+    };
+  }
+
+  rpc ListBudgets(ListBudgetsRequest) returns (ListBudgetsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "budget.list"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/budgets"};
+    option (openapi.v3.operation) = {
+      summary: "List budgets"
+      description: "Returns budgets visible to the current workspace, ordered by creation time with the newest first. Supports filtering by scope kind, scope target id, period, and active state, plus an optional free-text query that searches across denormalized target names via Typesense."
+      operation_id: "BudgetList"
+      tags: ["Budgets"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "budgets"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "list"}
+        }
+      ]
+    };
+  }
+
+  rpc UpdateBudget(UpdateBudgetRequest) returns (UpdateBudgetResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "budget.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      patch: "/v2/budgets/{budget_id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update a budget"
+      description: "Updates mutable fields of a budget: limits, rate limit, activation, and expiration. The scope is immutable — to change a budget's target, delete and recreate it. Omitted fields keep their current values."
+      operation_id: "BudgetUpdate"
+      tags: ["Budgets"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "budgets"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        }
+      ]
+    };
+  }
+
+  rpc DeleteBudget(DeleteBudgetRequest) returns (DeleteBudgetResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "budget.delete"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v2/budgets/{budget_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete a budget"
+      description: "Permanently deletes a budget. Consumption counters in Redis for this budget are cleared immediately. The response body is empty on success."
+      operation_id: "BudgetDelete"
+      tags: ["Budgets"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "budgets"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        }
+      ]
+    };
+  }
+
+  rpc ResetBudgetConsumption(ResetBudgetConsumptionRequest) returns (ResetBudgetConsumptionResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "budget.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v2/budgets/{budget_id}/reset-consumption"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Reset budget consumption"
+      description: "Clears the current-period cost, token, and request counters for the budget. The budget record itself is preserved; only the Redis counters are reset."
+      operation_id: "BudgetResetConsumption"
+      tags: ["Budgets"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "budgets"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "resetConsumption"}
+        }
+      ]
+    };
+  }
+
+  rpc GetBudgetConsumption(GetBudgetConsumptionRequest) returns (GetBudgetConsumptionResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "budget.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/budgets/{budget_id}/consumption"};
+    option (openapi.v3.operation) = {
+      summary: "Get current-period consumption"
+      description: "Returns the current-period cost, token, and per-minute request counters for the budget. Values reflect the live Redis state for the active period bucket."
+      operation_id: "BudgetGetConsumption"
+      tags: ["Budgets"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "budgets"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "getConsumption"}
+        }
+      ]
+    };
+  }
+
+  rpc CheckBudgets(CheckBudgetsRequest) returns (CheckBudgetsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: ""
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {
+      post: "/v2/budgets/check"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Check budget enforcement"
+      description: "Internal endpoint used by the gateway to resolve applicable budgets and check enforcement gates for a request. Returns allowed/rejected status with dimension info for rate-limit headers."
+      operation_id: "BudgetCheck"
+      tags: ["Budgets"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "budgets"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "check"}
+        }
+      ]
+    };
+  }
+}
+
+// Budget is the canonical record stored in MongoDB `budgets.entities`.
+// It replaces the embedded `constraints.budget` on api-keys and the
+// legacy CONTACT-only `budgets.configs` collection (see ADR 0007).
+message Budget {
+  string budget_id = 1;
+
+  // Denormalized metadata for UI rendering, list filters, and the
+  // resolver's prefilter index. Never consulted for matching — the
+  // `match` expression is the single source of matching semantics.
+  // Unset for budgets created from a raw CEL expression ("custom").
+  BudgetScope scope = 2;
+
+  // The matching semantics of the budget. The enforcement resolver
+  // evaluates `match.cel` against the request context; a budget
+  // applies to a request if and only if the expression evaluates to
+  // true. Scoped creates derive a canonical expression (e.g.
+  // `provider == "openai"`); an empty expression always matches
+  // (workspace-wide).
+  BudgetMatch match = 9;
+
+  BudgetLimits limits = 3;
+
+  RateLimit rate_limit = 4;
+
+  bool is_active = 5;
+
+  optional google.protobuf.Timestamp expires_at = 6;
+
+  google.protobuf.Timestamp created_at = 7;
+
+  google.protobuf.Timestamp updated_at = 8;
+
+  // Live consumption for the current period, read from the Redis
+  // counters the enforcement gate maintains. Populated by read paths
+  // (Get / List); omitted on write responses (Create / Update / Reset)
+  // where it carries no signal. Absent or all-zero for a budget that
+  // has not been spent against in the current period.
+  optional BudgetUsage usage = 10;
+
+  // Threshold notifications. Absent when the budget has none.
+  repeated BudgetAlert alerts = 11;
+}
+
+// Which limit the threshold is a percentage of. UNSPECIFIED means COST.
+// TOKENS is accepted and persisted but not yet evaluated.
+enum BudgetAlertDimension {
+  BUDGET_ALERT_DIMENSION_UNSPECIFIED = 0;
+  BUDGET_ALERT_DIMENSION_COST = 1;
+  BUDGET_ALERT_DIMENSION_TOKENS = 2;
+}
+
+// Notifies every listed notifier once current-period consumption on
+// `dimension` reaches `threshold_percent` of the matching limit. Each alert
+// fires at most once per period, re-arming on rollover or a limit change.
+// The dimension must have a limit set, or the write is rejected.
+message BudgetAlert {
+  option (openapi.v3.schema) = {
+    required: [
+      "threshold_percent",
+      "notifier_ids"
+    ]
+  };
+
+  // Assigned by ORQ. Supply an existing id to edit that alert in place.
+  string id = 1;
+
+  // Percentage of the dimension's limit at which the alert fires, 1–100.
+  uint32 threshold_percent = 2 [(buf.validate.field).uint32 = {
+    gte: 1
+    lte: 100
+  }];
+
+  // Must be workspace-scoped; project-scoped notifiers are rejected.
+  repeated string notifier_ids = 3 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 10
+    unique: true
+  }];
+
+  // Defaults to COST when unset.
+  BudgetAlertDimension dimension = 4;
+}
+
+// BudgetUsage is the current-period consumption of a budget, sourced
+// from the live Redis counters (not the exact ledger). Each dimension is
+// the consumed side of the matching limit dimension: `amount` is the
+// accumulated cost in USD (vs limits.amount), `tokens` is the accumulated
+// token count (vs limits.token_limit), and `requests` is the count in the
+// rolling 60-second window (vs rate_limit.requests_per_minute). All three
+// are explicit-presence so the triple is always emitted in full, zeros
+// included — a never-spent budget serializes {amount:0, tokens:0,
+// requests:0} rather than dropping its zero dimensions.
+message BudgetUsage {
+  optional double amount = 1;
+  // Carried as a double (not int64) so it serializes as a JSON number
+  // rather than a quoted string, matching limits.token_limit.
+  optional double tokens = 2;
+  optional int32 requests = 3;
+}
+
+// BudgetScope is a closed oneof. Exactly one variant must be set. The
+// six variants are ordered by enforcement precedence (most specific to
+// most general) and mirror the BudgetScopeKind filter enum.
+message BudgetScope {
+  oneof kind {
+    WorkspaceBudgetScope workspace = 1;
+    ProjectBudgetScope project = 2;
+    IdentityBudgetScope identity = 3;
+    ApiKeyBudgetScope api_key = 4;
+    ProviderBudgetScope provider = 5;
+    ModelBudgetScope model = 6;
+  }
+}
+
+// BudgetMatch carries the CEL expression that decides whether a budget
+// applies to a request. Available variables: `model`, `provider`,
+// `model_id`, `api_key`, `identity`, `project`, `metadata` (map),
+// `headers` (map, lowercase keys). An empty expression always matches.
+// Expressions are syntax-validated at write time.
+message BudgetMatch {
+  string cel = 1 [(buf.validate.field).string.max_len = 2048];
+}
+
+// Workspace-wide ceiling. The implicit target is the caller's workspace.
+message WorkspaceBudgetScope {}
+
+// Per-project cap.
+message ProjectBudgetScope {
+  string project_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Per-identity cap. Keyed by the contact's external_id (not the
+// internal Mongo `_id`) so the scope is stable across imports.
+message IdentityBudgetScope {
+  string identity_external_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Per-api-key cap. Replaces the legacy embedded `constraints.budget`
+// on auth.apiKeys.
+message ApiKeyBudgetScope {
+  string api_key_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Per-provider cap. The value is the provider enum string (e.g.
+// "openai", "anthropic") drawn from ModelIntegrationIdentifier.
+message ProviderBudgetScope {
+  string provider = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Per-model cap. The value is the FULL model reference as callers send
+// it ("openai/gpt-4o", or "workspaceKey@openai/gpt-4o" for private
+// models) — NOT the Mongo `_id` of the model master-data document.
+message ModelBudgetScope {
+  string model_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// BudgetLimits is the per-period spend and token ceiling. At least one
+// of `amount`, `token_limit`, or RateLimit.requests_per_minute MUST be
+// set on a Budget; that invariant is enforced by the handler.
+message BudgetLimits {
+  BudgetPeriod period = 1;
+
+  optional double amount = 2 [(buf.validate.field).double.gte = 0];
+
+  // Token ceiling. Carried as a double so it serializes as a JSON number
+  // (proto int64 would serialize as a quoted string); token counts are
+  // whole and well within double's exact-integer range (2^53). Stored as
+  // an integer server-side.
+  optional double token_limit = 3 [(buf.validate.field).double.gte = 0];
+}
+
+// RateLimit is the per-minute request ceiling. Enforced via atomic
+// increment-first semantics in the enforcement middleware.
+message RateLimit {
+  optional int32 requests_per_minute = 1 [(buf.validate.field).int32.gte = 1];
+}
+
+// BudgetPeriod is the rollover cadence for cost and token counters.
+// ONE_TIME budgets never reset and represent a hard lifetime cap.
+enum BudgetPeriod {
+  BUDGET_PERIOD_UNSPECIFIED = 0;
+  BUDGET_PERIOD_DAILY = 1;
+  BUDGET_PERIOD_WEEKLY = 2;
+  BUDGET_PERIOD_MONTHLY = 3;
+  BUDGET_PERIOD_YEARLY = 4;
+  BUDGET_PERIOD_ONE_TIME = 5;
+}
+
+// BudgetScopeKind is the filter-side discriminator for BudgetScope.
+// The stored shape stays the `kind` oneof; this enum exists so list
+// filters can travel as a single repeated field.
+enum BudgetScopeKind {
+  BUDGET_SCOPE_KIND_UNSPECIFIED = 0;
+  BUDGET_SCOPE_KIND_WORKSPACE = 1;
+  BUDGET_SCOPE_KIND_PROJECT = 2;
+  BUDGET_SCOPE_KIND_IDENTITY = 3;
+  BUDGET_SCOPE_KIND_API_KEY = 4;
+  BUDGET_SCOPE_KIND_PROVIDER = 5;
+  BUDGET_SCOPE_KIND_MODEL = 6;
+}
+
+// BudgetSortField selects the field ListBudgets orders by. Each field
+// is paired with `_id` as a tie-breaker so cursor pagination stays
+// stable. UNSPECIFIED falls back to most-recently-updated first.
+enum BudgetSortField {
+  BUDGET_SORT_FIELD_UNSPECIFIED = 0;
+  BUDGET_SORT_FIELD_EXPIRES_AT = 1;
+  BUDGET_SORT_FIELD_CREATED_AT = 2;
+  BUDGET_SORT_FIELD_UPDATED_AT = 3;
+}
+
+// ---------------- Service request / response messages ----------------
+
+message CreateBudgetRequest {
+  // Structured scope. Mutually exclusive with `match`: provide a scope
+  // for the six canonical kinds (the server derives the matching CEL),
+  // or provide `match` for a dynamic budget. Exactly one of the two
+  // must be set; the handler enforces that invariant.
+  BudgetScope scope = 1;
+
+  // Raw CEL matching expression for dynamic budgets (e.g.
+  // `metadata.team == "ml" && provider == "openai"`). Validated via
+  // CEL parse at write time. Mutually exclusive with `scope`.
+  BudgetMatch match = 6;
+
+  // At least one of amount / token_limit / rate_limit.requests_per_minute
+  // must be provided on the budget; the handler enforces that invariant.
+  BudgetLimits limits = 2 [(buf.validate.field).required = true];
+
+  // Optional rate limit.
+  RateLimit rate_limit = 3;
+
+  // Whether the budget should be active immediately. Defaults to true
+  // when omitted (handler enforces).
+  optional bool is_active = 4;
+
+  // Optional expiration. When set in combination with is_active=true,
+  // the value MUST be in the future; the handler rejects past values.
+  optional google.protobuf.Timestamp expires_at = 5;
+
+  // Optional threshold notifications. Ids are assigned by the server, so
+  // `alerts[].id` must be omitted here; supplying one is rejected.
+  repeated BudgetAlert alerts = 7 [(buf.validate.field).repeated.max_items = 10];
+}
+
+message CreateBudgetResponse {
+  // Newly created budget.
+  Budget budget = 1;
+}
+
+message GetBudgetRequest {
+  // Budget id to retrieve.
+  string budget_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetBudgetResponse {
+  // Requested budget.
+  Budget budget = 1;
+}
+
+message ListBudgetsRequest {
+  // Page size, 1–200. Unset uses the server default (25).
+  optional int32 limit = 1 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+
+  // Cursor for forward pagination. Set to the `budget_id` of the last
+  // item from the previous page.
+  string starting_after = 2;
+
+  // Cursor for backward pagination. Set to the `budget_id` of the
+  // first item from the previous page.
+  string ending_before = 3;
+
+  // Optional filter: only return budgets whose scope kind matches one
+  // of the listed values. Empty means no scope-kind filter.
+  repeated BudgetScopeKind scope_kind = 4;
+
+  // Optional filter: only return budgets whose scope target id matches.
+  optional string scope_target_id = 5;
+
+  // Optional filter: only return budgets with this active state.
+  optional bool is_active = 6;
+
+  // Optional filter: only return budgets whose limits.period matches
+  // one of the listed values. Empty means no period filter.
+  repeated BudgetPeriod period = 7;
+
+  // Optional free-text query. Server translates this into a Typesense
+  // search over the denormalized `scope_target_name` and id fields on
+  // the per-workspace `{workspace_id}_budgets` collection.
+  optional string query = 8;
+
+  // Field used to order the list. Unset orders by most-recently-updated.
+  BudgetSortField sort_by = 9;
+}
+
+message ListBudgetsResponse {
+  // Object discriminator for list responses; always `list`.
+  string object = 1;
+
+  // Page of budgets, ordered newest first.
+  repeated Budget data = 2;
+
+  // Whether more budgets are available in the selected pagination
+  // direction.
+  bool has_more = 3;
+}
+
+message UpdateBudgetRequest {
+  // Budget id to update.
+  string budget_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // New limits. Omit to keep current.
+  optional BudgetLimits limits = 2;
+
+  // New rate limit. Omit to keep current.
+  optional RateLimit rate_limit = 3;
+
+  // New active state. Omit to keep current.
+  optional bool is_active = 4;
+
+  // New expiration. Omit to keep current. Set `clear_expires_at = true`
+  // to remove an existing expiration.
+  optional google.protobuf.Timestamp expires_at = 5;
+
+  // Force-clear the expiration. Mutually exclusive with `expires_at`.
+  bool clear_expires_at = 6;
+
+  // New matching expression. Only valid for dynamic budgets (no
+  // structured scope) — the scope of a scoped budget is immutable, so
+  // its derived expression is too. Validated via CEL parse.
+  optional BudgetMatch match = 7;
+
+  // Replaces the alert list wholesale. Omit to keep the current alerts.
+  // An entry with a known `id` is edited in place; one with no id is minted.
+  repeated BudgetAlert alerts = 8 [(buf.validate.field).repeated.max_items = 10];
+
+  // Force-clear every alert. Mutually exclusive with a non-empty `alerts`.
+  bool clear_alerts = 9;
+}
+
+message UpdateBudgetResponse {
+  // Updated budget.
+  Budget budget = 1;
+}
+
+message DeleteBudgetRequest {
+  // Budget id to delete.
+  string budget_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteBudgetResponse {}
+
+message ResetBudgetConsumptionRequest {
+  // Budget id whose current-period counters should be cleared.
+  string budget_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ResetBudgetConsumptionResponse {
+  // Budget after reset. The record itself is unchanged; only counters
+  // were cleared.
+  Budget budget = 1;
+}
+
+message GetBudgetConsumptionRequest {
+  // Budget id whose counters should be returned.
+  string budget_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetBudgetConsumptionResponse {
+  // Budget id whose counters are reported.
+  string budget_id = 1;
+
+  // Period the cost / tokens counters bucket against.
+  BudgetPeriod period = 2;
+
+  // Period bucket label (e.g. "2025-05-27" for DAILY, "2025-05" for
+  // MONTHLY). Empty when no counters exist for the current period.
+  string period_date = 3;
+
+  // Cost accumulated in the current period, in USD.
+  double cost = 4;
+
+  // Tokens accumulated in the current period. Carried as a double (not
+  // int64) so it serializes as a JSON number rather than a quoted
+  // string, matching BudgetUsage.tokens and limits.token_limit.
+  double tokens = 5;
+
+  // Requests counted in the current 60-second rolling window.
+  int32 requests_in_window = 6;
+}
+
+message CheckBudgetsRequest {
+  // API key that issued the request (if any).
+  string api_key_id = 1;
+
+  // Project the request targets (if any).
+  string project_id = 2;
+
+  // Identity external id for contact-scoped budgets (if any).
+  string identity_external_id = 3;
+
+  // Provider enum value for provider-scoped budgets (if any).
+  string provider = 4;
+
+  // Full model reference for model-scoped budgets (if any), exactly as
+  // the caller sent it: "provider/model" or "workspaceKey@provider/model".
+  string model_id = 5;
+
+  // Request metadata forwarded for dynamic-budget matching
+  // (`metadata.team == "ml"`). Free-form JSON object from the request
+  // body's `metadata` field.
+  google.protobuf.Struct metadata = 6;
+
+  // Request headers (lowercase keys) forwarded for dynamic-budget
+  // matching (`headers["x-env"] == "prod"`).
+  map<string, string> headers = 7;
+}
+
+message CheckBudgetsResponse {
+  // True when no applicable budget exceeds its limit.
+  bool allowed = 1;
+
+  // Populated when allowed is false; identifies which budget and
+  // dimension triggered the rejection.
+  BudgetRejection rejection = 2;
+
+  // Cost dimension info for rate-limit headers (nil when no cost budget applies).
+  DimensionInfo cost = 3;
+
+  // Token dimension info for rate-limit headers (nil when no token budget applies).
+  DimensionInfo tokens = 4;
+
+  // Requests dimension info for rate-limit headers (nil when no RPM budget applies).
+  DimensionInfo requests = 5;
+}
+
+// BudgetRejection identifies the budget that caused a 429.
+message BudgetRejection {
+  string scope_kind = 1;
+  string scope_target_id = 2;
+  string dimension = 3;
+  string code = 4;
+  string message = 5;
+}
+
+// DimensionInfo carries limit/remaining/reset for a single dimension.
+message DimensionInfo {
+  double limit = 1;
+  double remaining = 2;
+  int32 reset_seconds = 3;
+}

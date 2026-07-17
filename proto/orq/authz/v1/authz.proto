@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package orq.authz.v1;
+
+import "google/protobuf/descriptor.proto";
+
+// AuthzScope describes how the enforcing interceptor must treat the
+// principal's project scope for a given RPC.
+enum AuthzScope {
+  AUTHZ_SCOPE_UNSPECIFIED = 0;
+
+  // No authentication or authorization required. The interceptor lets
+  // the request through untouched. Use sparingly (health checks,
+  // capability discovery).
+  AUTHZ_SCOPE_PUBLIC = 1;
+
+  // Workspace-wide surface. The caller must be a workspace admin or a
+  // workspace-scoped api key. Project-pinned api keys are rejected.
+  AUTHZ_SCOPE_WORKSPACE = 2;
+
+  // Project-scoped resource. The caller must hold `verb`, and — when
+  // the request carries a project id — that project must fall inside
+  // the caller's project scope.
+  AUTHZ_SCOPE_PROJECT = 3;
+}
+
+// AuthzRule is attached to an RPC via the `authz` method option. It is
+// the single declarative source of truth for that endpoint's
+// authorization requirement, consumed identically by the Go Connect
+// interceptor and the TypeScript Hono middleware.
+message AuthzRule {
+  // Permission verb the caller must hold, e.g. "api-key.create",
+  // "agent.view". Resolved against Principal.permissions. Empty only
+  // when scope is AUTHZ_SCOPE_PUBLIC.
+  string verb = 1;
+
+  // How the project scope is enforced for this RPC.
+  AuthzScope scope = 2;
+
+  // Optional: the request-message field path that carries the project
+  // id used for project-scope checks (e.g. "project_id" or
+  // "project_scope.single.project_id"). Empty means the RPC is not
+  // bound to a single project at the request level.
+  string project_id_field = 3;
+}
+
+extend google.protobuf.MethodOptions {
+  // authz declares the authorization requirement for an RPC. An RPC
+  // with no `authz` option is treated as undeclared — the interceptor
+  // logs it and (once rollout completes) rejects it fail-closed.
+  AuthzRule authz = 50001;
+}

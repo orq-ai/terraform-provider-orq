@@ -1,0 +1,20 @@
+# oapi-codegen config for the REST (router-entity) half of the provider.
+#
+# The spec openapi/openapi.json is a COMMITTED COPY synced from the platform
+# monorepo: orquesta-web/.openapi/v2/public/openapi.json
+# Re-sync with `make openapi-sync` (see Makefile), then `make generate`.
+#
+# Only router-entity domains are generated here (guardrail-rules, routing-rules,
+# policies, models, workspace-models). Everything else in the provider goes over
+# Connect. include-tags prunes operations; unused schemas are pruned by default.
+package: restgen
+output: internal/restgen/client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  include-tags:
+    - Guardrail Rules
+    - Routing Rules
+    - Policies
+    - Models

@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package orq.apikeys.v1;
+
+// Capability catalog for orq.ai API keys.
+//
+// This proto module is the cross-runtime source of truth for the
+// permission domains an API key may hold. Both the Go service
+// (libs/go/apikeys) and the TypeScript service (libs/api-keys) load
+// the same `catalog.textpb` fixture and reconstruct the in-memory
+// catalog from it, so the two runtimes can never drift.
+//
+// Verb derivation (read/write -> *.list/*.view/*.create/*.update/
+// *.delete/*.execute) stays hand-written in each runtime — that is
+// logic, not data, and lives next to the authorize() path.
+//
+// To add or change a domain: edit `catalog.textpb`, run the catalog
+// codegen target, commit both the textpb and the generated artifacts.
+
+// DomainGroup is the logical grouping shown in the dashboard
+// permission picker. Also drives verb shape: PLATFORM and
+// WORKSPACE_ADMIN emit CRUD verbs (create/update/delete) on write;
+// GATEWAY emits an `execute` verb instead.
+enum DomainGroup {
+  DOMAIN_GROUP_UNSPECIFIED = 0;
+  // Workspace-admin domains (api-key, member, billing, sso, etc).
+  DOMAIN_GROUP_WORKSPACE_ADMIN = 1;
+  // Product / platform domains (agents, deployments, prompts, etc).
+  DOMAIN_GROUP_PLATFORM = 2;
+  // Inference / gateway domains (chat_completions, embeddings, etc).
+  DOMAIN_GROUP_GATEWAY = 3;
+}
+
+// ScopeMode is the project-scope shape a domain may be granted under.
+// Mirrors the ProjectScope oneof case on ApiKey.
+enum ScopeMode {
+  SCOPE_MODE_UNSPECIFIED = 0;
+  SCOPE_MODE_ALL = 1;
+  SCOPE_MODE_SINGLE = 2;
+}
+
+// AccessLevel is the per-domain grant level on an API key. Mirrors
+// the AccessLevel union in libs/models/auth/schemas/api-key.
+enum AccessLevel {
+  ACCESS_LEVEL_UNSPECIFIED = 0;
+  ACCESS_LEVEL_NONE = 1;
+  ACCESS_LEVEL_READ = 2;
+  ACCESS_LEVEL_WRITE = 3;
+}
+
+// Domain describes a permission domain that can be granted to an
+// API key. Verbs are derived from id + group + readable/writable.
+message Domain {
+  // Stable domain identifier (e.g. "agent", "chat_completions"). Used
+  // as the key in ApiKey.access and as the verb prefix in resolved
+  // permissions (e.g. agent.list, agent.view, agent.create).
+  string id = 1;
+
+  // Human-readable label for the dashboard.
+  string display_name = 2;
+
+  // Logical group used by the UI to render this entry.
+  DomainGroup group = 3;
+
+  // Project scopes this domain may be granted under. A workspace-
+  // admin domain like `member` is typically SCOPE_MODE_ALL only.
+  repeated ScopeMode allowed_scopes = 4;
+
+  // Whether this domain can be granted read access.
+  bool readable = 5;
+
+  // Whether this domain can be granted write access.
+  bool writable = 6;
+}
+
+// RouterPresetEntry maps a domain id to the AccessLevel that the
+// legacy `source='router'` key adapter assigns to it during the
+// unified-model migration. Mirrors ROUTER_PRESET_ACCESS in TS and
+// RouterPresetAccess in Go.
+message RouterPresetEntry {
+  string domain_id = 1;
+  AccessLevel level = 2;
+}
+
+// Catalog is the top-level fixture. The textpb data file is
+// versioned via the `version` field so future schema changes can
+// branch on it.
+message Catalog {
+  // Catalog schema version. Bump only on a breaking shape change.
+  int32 version = 1;
+
+  // Full ordered list of permission domains. Order is stable:
+  // workspace-admin first, then platform, then gateway. Both
+  // runtimes consume this order.
+  repeated Domain domains = 2;
+
+  // Router preset used by the legacy `source='router'` adapter.
+  repeated RouterPresetEntry router_preset = 3;
+}
