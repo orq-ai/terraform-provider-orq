@@ -213,10 +213,21 @@ func (r *budgetResource) ValidateConfig(ctx context.Context, req resource.Valida
 
 // validateBudgetScopeXOR enforces the scope-XOR-match_cel invariant. Pure so it
 // is unit-testable without a tfsdk.Config.
+//
+// An UNKNOWN match_cel (interpolated from a not-yet-applied resource) counts as
+// "possibly present", so the XOR cannot be decided yet: defer (no diagnostics)
+// and let Terraform re-run ValidateConfig at the apply-time plan once the value
+// is known. Treating unknown as absent would wrongly reject a valid scope-less
+// config whose match_cel is only known after apply. (The competing selector,
+// `scope`, is a structural block whose presence is always known at plan time, so
+// it has no unknown case to guard here.)
 func validateBudgetScopeXOR(scope *budgetScopeModel, matchCEL types.String) diag.Diagnostics {
 	var diags diag.Diagnostics
+	if matchCEL.IsUnknown() {
+		return diags
+	}
 	hasScope := scope != nil
-	hasMatch := !matchCEL.IsNull() && !matchCEL.IsUnknown()
+	hasMatch := !matchCEL.IsNull()
 	if hasScope == hasMatch {
 		diags.AddError("Invalid budget scope",
 			"Exactly one of `scope` or `match_cel` must be set.")

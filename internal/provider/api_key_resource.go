@@ -81,7 +81,9 @@ func (r *apiKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Validators: []validator.String{
 					stringvalidator.OneOf(client.PermissionModeAll, client.PermissionModeRestricted, client.PermissionModeReadOnly),
 				},
-				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				// No UseStateForUnknown: the Default makes this attribute known at
+				// plan time even when config is null, so the plan value is never
+				// unknown and UseStateForUnknown would never fire (redundant).
 			},
 			"access": schema.MapAttribute{
 				Optional:    true,
@@ -147,12 +149,20 @@ func (r *apiKeyResource) ValidateConfig(ctx context.Context, req resource.Valida
 }
 
 // validateAccessForMode enforces that the access map is present exactly when the
-// permission mode is RESTRICTED. It is pure so it is unit-testable. A null/unknown
-// permission_mode (computed default) is treated as non-restricted.
+// permission mode is RESTRICTED. It is pure so it is unit-testable.
+//
+// When any value the cross-field decision depends on (the permission mode or the
+// access map) is UNKNOWN — interpolated from a not-yet-applied resource — it
+// defers: returning no diagnostics rather than guessing. Terraform re-runs
+// ValidateConfig at the apply-time plan once the values are known, so a valid
+// config whose mode/access is only known after apply is not spuriously rejected.
 func validateAccessForMode(mode types.String, access types.Map, restricted string) diag.Diagnostics {
 	var diags diag.Diagnostics
-	isRestricted := !mode.IsNull() && !mode.IsUnknown() && mode.ValueString() == restricted
-	hasAccess := !access.IsNull() && !access.IsUnknown() && len(access.Elements()) > 0
+	if mode.IsUnknown() || access.IsUnknown() {
+		return diags
+	}
+	isRestricted := !mode.IsNull() && mode.ValueString() == restricted
+	hasAccess := !access.IsNull() && len(access.Elements()) > 0
 	if isRestricted && !hasAccess {
 		diags.AddAttributeError(path.Root("access"), "Missing access map",
 			"`access` is required when `permission_mode` is "+restricted+".")
@@ -177,10 +187,11 @@ func (r *apiKeyResource) apply(k *client.APIKey, m *apiKeyResourceModel) {
 	}
 	m.PermissionMode = optString(k.PermissionMode)
 	// Only surface access when the key is RESTRICTED. After a RESTRICTED→ALL/
-	// READ_ONLY switch the server retains the prior access map (a nil access in
-	// the sparse update means "keep"), which would otherwise read back as a
-	// non-null map against a null config and drift forever. ValidateConfig
-	// already forbids access unless RESTRICTED, so null here matches config.
+	// READ_ONLY switch the server CLEARS the stored access map (it unsets `access`
+	// so resolution falls back to the preset — see libs/go/apikeys UpdateApiKey),
+	// so it reads back absent; nulling it here keeps state aligned with config.
+	// ValidateConfig already forbids access unless RESTRICTED, so null here
+	// matches config and never drifts.
 	if k.PermissionMode == client.PermissionModeRestricted {
 		m.Access = stringMapValue(k.Access)
 	} else {

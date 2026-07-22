@@ -76,7 +76,9 @@ func (r *managementKeyResource) Schema(_ context.Context, _ resource.SchemaReque
 				Validators: []validator.String{
 					stringvalidator.OneOf(client.ManagementPermissionModeAll, client.ManagementPermissionModeRestricted, client.ManagementPermissionModeReadOnly),
 				},
-				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				// No UseStateForUnknown: the Default makes this attribute known at
+				// plan time even when config is null, so the plan value is never
+				// unknown and UseStateForUnknown would never fire (redundant).
 			},
 			"access": schema.MapAttribute{
 				Optional:    true,

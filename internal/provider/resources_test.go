@@ -155,6 +155,10 @@ func TestValidateBudgetScopeXOR(t *testing.T) {
 		{"match only ok", nil, types.StringValue(`provider == "openai"`), false},
 		{"both set rejected", scope, types.StringValue("x"), true},
 		{"neither set rejected", nil, types.StringNull(), true},
+		// Unknown match_cel counts as "possibly present" → defer (no diagnostics),
+		// regardless of whether scope is also set; the check re-runs at apply.
+		{"unknown match without scope defers", nil, types.StringUnknown(), false},
+		{"unknown match with scope defers", scope, types.StringUnknown(), false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

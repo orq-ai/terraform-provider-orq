@@ -27,8 +27,13 @@ func TestValidateAccessForMode(t *testing.T) {
 		{"restricted without access rejected", types.StringValue(client.ManagementPermissionModeRestricted), types.MapNull(types.StringType), true},
 		{"all with access rejected", types.StringValue(client.ManagementPermissionModeAll), accessMap, true},
 		{"all without access ok", types.StringValue(client.ManagementPermissionModeAll), types.MapNull(types.StringType), false},
-		{"unknown mode with access rejected", types.StringUnknown(), accessMap, true},
 		{"null mode without access ok", types.StringNull(), types.MapNull(types.StringType), false},
+		// Unknown involved value → defer (no diagnostics); the cross-field decision
+		// can't be made on an interpolated placeholder, so it re-runs at apply.
+		{"unknown mode with access defers", types.StringUnknown(), accessMap, false},
+		{"unknown mode without access defers", types.StringUnknown(), types.MapNull(types.StringType), false},
+		{"restricted with unknown access defers", types.StringValue(client.ManagementPermissionModeRestricted), types.MapUnknown(types.StringType), false},
+		{"all with unknown access defers", types.StringValue(client.ManagementPermissionModeAll), types.MapUnknown(types.StringType), false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
