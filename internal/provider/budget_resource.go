@@ -172,10 +172,12 @@ func (r *budgetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 							MarkdownDescription: "Workspace-scoped notifier IDs to notify (1-10).",
 						},
 						"dimension": schema.StringAttribute{
-							Optional:            true,
-							Computed:            true,
-							MarkdownDescription: "Which limit the threshold applies to: `COST` (default) or `TOKENS`.",
-							Validators:          []validator.String{stringvalidator.OneOf("COST", "TOKENS")},
+							Optional: true,
+							Computed: true,
+							MarkdownDescription: "Which limit the threshold applies to: `COST` (default) or `TOKENS`. " +
+								"Note: current servers may reject `TOKENS` (\"the TOKENS dimension is not supported yet\"); " +
+								"the validator still accepts it in anticipation of server support.",
+							Validators: []validator.String{stringvalidator.OneOf("COST", "TOKENS")},
 						},
 					},
 				},

@@ -148,10 +148,10 @@ func (r *managementKeyResource) apply(k *client.ManagementKey, m *managementKeyR
 	m.Name = types.StringValue(k.Name)
 	m.PermissionMode = optString(k.PermissionMode)
 	// Only surface access when the key is RESTRICTED. After a RESTRICTED→ALL/
-	// READ_ONLY switch the server retains the prior access map (a nil access in
-	// the sparse update means "keep"), which would otherwise read back as a
-	// non-null map against a null config and drift forever. ValidateConfig
-	// already forbids access unless RESTRICTED, so null here matches config.
+	// READ_ONLY switch the live server CLEARS the access map to {} (an empty map
+	// on read); nulling it here keeps state aligned with config regardless.
+	// ValidateConfig already forbids access unless RESTRICTED, so null here
+	// matches config and never drifts.
 	if k.PermissionMode == client.ManagementPermissionModeRestricted {
 		m.Access = stringMapValue(k.Access)
 	} else {
