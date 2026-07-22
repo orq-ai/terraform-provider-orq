@@ -169,24 +169,44 @@ func TestRESTTransport_ErrorNormalization(t *testing.T) {
 }
 
 func TestConnectTransport_ErrorNormalization(t *testing.T) {
-	// A server returning a plain 401 (not a Connect envelope) still normalizes
-	// to unauthenticated via the connect client's status→code mapping.
-	srv, _, _ := newRESTServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-	})
-	c, err := New(Config{URL: srv.URL, Token: sentinelToken})
-	if err != nil {
-		t.Fatalf("New: %v", err)
+	// A NON-Connect HTTP response (a plain status, not a Connect JSON envelope —
+	// what a proxy/gateway returns) is wrapped by connect-go as a client-
+	// synthesized *connect.Error whose Message() is the raw HTTP status line
+	// ("401 Unauthorized", "502 Bad Gateway"). The seam must normalize the CODE
+	// but replace that status-line message with a transport-neutral phrase, so the
+	// diagnostic never leaks the HTTP status, the status text, or the RPC service.
+	cases := []struct {
+		name   string
+		status int
+		want   Code
+		// tokens that must NOT appear in the rendered message (status line + route).
+		noLeak []string
+	}{
+		{"plain 401", http.StatusUnauthorized, CodeUnauthenticated, []string{"401", "Unauthorized", "HTTP status", "ProjectsService"}},
+		{"proxy 502", http.StatusBadGateway, CodeUnavailable, []string{"502", "Bad Gateway", "HTTP status", "ProjectsService"}},
 	}
-	_, err = c.Projects().List(context.Background(), ListParams{})
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if got := CodeOf(err); got != CodeUnauthenticated {
-		t.Errorf("connect 401 normalized to %q, want %q", got, CodeUnauthenticated)
-	}
-	if strings.Contains(err.Error(), "ProjectsService") {
-		t.Errorf("error leaks Connect service name: %q", err.Error())
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv, _, _ := newRESTServer(t, func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+			})
+			c, err := New(Config{URL: srv.URL, Token: sentinelToken})
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			_, err = c.Projects().List(context.Background(), ListParams{})
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if got := CodeOf(err); got != tc.want {
+				t.Errorf("connect %d normalized to %q, want %q", tc.status, got, tc.want)
+			}
+			for _, leak := range tc.noLeak {
+				if strings.Contains(err.Error(), leak) {
+					t.Errorf("error leaks %q: %q", leak, err.Error())
+				}
+			}
+		})
 	}
 }
 

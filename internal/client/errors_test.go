@@ -98,10 +98,12 @@ func TestMapRESTStatus_NeutralPhrasePerCode(t *testing.T) {
 	}
 }
 
-// TestMapConnectError_ServerErrorKeepsMessage proves a genuine connect.Error
-// (server response) still surfaces the server-supplied message and mapped code.
+// TestMapConnectError_ServerErrorKeepsMessage proves a genuine server error still
+// surfaces the server-supplied message and mapped code. A real server error
+// arrives as a WIRE error (connect-go parses it from the Connect JSON envelope
+// and flags it via IsWireError), so it is built with NewWireError here.
 func TestMapConnectError_ServerErrorKeepsMessage(t *testing.T) {
-	ce := connect.NewError(connect.CodeNotFound, errors.New("budget not found"))
+	ce := connect.NewWireError(connect.CodeNotFound, errors.New("budget not found"))
 	e := mapConnectError("budget", ce)
 
 	if CodeOf(e) != CodeNotFound {
@@ -110,4 +112,59 @@ func TestMapConnectError_ServerErrorKeepsMessage(t *testing.T) {
 	if !strings.Contains(e.Error(), "budget not found") {
 		t.Errorf("server message dropped: %q", e.Error())
 	}
+}
+
+// TestMapConnectError_NonWireHTTPStatusNeutralized proves a client-SYNTHESIZED
+// (non-wire) *connect.Error — how connect-go wraps a NON-Connect HTTP response
+// such as a proxy error, embedding the raw HTTP status line in Message() — is
+// normalized to a transport-neutral phrase, not surfaced verbatim.
+func TestMapConnectError_NonWireHTTPStatusNeutralized(t *testing.T) {
+	// connect-go builds exactly this for an unwrapped HTTP response: NewError (not
+	// NewWireError) with the status line as the message.
+	ce := connect.NewError(connect.CodeUnavailable, errors.New("HTTP status 505 HTTP Version Not Supported"))
+	e := mapConnectError("budget", ce)
+
+	if CodeOf(e) != CodeUnavailable {
+		t.Errorf("code = %v, want %v", CodeOf(e), CodeUnavailable)
+	}
+	msg := e.Error()
+	for _, leak := range []string{"HTTP status", "505", "HTTP Version Not Supported"} {
+		if strings.Contains(msg, leak) {
+			t.Errorf("non-wire connect error leaks %q: %q", leak, msg)
+		}
+	}
+	if !strings.Contains(msg, "temporarily unavailable") {
+		t.Errorf("expected a neutral unavailable phrase, got %q", msg)
+	}
+}
+
+// TestMapRESTStatus_SurfacesServerMessage proves the REST seam surfaces the
+// platform's operator-actionable message from its JSON error envelope
+// ({"error": "..."}) — symmetric with the Connect wire-message path — while a
+// non-envelope body (an HTML proxy page) still falls back to the neutral phrase.
+func TestMapRESTStatus_SurfacesServerMessage(t *testing.T) {
+	t.Run("json envelope surfaced", func(t *testing.T) {
+		e := mapRESTStatus(400, []byte(`{"error":"Model validation failed. Please check your configuration."}`))
+		if CodeOf(e) != CodeInvalid {
+			t.Errorf("code = %v, want %v", CodeOf(e), CodeInvalid)
+		}
+		if !strings.Contains(e.Error(), "Model validation failed") {
+			t.Errorf("server message not surfaced: %q", e.Error())
+		}
+		// The transport internals still must not leak into the message.
+		for _, leak := range []string{"HTTP", "400", "status"} {
+			if strings.Contains(e.Error(), leak) {
+				t.Errorf("message leaks %q: %q", leak, e.Error())
+			}
+		}
+	})
+	t.Run("non-json body falls back to neutral", func(t *testing.T) {
+		e := mapRESTStatus(400, []byte(`<html>400 Bad Request: boom</html>`))
+		if strings.Contains(e.Error(), "boom") || strings.Contains(e.Error(), "<html>") {
+			t.Errorf("HTML body leaked into message: %q", e.Error())
+		}
+		if !strings.Contains(e.Error(), "rejected as invalid") {
+			t.Errorf("expected neutral invalid phrase, got %q", e.Error())
+		}
+	})
 }

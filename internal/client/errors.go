@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -64,13 +65,25 @@ func mapConnectError(domain string, err error) error {
 		return nil
 	}
 
-	// An RPC that reached the server carries a *connect.Error whose Message()
-	// is server-supplied (not the wire route); prefer it over the connect
-	// envelope wrapper ("unauthenticated: <msg>") so we don't double-print the
-	// code — and so it never contains the RPC URL.
 	var ce *connect.Error
 	if errors.As(err, &ce) {
-		return &Error{Code: connectCodeToCode(ce.Code()), Message: ce.Message(), err: err}
+		code := connectCodeToCode(ce.Code())
+		// A genuine server error carries an operator-actionable, transport-neutral
+		// message: connect-go parses it from the Connect JSON error envelope and
+		// flags it as a WIRE error (IsWireError == true). Surface that message
+		// (not the connect envelope wrapper "unauthenticated: <msg>", and never
+		// the RPC URL) — the REST path surfaces the server message symmetrically.
+		//
+		// A client-SYNTHESIZED *connect.Error is NOT a wire error: connect-go
+		// produces one when a NON-Connect HTTP response comes back (a proxy /
+		// gateway error, an HTML error page), and its Message() embeds the raw
+		// HTTP status line ("HTTP status 505 ...", "502 Bad Gateway") — a transport
+		// leak. For that case emit the neutral phrase for the mapped code instead.
+		msg := neutralMessage(code)
+		if connect.IsWireError(err) {
+			msg = ce.Message()
+		}
+		return &Error{Code: code, Message: msg, err: err}
 	}
 
 	// Transport-level failure (dial/DNS/redirect rejection/context cancel)
@@ -102,12 +115,15 @@ func connectCodeToCode(c connect.Code) Code {
 // mapRESTStatus normalizes a non-2xx HTTP status from a REST adapter. body is
 // the raw response body (may be nil). Only call this for status >= 300.
 //
-// The rendered Message is transport-neutral: it never embeds "HTTP", the numeric
-// status, a route, or the raw response body/HTML, so a diagnostic built from it
-// does not leak the wire protocol across the client seam (mirroring the Connect
-// path). The status and (capped) body are preserved on a wrapped error that stays
-// reachable via errors.Is/As for callers that want the gory detail — but that
-// wrapped error is never folded into Message.
+// The rendered Message surfaces the platform's operator-actionable error text
+// (parsed from its JSON `{"error": "..."}` envelope) when present, falling back
+// to a transport-neutral phrase per code otherwise. It never embeds "HTTP", the
+// numeric status, a route, or a raw response body/HTML, so a diagnostic built
+// from it does not leak the wire protocol across the client seam (mirroring the
+// Connect path, which surfaces the server's wire message). The status and
+// (capped) body are preserved on a wrapped error that stays reachable via
+// errors.Is/As for callers that want the gory detail — but that wrapped error is
+// never folded into Message.
 func mapRESTStatus(status int, body []byte) error {
 	code := httpStatusToCode(status)
 	var underlying error
@@ -120,12 +136,41 @@ func mapRESTStatus(status int, body []byte) error {
 	} else {
 		underlying = fmt.Errorf("status %d", status)
 	}
-	return &Error{Code: code, Message: neutralRESTMessage(code), err: underlying}
+	msg := neutralMessage(code)
+	if server := serverRESTMessage(body); server != "" {
+		msg = server
+	}
+	return &Error{Code: code, Message: msg, err: underlying}
 }
 
-// neutralRESTMessage renders a transport-neutral human phrase for a normalized
-// code. It names neither the wire protocol nor the route/body.
-func neutralRESTMessage(code Code) string {
+// serverRESTMessage extracts the operator-actionable message from the platform's
+// JSON error envelope — {"error": "..."}, the shape the platform-api ErrorHandler
+// always emits (see apps/platform-api/server/app.go). It returns "" when the body
+// is not that envelope (e.g. an HTML proxy/gateway error page or an empty body),
+// so mapRESTStatus falls back to the transport-neutral phrase and never surfaces
+// a raw body. The `error` field is a domain message (the server masks its own 5xx
+// internals to "internal server error" and never includes the HTTP status or
+// route), so surfacing it does not leak transport internals — it mirrors the
+// Connect path's server wire message.
+func serverRESTMessage(body []byte) string {
+	var env struct {
+		Error string `json:"error"`
+	}
+	if json.Unmarshal(body, &env) != nil {
+		return ""
+	}
+	msg := strings.TrimSpace(env.Error)
+	if len(msg) > 512 {
+		msg = msg[:512] + "…"
+	}
+	return msg
+}
+
+// neutralMessage renders a transport-neutral human phrase for a normalized code.
+// It names neither the wire protocol nor the route/body, and is shared by both
+// the REST fallback (no server envelope) and the Connect fallback (a client-
+// synthesized, non-wire error).
+func neutralMessage(code Code) string {
 	switch code {
 	case CodeUnauthenticated:
 		return "the request was not authenticated"
