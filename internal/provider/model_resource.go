@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -153,14 +154,16 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Optional: true,
 				Computed: true,
 				MarkdownDescription: "Optional input cost. The server always serializes this (no `omitempty`), so it " +
-					"is refreshed unconditionally and an out-of-band change — including to `0` — surfaces as drift. " +
-					"Note: a `model_type` that does not use it (e.g. an image model) stores and reads back `0`.",
+					"is refreshed unconditionally on read and an out-of-band change — including to `0` — surfaces as " +
+					"drift. Rejected for `model_type` `image` (which ignores per-token costs and would store `0`, " +
+					"breaking plan consistency) — use `cost_per_image` instead.",
 			},
 			"output_cost": schema.Float64Attribute{
 				Optional: true,
 				Computed: true,
 				MarkdownDescription: "Optional output cost. The server always serializes this (no `omitempty`), so it " +
-					"is refreshed unconditionally and an out-of-band change — including to `0` — surfaces as drift.",
+					"is refreshed unconditionally on read and an out-of-band change — including to `0` — surfaces as " +
+					"drift. Rejected for `model_type` `image` (which ignores per-token costs) — use `cost_per_image`.",
 			},
 			"cost_per_image": schema.Float64Attribute{
 				Optional: true,
@@ -242,11 +245,16 @@ func (r *modelResource) Configure(_ context.Context, req resource.ConfigureReque
 // apply refreshes the server-echoed fields onto the model. The secret api_key is
 // never touched (the server never echoes it — `data` carries it from the plan on
 // create/update or prior state on read). input_cost/output_cost are always on the
-// wire (no omitempty) and refresh unconditionally; cost_per_image and the
-// supports_* bools are metadata `omitempty` fields whose false/0 is dropped on the
-// wire, so they retain the prior value on absence; max_tokens/temperature/
-// has_reasoning stay config-authoritative with retain-on-null.
-func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
+// wire (no omitempty): on READ (preservePlannedCosts=false) they refresh
+// unconditionally so an out-of-band change — including to 0 — surfaces as drift; on
+// CREATE/UPDATE (preservePlannedCosts=true) a KNOWN planned value is PRESERVED for
+// plan consistency, since the server normalizes some costs (e.g. it stores 0 for an
+// image model — openAILikeCosts) and overwriting a known plan value would raise
+// "inconsistent result after apply". cost_per_image and the supports_* bools are
+// metadata `omitempty` fields whose false/0 is dropped on the wire, so they retain
+// the prior value on absence; max_tokens/temperature/has_reasoning stay
+// config-authoritative with retain-on-null.
+func (r *modelResource) apply(m *client.Model, data *modelResourceModel, preservePlannedCosts bool) {
 	data.ID = types.StringValue(m.ID)
 	data.DisplayName = types.StringValue(m.DisplayName)
 	data.ModelID = types.StringValue(m.ModelID)
@@ -266,10 +274,19 @@ func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
 	data.Created = types.StringValue(m.Created)
 	data.Updated = types.StringValue(m.Updated)
 
-	// input_cost/output_cost have no omitempty on the wire, so the server value —
-	// including 0 — always wins (an out-of-band change to 0 surfaces as drift).
-	data.InputCost = refreshFloatAuthoritative(m.InputCost)
-	data.OutputCost = refreshFloatAuthoritative(m.OutputCost)
+	// input_cost/output_cost have no omitempty on the wire. On READ the server value —
+	// including 0 — always wins (an out-of-band change to 0 surfaces as drift). On
+	// CREATE/UPDATE a KNOWN planned value is preserved (only a null/unknown plan is
+	// filled from the server), so the server's normalization of a cost it ignores for
+	// the model_type (e.g. 0 for an image model) can never change a known planned value
+	// out from under the plan.
+	if preservePlannedCosts {
+		data.InputCost = preservePlannedFloat(data.InputCost, m.InputCost)
+		data.OutputCost = preservePlannedFloat(data.OutputCost, m.OutputCost)
+	} else {
+		data.InputCost = refreshFloatAuthoritative(m.InputCost)
+		data.OutputCost = refreshFloatAuthoritative(m.OutputCost)
+	}
 	// cost_per_image is a metadata `omitempty` field: a 0 is dropped on the wire and
 	// is indistinguishable from "not applied for this model_type", so keep the prior
 	// value on absence (a create-time unknown collapses to null).
@@ -294,6 +311,23 @@ func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
 // sent an explicit null (not expected for a managed model); collapse it to null
 // rather than retaining a stale prior value, so state stays honest to the server.
 func refreshFloatAuthoritative(srv *float64) types.Float64 {
+	if srv != nil {
+		return types.Float64Value(*srv)
+	}
+	return types.Float64Null()
+}
+
+// preservePlannedFloat keeps a KNOWN planned value — the Create/Update contract
+// requires post-apply state to equal the plan for every known value — and fills from
+// the server only when the plan left the attribute null/unknown (an Optional+Computed
+// attribute with no config value). Used on the create/update path for
+// input_cost/output_cost, which the server may normalize (e.g. to 0 for an image
+// model, whose per-token costs it ignores) in a way that would otherwise break plan
+// consistency.
+func preservePlannedFloat(planned types.Float64, srv *float64) types.Float64 {
+	if !planned.IsNull() && !planned.IsUnknown() {
+		return planned
+	}
 	if srv != nil {
 		return types.Float64Value(*srv)
 	}
@@ -342,6 +376,35 @@ func boolUnknownToNull(v types.Bool) types.Bool {
 	return v
 }
 
+// validateImageModelCosts rejects a config that sets input_cost or output_cost on an
+// image model. The server IGNORES per-token costs for model_type "image"
+// (openAILikeCosts returns (0, cost_per_image)), so a set input_cost/output_cost is
+// silently stored as 0 — and because those attributes are planned as KNOWN values,
+// letting the server normalize them would break plan consistency ("inconsistent
+// result after apply"). Point the operator at cost_per_image instead.
+//
+// Only a KNOWN, non-null cost is a violation; an omitted (Optional+Computed → unknown)
+// cost is fine (the server fills it). model_type is Required, so it is always known
+// here. Enforced at the top of Create/Update — there is no cross-field ValidateConfig
+// for this resource.
+func validateImageModelCosts(modelType types.String, inputCost, outputCost types.Float64) diag.Diagnostics {
+	var diags diag.Diagnostics
+	if modelType.IsNull() || modelType.IsUnknown() || modelType.ValueString() != "image" {
+		return diags
+	}
+	if !inputCost.IsNull() && !inputCost.IsUnknown() {
+		diags.AddAttributeError(path.Root("input_cost"), "input_cost is not supported for image models",
+			"The server ignores per-token costs for model_type \"image\" and stores 0, which would break "+
+				"plan consistency. Remove input_cost and set cost_per_image instead.")
+	}
+	if !outputCost.IsNull() && !outputCost.IsUnknown() {
+		diags.AddAttributeError(path.Root("output_cost"), "output_cost is not supported for image models",
+			"The server ignores per-token costs for model_type \"image\" and stores 0, which would break "+
+				"plan consistency. Remove output_cost and set cost_per_image instead.")
+	}
+	return diags
+}
+
 func (r *modelResource) createInput(plan *modelResourceModel) client.ModelCreateInput {
 	return client.ModelCreateInput{
 		APIKey:              plan.APIKey.ValueString(),
@@ -370,13 +433,22 @@ func (r *modelResource) Create(ctx context.Context, req resource.CreateRequest, 
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	// Reject input_cost/output_cost on an image model before any server call: the
+	// server ignores per-token costs for that model_type and would normalize them to
+	// 0, breaking plan consistency (model_type is known here — there is no cross-field
+	// ValidateConfig for this resource).
+	resp.Diagnostics.Append(validateImageModelCosts(plan.ModelType, plan.InputCost, plan.OutputCost)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	m, err := r.models.Create(ctx, r.createInput(&plan))
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to create model", errDetail(err))
 		return
 	}
-	// apply leaves api_key as configured in `plan` and refreshes the rest.
-	r.apply(m, &plan)
+	// apply leaves api_key as configured in `plan`, preserves the known planned costs,
+	// and refreshes the rest.
+	r.apply(m, &plan, true)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -399,14 +471,21 @@ func (r *modelResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		resp.Diagnostics.AddError(summary, detail)
 		return
 	}
-	// apply preserves the config-authoritative api_key already in `state`.
-	r.apply(m, &state)
+	// apply preserves the config-authoritative api_key already in `state` and
+	// refreshes input_cost/output_cost unconditionally (drift belongs on read).
+	r.apply(m, &state, false)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *modelResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan modelResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Reject input_cost/output_cost on an image model before any server call (same
+	// guardrail as Create — the server ignores per-token costs for that model_type).
+	resp.Diagnostics.Append(validateImageModelCosts(plan.ModelType, plan.InputCost, plan.OutputCost)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -433,7 +512,8 @@ func (r *modelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		resp.Diagnostics.AddError("Unable to update model", errDetail(err))
 		return
 	}
-	r.apply(m, &plan)
+	// Preserve the known planned costs (same rationale as Create).
+	r.apply(m, &plan, true)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

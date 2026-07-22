@@ -56,7 +56,7 @@ func TestModelApplyPreservesSecretAndMetadata(t *testing.T) {
 		OutputCost:  f64ptr(1.5),
 		Created:     "2020-01-01T00:00:00Z",
 		Updated:     "2020-01-02T00:00:00Z",
-	}, m)
+	}, m, false)
 
 	// Secret preserved (server never returns it).
 	if m.APIKey.ValueString() != "sk-secret-xyz" {
@@ -106,7 +106,7 @@ func TestModelApplyRegionBaseURLEmptyFallback(t *testing.T) {
 		Region:  types.StringValue("europe"),
 		BaseURL: types.StringValue("http://host/v1"),
 	}
-	r.apply(&client.Model{ID: "mdl_1", Region: "", BaseURL: ""}, m)
+	r.apply(&client.Model{ID: "mdl_1", Region: "", BaseURL: ""}, m, false)
 	if m.Region.ValueString() != "europe" {
 		t.Errorf("empty server region must fall back to config, got %q", m.Region.ValueString())
 	}
@@ -136,7 +136,7 @@ func TestModelApplyRefreshesListFields(t *testing.T) {
 		OutputCost:     f64ptr(1.8),
 		CostPerImage:   f64ptr(0.05),
 		SupportsVision: bptr(true),
-	}, m)
+	}, m, false)
 	if m.InputCost.ValueFloat64() != 0.9 || m.OutputCost.ValueFloat64() != 1.8 {
 		t.Errorf("costs not refreshed from server: in=%v out=%v", m.InputCost, m.OutputCost)
 	}
@@ -161,7 +161,7 @@ func TestModelApplyCollapsesUnknownToNull(t *testing.T) {
 		SupportsImageEdit: types.BoolUnknown(),
 	}
 	// Server omits all of them (nil).
-	r.apply(&client.Model{ID: "mdl_1", Provider: client.ModelProviderOpenAILike}, m)
+	r.apply(&client.Model{ID: "mdl_1", Provider: client.ModelProviderOpenAILike}, m, false)
 	for name, isNull := range map[string]bool{
 		"input_cost":          m.InputCost.IsNull(),
 		"max_tokens":          m.MaxTokens.IsNull(),
@@ -199,7 +199,7 @@ func TestModelApplyRefreshVsRetain(t *testing.T) {
 		InputCost:  f64ptr(0),
 		OutputCost: f64ptr(0),
 		// CostPerImage / Supports* left nil (server omitted them).
-	}, m)
+	}, m, false)
 
 	if m.InputCost.ValueFloat64() != 0 || m.OutputCost.ValueFloat64() != 0 {
 		t.Errorf("input/output cost must refresh to 0 (non-zero → 0 surfaces): in=%v out=%v", m.InputCost, m.OutputCost)
@@ -214,6 +214,72 @@ func TestModelApplyRefreshVsRetain(t *testing.T) {
 		!m.SupportsStrictTool.ValueBool() || !m.SupportsImageEdit.ValueBool() {
 		t.Error("supports_* must be RETAINED on server absence (an out-of-band flip to false is not surfaced)")
 	}
+}
+
+// TestValidateImageModelCosts proves the FINDING 4 guardrail: input_cost/output_cost
+// set on an image model is rejected (the server ignores per-token costs there and
+// stores 0, breaking plan consistency), while a non-image model or an image model that
+// only sets cost_per_image (input/output null or unknown) is accepted.
+func TestValidateImageModelCosts(t *testing.T) {
+	img := types.StringValue("image")
+	cases := []struct {
+		name       string
+		modelType  types.String
+		inputCost  types.Float64
+		outputCost types.Float64
+		wantError  bool
+	}{
+		{"image + input_cost rejected", img, types.Float64Value(0.5), types.Float64Null(), true},
+		{"image + output_cost rejected", img, types.Float64Null(), types.Float64Value(0.5), true},
+		{"image + both rejected", img, types.Float64Value(0.1), types.Float64Value(0.2), true},
+		{"image without token costs ok", img, types.Float64Null(), types.Float64Null(), false},
+		{"image + unknown costs defers (ok)", img, types.Float64Unknown(), types.Float64Unknown(), false},
+		{"chat + costs ok", types.StringValue("chat"), types.Float64Value(0.5), types.Float64Value(1.0), false},
+		{"embedding + input_cost ok", types.StringValue("embedding"), types.Float64Value(0.5), types.Float64Null(), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := validateImageModelCosts(tc.modelType, tc.inputCost, tc.outputCost)
+			if d.HasError() != tc.wantError {
+				t.Errorf("HasError = %v, want %v (%v)", d.HasError(), tc.wantError, d)
+			}
+		})
+	}
+}
+
+// TestModelApplyPreservesPlannedCostOnCreate proves the FINDING 4 protocol fix: on the
+// CREATE/UPDATE path (preservePlannedCosts=true) a KNOWN planned input_cost/output_cost
+// is PRESERVED even when the server normalizes it to a different value (e.g. 0 for a
+// cost it ignores), so post-apply state equals the plan and no "inconsistent result
+// after apply" is raised. A null/unknown planned cost is still filled from the server.
+func TestModelApplyPreservesPlannedCostOnCreate(t *testing.T) {
+	r := &modelResource{}
+
+	t.Run("known planned cost preserved over server normalization", func(t *testing.T) {
+		m := &modelResourceModel{
+			InputCost:  types.Float64Value(0.5),
+			OutputCost: types.Float64Value(1.5),
+		}
+		// Server normalized both to 0 (as it would for a cost it ignores).
+		r.apply(&client.Model{ID: "mdl_1", InputCost: f64ptr(0), OutputCost: f64ptr(0)}, m, true)
+		if m.InputCost.ValueFloat64() != 0.5 || m.OutputCost.ValueFloat64() != 1.5 {
+			t.Errorf("known planned cost must be preserved on create/update: in=%v out=%v", m.InputCost, m.OutputCost)
+		}
+	})
+
+	t.Run("null/unknown planned cost filled from server", func(t *testing.T) {
+		m := &modelResourceModel{
+			InputCost:  types.Float64Unknown(),
+			OutputCost: types.Float64Null(),
+		}
+		r.apply(&client.Model{ID: "mdl_1", InputCost: f64ptr(0.9), OutputCost: f64ptr(1.8)}, m, true)
+		if m.InputCost.ValueFloat64() != 0.9 || m.OutputCost.ValueFloat64() != 1.8 {
+			t.Errorf("null/unknown planned cost must be filled from server: in=%v out=%v", m.InputCost, m.OutputCost)
+		}
+		if m.InputCost.IsNull() || m.InputCost.IsUnknown() || m.OutputCost.IsNull() {
+			t.Error("filled cost must be a concrete value")
+		}
+	})
 }
 
 // TestModelTypeEnum proves model_type accepts only the four values the server's
