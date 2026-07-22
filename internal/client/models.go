@@ -34,6 +34,7 @@ const ModelProviderOpenAILike = "openailike"
 // it on metadata.region instead) — and both are surfaced flat here.
 type Model struct {
 	ID          string
+	RefID       string // human-readable ref: provider/model_id (workspaceKey@provider/model_id for private models)
 	DisplayName string
 	ModelID     string
 	ModelType   string
@@ -119,6 +120,11 @@ type ModelUpdateInput struct {
 // for not_found ("gone").
 type ModelsAPI interface {
 	Get(ctx context.Context, id string) (*Model, error)
+	// Resolve maps a user-supplied model reference — a human-readable ref_id
+	// (provider/model_id, or workspaceKey@provider/model_id for a private model)
+	// or a model document id — to its catalog document. See the method for the
+	// exact id-wins / unique-ref / ambiguity / not-found semantics.
+	Resolve(ctx context.Context, ref string) (*Model, error)
 	Create(ctx context.Context, in ModelCreateInput) (*Model, error)
 	Update(ctx context.Context, in ModelUpdateInput) (*Model, error)
 	Delete(ctx context.Context, id string) error
@@ -136,6 +142,7 @@ type restModels struct {
 // reliably-echoed fields are pulled out; everything else on the wire is ignored.
 type modelWire struct {
 	ID            string   `json:"id"`
+	RefID         string   `json:"refId"`
 	DisplayName   string   `json:"display_name"`
 	ModelID       string   `json:"model_id"`
 	ModelType     string   `json:"model_type"`
@@ -166,6 +173,7 @@ type modelWire struct {
 func (w *modelWire) toModel() Model {
 	m := Model{
 		ID:                  w.ID,
+		RefID:               w.RefID,
 		DisplayName:         w.DisplayName,
 		ModelID:             w.ModelID,
 		ModelType:           w.ModelType,
@@ -219,6 +227,7 @@ func decodeModelBody(body []byte) (*Model, error) {
 func modelFromDocument(d *restgen.ModelDocument) Model {
 	m := Model{
 		ID:                  d.Id,
+		RefID:               d.RefId,
 		DisplayName:         d.DisplayName,
 		ModelID:             d.ModelId,
 		ModelType:           d.ModelType,
@@ -295,6 +304,88 @@ func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
 			"The list-only API cannot distinguish the two, so it will not be dropped from state " +
 			"automatically — if it was deleted, remove it with `terraform state rm`; otherwise " +
 			"ensure the credential can see it.",
+	}
+}
+
+// Resolve maps a user-supplied model reference to its catalog document, listing
+// /v2/models (the same list plumbing Get uses) and applying these EXACT rules:
+//
+//  1. If ref EXACTLY equals a document's `id`, that document wins outright — an id
+//     match is authoritative. Some backends use slug-shaped document ids that
+//     contain slashes, so the id-vs-ref decision is made purely by equality, never
+//     by a "looks like a ref" (contains-slash) heuristic that would misroute a
+//     slug-shaped id to the ref branch.
+//  2. Otherwise, collect the documents whose `ref_id` (provider/model_id, or
+//     workspaceKey@provider/model_id for a private model) EXACTLY equals ref.
+//     Exactly one match → that document. More than one → an ambiguity error that
+//     names the candidate document ids and tells the caller to use the id. Zero →
+//     a not-found-style error noting BOTH interpretations were tried, pointing at
+//     `ref_id` in GET /v2/models.
+//
+// A 404/410 from the LIST/collection endpoint is NOT authoritative deletion (there
+// is no lookup-by-id route), so — like Get — such a status is demoted to a plain,
+// NON-not_found error rather than being reported as a resolved-away model.
+func (r *restModels) Resolve(ctx context.Context, ref string) (*Model, error) {
+	resp, err := r.c.ModelListWithResponse(ctx)
+	if err != nil {
+		return nil, mapRESTTransportError("model", err)
+	}
+	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+		mapped := mapRESTStatus(resp.StatusCode(), resp.Body)
+		// A not_found status from the collection endpoint is a routing / reverse-proxy
+		// / deployment anomaly, not an authoritative "the referenced model is gone".
+		// Demote it to a NON-not_found error so a caller never treats a resolve-time
+		// list glitch as a deleted model.
+		if CodeOf(mapped) == CodeNotFound {
+			return nil, &Error{
+				Code: CodeUnavailable,
+				Message: "the model catalog list endpoint returned not-found while resolving a model " +
+					"reference; there is no lookup-by-id route, so this is a routing or deployment anomaly " +
+					"rather than a missing model. Verify the API base URL and that the model list route is reachable.",
+				err: mapped,
+			}
+		}
+		return nil, mapped
+	}
+
+	docs := *resp.JSON200
+
+	// 1. Exact id match wins outright (authoritative), decided by equality only.
+	for i := range docs {
+		if docs[i].Id == ref {
+			m := modelFromDocument(&docs[i])
+			return &m, nil
+		}
+	}
+
+	// 2. Otherwise collect exact ref_id matches.
+	var matchIDs []string
+	var match *restgen.ModelDocument
+	for i := range docs {
+		if docs[i].RefId == ref {
+			matchIDs = append(matchIDs, docs[i].Id)
+			match = &docs[i]
+		}
+	}
+	switch len(matchIDs) {
+	case 1:
+		m := modelFromDocument(match)
+		return &m, nil
+	case 0:
+		return nil, &Error{
+			Code: CodeNotFound,
+			Message: "no model in the workspace catalog matches the reference " + ref + ": it was tried " +
+				"both as a model document id and as a model ref_id, and neither matched. Look the model up " +
+				"in GET /v2/models and use its `ref_id` (for example openai/gpt-4o, or " +
+				"workspaceKey@openailike/my-model for a workspace-custom model) or its document id.",
+		}
+	default:
+		return nil, &Error{
+			Code: CodeInvalid,
+			Message: "the model reference " + ref + " is ambiguous: it matches more than one model " +
+				"document (" + strings.Join(matchIDs, ", ") + "). Use the model document id (the `id` field " +
+				"in GET /v2/models) instead of the ref to select exactly one.",
+		}
 	}
 }
 

@@ -288,6 +288,131 @@ func TestModels_DecodesMarkerAndRefreshFields(t *testing.T) {
 	}
 }
 
+// modelDocRef is a minimal list item carrying just the id + refId (plus the
+// timestamps toModel requires), for exercising Resolve's id-vs-ref semantics.
+func modelDocRef(id, refID string) map[string]any {
+	return map[string]any{
+		"id":           id,
+		"refId":        refID,
+		"display_name": "M",
+		"model_id":     "gpt-4o",
+		"model_type":   "chat",
+		"provider":     "openai",
+		"owner":        "system",
+		"enabled":      true,
+		"created":      "2020-01-01T00:00:00Z",
+		"updated":      "2020-01-02T00:00:00Z",
+	}
+}
+
+func newModelListServer(t *testing.T, docs []map[string]any) *Client {
+	t.Helper()
+	return newModelServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(docs)
+	})
+}
+
+// TestModels_ResolveExactIDWins proves an EXACT document-id match is authoritative
+// and wins over a ref_id match — including the adversarial case where one document
+// has a slug-shaped id equal to ANOTHER document's ref_id. The id match must win,
+// so "contains a slash" is never used to discriminate a ref from an id.
+func TestModels_ResolveExactIDWins(t *testing.T) {
+	// docA's id is slug-shaped and equals docB's ref_id.
+	c := newModelListServer(t, []map[string]any{
+		modelDocRef("openai/gpt-4o", "some/other-ref"), // id == the value we resolve
+		modelDocRef("uuid-B", "openai/gpt-4o"),         // ref_id == the value we resolve
+	})
+	m, err := c.Models().Resolve(context.Background(), "openai/gpt-4o")
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if m.ID != "openai/gpt-4o" {
+		t.Errorf("id match must win over a ref_id match, got id=%q", m.ID)
+	}
+}
+
+// TestModels_ResolveUniqueRef proves a single ref_id match resolves to that
+// document (and projects RefID). No document's id equals the ref.
+func TestModels_ResolveUniqueRef(t *testing.T) {
+	c := newModelListServer(t, []map[string]any{
+		modelDocRef("uuid-1", "anthropic/claude"),
+		modelDocRef("uuid-2", "openai/gpt-4o"),
+	})
+	m, err := c.Models().Resolve(context.Background(), "openai/gpt-4o")
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if m.ID != "uuid-2" {
+		t.Errorf("expected the doc whose ref_id matches, got id=%q", m.ID)
+	}
+	if m.RefID != "openai/gpt-4o" {
+		t.Errorf("RefID not projected: %q", m.RefID)
+	}
+}
+
+// TestModels_ResolveAmbiguousRef proves a ref_id matching MORE THAN ONE document
+// (e.g. the same model_id under two providers) errors, names the candidate ids,
+// tells the caller to use the document id, and is NOT not_found.
+func TestModels_ResolveAmbiguousRef(t *testing.T) {
+	c := newModelListServer(t, []map[string]any{
+		modelDocRef("uuid-A", "openai/gpt-4o"),
+		modelDocRef("uuid-B", "openai/gpt-4o"),
+	})
+	_, err := c.Models().Resolve(context.Background(), "openai/gpt-4o")
+	if err == nil {
+		t.Fatal("expected an ambiguity error, got nil")
+	}
+	if CodeOf(err) == CodeNotFound {
+		t.Fatalf("ambiguity must not be not_found, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "uuid-A") || !strings.Contains(err.Error(), "uuid-B") {
+		t.Errorf("ambiguity error must name the candidate ids, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "id") {
+		t.Errorf("ambiguity error should tell the caller to use the document id, got %q", err.Error())
+	}
+}
+
+// TestModels_ResolveZeroMatch proves a reference matching neither an id nor a
+// ref_id returns a not-found-style error that mentions BOTH interpretations were
+// tried and points at ref_id in GET /v2/models.
+func TestModels_ResolveZeroMatch(t *testing.T) {
+	c := newModelListServer(t, []map[string]any{
+		modelDocRef("uuid-1", "openai/gpt-4o"),
+	})
+	_, err := c.Models().Resolve(context.Background(), "does/not-exist")
+	if err == nil {
+		t.Fatal("expected a not-found error, got nil")
+	}
+	if CodeOf(err) != CodeNotFound {
+		t.Errorf("zero-match should be not-found-style, got %v (%v)", CodeOf(err), err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "document id") || !strings.Contains(msg, "ref_id") {
+		t.Errorf("error must mention BOTH interpretations (document id and ref_id), got %q", msg)
+	}
+	if !strings.Contains(msg, "GET /v2/models") {
+		t.Errorf("error should point at GET /v2/models, got %q", msg)
+	}
+}
+
+// TestModels_ResolveList404NotAuthoritative proves a 404 from the LIST endpoint
+// during Resolve stays a plain (non-not_found) error — a routing/deployment
+// anomaly, not an authoritative "the referenced model is gone".
+func TestModels_ResolveList404NotAuthoritative(t *testing.T) {
+	c := newModelServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+	_, err := c.Models().Resolve(context.Background(), "openai/gpt-4o")
+	if err == nil {
+		t.Fatal("expected an error for a list-endpoint 404, got nil")
+	}
+	if CodeOf(err) == CodeNotFound {
+		t.Fatalf("a list-endpoint 404 during Resolve must NOT be not_found, got %v", err)
+	}
+}
+
 func TestModels_Delete(t *testing.T) {
 	var gotPath, gotMethod string
 	c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {

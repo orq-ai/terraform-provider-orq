@@ -27,8 +27,16 @@ var (
 // NewWorkspaceModelResource is the factory registered on the provider.
 func NewWorkspaceModelResource() resource.Resource { return &workspaceModelResource{} }
 
+// modelResolver is the narrow seam the resource uses to turn a user-supplied
+// model_id (a human-readable ref, or a document id) into the resolved catalog
+// document. It is satisfied by client.ModelsAPI (c.Models()).
+type modelResolver interface {
+	Resolve(ctx context.Context, ref string) (*client.Model, error)
+}
+
 type workspaceModelResource struct {
-	models client.WorkspaceModelsAPI
+	models   client.WorkspaceModelsAPI
+	resolver modelResolver
 }
 
 type workspaceModelResourceModel struct {
@@ -59,17 +67,21 @@ func (r *workspaceModelResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"model is enabled, the resource is tainted so the next apply re-reconciles it.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed:            true,
-				MarkdownDescription: "Resource identifier (equals `model_id`).",
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				Computed: true,
+				MarkdownDescription: "Resource identifier: the resolved model DOCUMENT id (a UUID on this " +
+					"backend — the `id` field of the matching entry in `GET /v2/models`). It may differ from " +
+					"`model_id` when that is supplied as a human-readable ref.",
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"model_id": schema.StringAttribute{
 				Required: true,
-				MarkdownDescription: "The model DOCUMENT ID as returned in `id` by `GET /v2/models` (the list " +
-					"endpoint). On this backend that is a document UUID, NOT a display slug: a slug such as " +
-					"`openai/gpt-4o` can map to MULTIPLE provider documents (e.g. one each for different " +
-					"upstream providers), so enabling by slug fails with a 404 — always use the document `id` " +
-					"from the list. Changing it forces replacement.",
+				MarkdownDescription: "The model to enable. The recommended form is the human-readable reference " +
+					"`provider/model_id` (e.g. `openai/gpt-4o`); a workspace-custom model uses " +
+					"`workspaceKey@provider/model_id` (e.g. `acme@openailike/my-model`). This is the `ref_id` " +
+					"field of an entry in `GET /v2/models`. A model DOCUMENT id (the `id` field, a UUID) is also " +
+					"accepted for compatibility and takes precedence when it exactly matches a document. If a ref " +
+					"matches more than one document (the same model_id under multiple providers), resolution fails " +
+					"as ambiguous — use the document id to select exactly one. Changing this forces replacement.",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"enabled": schema.BoolAttribute{
@@ -132,6 +144,7 @@ func (r *workspaceModelResource) Configure(_ context.Context, req resource.Confi
 		return
 	}
 	r.models = c.WorkspaceModels()
+	r.resolver = c.Models()
 }
 
 // ValidateConfig enforces the auto_grant guard: auto_grant_new_projects = true
@@ -214,8 +227,11 @@ func applySharing(cfg *client.SharingConfig, m *workspaceModelResourceModel) {
 }
 
 func (r *workspaceModelResource) applyModel(wm *client.WorkspaceModel, m *workspaceModelResourceModel) {
+	// id is the resolved DOCUMENT id (the catalog `id` we read by). model_id is the
+	// caller's identity value (a ref or a document id) and is NEVER rewritten here —
+	// overwriting it with the resolved UUID would produce a perpetual diff against
+	// a config that used a human-readable ref.
 	m.ID = types.StringValue(wm.ModelID)
-	m.ModelID = types.StringValue(wm.ModelID)
 	m.Enabled = types.BoolValue(wm.Enabled)
 	m.DisplayName = optString(wm.DisplayName)
 	applySharing(wm.Sharing, m)
@@ -227,7 +243,15 @@ func (r *workspaceModelResource) Create(ctx context.Context, req resource.Create
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	modelID := plan.ModelID.ValueString()
+
+	// Step 0: resolve model_id (a human-readable ref or a document id) to the
+	// document UUID all subsequent API calls use. On failure nothing was created.
+	doc, err := r.resolver.Resolve(ctx, plan.ModelID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to resolve model reference", errDetail(err))
+		return
+	}
+	modelID := doc.ID
 
 	// Step 1: enable. On failure nothing was created; state is left null.
 	if err := r.models.Enable(ctx, modelID); err != nil {
@@ -289,7 +313,26 @@ func (r *workspaceModelResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
-	wm, err := r.models.Get(ctx, state.ModelID.ValueString())
+	// Prefer the stored resolved document id: reading by it is stable even when the
+	// human-readable ref later becomes ambiguous (a second provider's document
+	// acquires the same ref_id, which would make a re-resolve fail). Only when id is
+	// absent — right after `terraform import`, which seeds model_id alone — do we
+	// resolve the ref to a document id.
+	docID := state.ID.ValueString()
+	if docID == "" {
+		doc, err := r.resolver.Resolve(ctx, state.ModelID.ValueString())
+		if err != nil {
+			if isNotFound(err) {
+				resp.State.RemoveResource(ctx)
+				return
+			}
+			resp.Diagnostics.AddError("Unable to resolve model reference", errDetail(err))
+			return
+		}
+		docID = doc.ID
+	}
+
+	wm, err := r.models.Get(ctx, docID)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to read model", errDetail(err))
 		return
@@ -310,7 +353,10 @@ func (r *workspaceModelResource) Update(ctx context.Context, req resource.Update
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	modelID := plan.ModelID.ValueString()
+	// Sharing-only update: model_id is RequiresReplace, so it is unchanged here and
+	// the resolved document id carries over from state (via UseStateForUnknown). Use
+	// it directly rather than re-resolving the ref, which could now be ambiguous.
+	modelID := plan.ID.ValueString()
 
 	in, sdiags := plan.Sharing.sharingInput(ctx)
 	resp.Diagnostics.Append(sdiags...)
@@ -342,7 +388,8 @@ func (r *workspaceModelResource) Delete(ctx context.Context, req resource.Delete
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	modelID := state.ModelID.ValueString()
+	// Disable / confirm by the resolved document id stored in state.
+	modelID := state.ID.ValueString()
 
 	// A system model id contains a slash, so the disable call can silently
 	// no-op server-side. Do NOT trust the disable status (nor treat not_found
@@ -373,7 +420,8 @@ func (r *workspaceModelResource) Delete(ctx context.Context, req resource.Delete
 }
 
 func (r *workspaceModelResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// The import ID is the model reference; it seeds both id and model_id.
+	// The import ID may be either a human-readable ref or a document id. Seed only
+	// model_id and leave id null; Read resolves model_id to the document id (the
+	// id-absent branch) and hydrates the rest of the state.
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("model_id"), req.ID)...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), req.ID)...)
 }

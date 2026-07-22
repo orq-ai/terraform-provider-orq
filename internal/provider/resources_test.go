@@ -141,6 +141,35 @@ func TestApplySharingNormalization(t *testing.T) {
 	}
 }
 
+// TestWorkspaceModelApplyModelSetsResolvedID proves applyModel writes the
+// resolved DOCUMENT id into `id` while leaving `model_id` (the caller's identity
+// value — here a human-readable ref) untouched. Rewriting model_id to the UUID
+// would produce a perpetual diff against a config that used the ref.
+func TestWorkspaceModelApplyModelSetsResolvedID(t *testing.T) {
+	r := &workspaceModelResource{}
+	m := workspaceModelResourceModel{
+		ModelID: types.StringValue("openai/gpt-4o"), // the user's ref, must be preserved
+	}
+	r.applyModel(&client.WorkspaceModel{
+		ModelID:     "doc_uuid_123", // the catalog document id we read by (resolved UUID)
+		DisplayName: "GPT-4o",
+		Enabled:     true,
+	}, &m)
+
+	if m.ID.ValueString() != "doc_uuid_123" {
+		t.Errorf("id must be the resolved document uuid, got %q", m.ID.ValueString())
+	}
+	if m.ModelID.ValueString() != "openai/gpt-4o" {
+		t.Errorf("model_id must stay the user's ref (never rewritten to the uuid), got %q", m.ModelID.ValueString())
+	}
+	if !m.Enabled.ValueBool() {
+		t.Error("enabled must be true")
+	}
+	if m.DisplayName.ValueString() != "GPT-4o" {
+		t.Errorf("display_name not applied: %q", m.DisplayName.ValueString())
+	}
+}
+
 // --- budget scope XOR -----------------------------------------------------
 
 func TestValidateBudgetScopeXOR(t *testing.T) {
