@@ -288,3 +288,105 @@ func TestMatchPriorByIDPositional(t *testing.T) {
 		}
 	}
 }
+
+// TestCorrelateEvaluatorExecuteOnChangeKeepsComputed is the Codex-review
+// follow-up: changing ONLY execute_on must not clear the evaluator's own
+// options or silently downgrade is_guardrail. The composite (id, execute_on)
+// key cannot match, so the unambiguous same-id fallback must carry the values.
+func TestCorrelateEvaluatorExecuteOnChangeKeepsComputed(t *testing.T) {
+	prior := []policyEvaluatorModel{
+		evEval("ev_A", "input", evOptVal(`{"threshold":0.8}`), types.BoolValue(true)),
+	}
+	config := []policyEvaluatorModel{
+		evEval("ev_A", "output", evOptNull(), types.BoolNull()),
+	}
+	// Positional merge keeps prior[0]'s computed on plan[0] (same index here).
+	plan := []policyEvaluatorModel{
+		evEval("ev_A", "output", evOptVal(`{"threshold":0.8}`), types.BoolValue(true)),
+	}
+
+	correlateEvaluatorComputed(plan, config, prior)
+
+	assertEvalOptions(t, plan[0].Options, `{"threshold":0.8}`)
+	assertEvalGuardrail(t, plan[0].IsGuardrail, true)
+}
+
+// TestCorrelateEvaluatorExecuteOnChangeAmbiguous: the same-id fallback must
+// never guess. Two unused priors sharing the id (or two unmatched plan
+// evaluators sharing it) leave the unset fields unknown instead.
+func TestCorrelateEvaluatorExecuteOnChangeAmbiguous(t *testing.T) {
+	t.Run("two prior candidates", func(t *testing.T) {
+		prior := []policyEvaluatorModel{
+			evEval("ev_A", "input", evOptVal(`{"a":1}`), types.BoolValue(true)),
+			evEval("ev_A", "output", evOptVal(`{"b":2}`), types.BoolValue(false)),
+		}
+		config := []policyEvaluatorModel{
+			evEval("ev_A", "both", evOptNull(), types.BoolNull()),
+		}
+		plan := []policyEvaluatorModel{
+			evEval("ev_A", "both", evOptVal(`{"a":1}`), types.BoolValue(true)),
+		}
+
+		correlateEvaluatorComputed(plan, config, prior)
+
+		if !plan[0].Options.IsUnknown() {
+			t.Errorf("ambiguous same-id fallback must leave options unknown, got %v", plan[0].Options)
+		}
+		if !plan[0].IsGuardrail.IsUnknown() {
+			t.Errorf("ambiguous same-id fallback must leave is_guardrail unknown, got %v", plan[0].IsGuardrail)
+		}
+	})
+
+	t.Run("two unmatched plan evaluators", func(t *testing.T) {
+		prior := []policyEvaluatorModel{
+			evEval("ev_A", "input", evOptVal(`{"a":1}`), types.BoolValue(true)),
+		}
+		config := []policyEvaluatorModel{
+			evEval("ev_A", "output", evOptNull(), types.BoolNull()),
+			evEval("ev_A", "both", evOptNull(), types.BoolNull()),
+		}
+		plan := []policyEvaluatorModel{
+			evEval("ev_A", "output", evOptVal(`{"a":1}`), types.BoolValue(true)),
+			evEval("ev_A", "both", evOptNull(), types.BoolNull()),
+		}
+
+		correlateEvaluatorComputed(plan, config, prior)
+
+		for i := range plan {
+			if !plan[i].Options.IsUnknown() {
+				t.Errorf("plan[%d]: ambiguous fallback must leave options unknown, got %v", i, plan[i].Options)
+			}
+			if !plan[i].IsGuardrail.IsUnknown() {
+				t.Errorf("plan[%d]: ambiguous fallback must leave is_guardrail unknown, got %v", i, plan[i].IsGuardrail)
+			}
+		}
+	})
+}
+
+// TestCorrelateEvaluatorExactMatchBeatsFallback: an exact composite match must
+// consume its prior FIRST; the fallback only sees what pass 1 left unused.
+func TestCorrelateEvaluatorExactMatchBeatsFallback(t *testing.T) {
+	prior := []policyEvaluatorModel{
+		evEval("ev_A", "input", evOptVal(`{"in":1}`), types.BoolValue(true)),
+		evEval("ev_A", "output", evOptVal(`{"out":2}`), types.BoolValue(false)),
+	}
+	// The output evaluator is kept; the input one moves to "both".
+	config := []policyEvaluatorModel{
+		evEval("ev_A", "output", evOptNull(), types.BoolNull()),
+		evEval("ev_A", "both", evOptNull(), types.BoolNull()),
+	}
+	plan := []policyEvaluatorModel{
+		evEval("ev_A", "output", evOptVal(`{"in":1}`), types.BoolValue(true)),
+		evEval("ev_A", "both", evOptVal(`{"out":2}`), types.BoolValue(false)),
+	}
+
+	correlateEvaluatorComputed(plan, config, prior)
+
+	// Exact match: ev_A/output keeps its own {"out":2}.
+	assertEvalOptions(t, plan[0].Options, `{"out":2}`)
+	assertEvalGuardrail(t, plan[0].IsGuardrail, false)
+	// Fallback: ev_A/both is the only unmatched plan evaluator and ev_A/input the
+	// only unused prior — unambiguous, so the values carry.
+	assertEvalOptions(t, plan[1].Options, `{"in":1}`)
+	assertEvalGuardrail(t, plan[1].IsGuardrail, true)
+}

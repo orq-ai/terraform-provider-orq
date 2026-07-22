@@ -367,7 +367,12 @@ func (r *policyResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 // The identity key is (id, execute_on) — the two Required fields. Duplicate keys
 // pair positionally among themselves (the first unused prior with that key pairs
 // with the first plan element with that key, and so on): a stable, documented
-// tie-break the server does not forbid.
+// tie-break the server does not forbid. A plan evaluator with NO composite match
+// falls back to a same-id match — an execute_on-only change must keep its own
+// options/is_guardrail (options describe the evaluator, not where it runs) — but
+// ONLY when unambiguous: exactly one unmatched plan evaluator and exactly one
+// unused prior share that id. An ambiguous same-id case is never guessed; its
+// unset fields become unknown ("known after apply").
 //
 // config[i] (NOT plan[i]) decides whether a field is unset: plan[i] may already
 // carry a wrong, positionally-merged known value, so only a null CONFIG value is
@@ -380,34 +385,57 @@ func (r *policyResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 func correlateEvaluatorComputed(plan, config, prior []policyEvaluatorModel) {
 	type identity struct{ id, executeOn string }
 	stateByKey := make(map[identity][]int, len(prior))
+	priorByID := make(map[string][]int, len(prior))
 	for i, s := range prior {
 		if s.ID.IsUnknown() {
 			continue
 		}
-		k := identity{s.ID.ValueString(), s.ExecuteOn.ValueString()}
+		id := s.ID.ValueString()
+		k := identity{id, s.ExecuteOn.ValueString()}
 		stateByKey[k] = append(stateByKey[k], i)
+		priorByID[id] = append(priorByID[id], i)
 	}
 	used := make([]bool, len(prior))
-	for i := range plan {
+	// carry copies the matched prior evaluator's own value into any field the
+	// config left unset, overriding core's positional merge. resetUnset marks an
+	// unset field "known after apply" when no prior value can be correlated. An
+	// explicitly configured value (non-null config) is never touched by either.
+	carry := func(i, matched int) {
+		used[matched] = true
 		var cfg policyEvaluatorModel
 		if i < len(config) {
 			cfg = config[i]
 		}
-		// resetUnset marks a field "known after apply" when config left it unset
-		// and no prior value can be correlated. An explicitly configured value
-		// (non-null config) is left untouched.
-		resetUnset := func() {
-			if cfg.Options.IsNull() {
-				plan[i].Options = jsontypes.NewNormalizedUnknown()
-			}
-			if cfg.IsGuardrail.IsNull() {
-				plan[i].IsGuardrail = types.BoolUnknown()
-			}
+		s := prior[matched]
+		if cfg.Options.IsNull() {
+			plan[i].Options = s.Options
 		}
+		if cfg.IsGuardrail.IsNull() {
+			plan[i].IsGuardrail = s.IsGuardrail
+		}
+	}
+	resetUnset := func(i int) {
+		var cfg policyEvaluatorModel
+		if i < len(config) {
+			cfg = config[i]
+		}
+		if cfg.Options.IsNull() {
+			plan[i].Options = jsontypes.NewNormalizedUnknown()
+		}
+		if cfg.IsGuardrail.IsNull() {
+			plan[i].IsGuardrail = types.BoolUnknown()
+		}
+	}
+	// Pass 1: exact (id, execute_on) matches, consuming positionally among
+	// duplicate keys. Plan evaluators with a known id but no composite match are
+	// deferred to the same-id fallback pass.
+	var unmatchedPlan []int
+	unmatchedByID := make(map[string]int)
+	for i := range plan {
 		// An unknown id (interpolated from another not-yet-applied resource) cannot
 		// be correlated — never guess, leave the unset fields unknown.
 		if plan[i].ID.IsUnknown() {
-			resetUnset()
+			resetUnset(i)
 			continue
 		}
 		k := identity{plan[i].ID.ValueString(), plan[i].ExecuteOn.ValueString()}
@@ -419,19 +447,31 @@ func correlateEvaluatorComputed(plan, config, prior []policyEvaluatorModel) {
 			}
 		}
 		if matched < 0 {
-			resetUnset() // new evaluator: computed fields are known only after apply.
+			unmatchedPlan = append(unmatchedPlan, i)
+			unmatchedByID[k.id]++
 			continue
 		}
-		used[matched] = true
-		s := prior[matched]
-		// Carry the matched evaluator's OWN prior value for any field the config
-		// left unset, overriding core's positional merge.
-		if cfg.Options.IsNull() {
-			plan[i].Options = s.Options
+		carry(i, matched)
+	}
+	// Pass 2: same-id fallback for an execute_on-only change. Only an unambiguous
+	// pairing (one unmatched plan evaluator, one unused prior, same id) is carried;
+	// anything else — a genuinely new evaluator, or duplicate-id ambiguity — resets
+	// to unknown.
+	for _, i := range unmatchedPlan {
+		id := plan[i].ID.ValueString()
+		candidate := -1
+		candidates := 0
+		for _, idx := range priorByID[id] {
+			if !used[idx] {
+				candidate = idx
+				candidates++
+			}
 		}
-		if cfg.IsGuardrail.IsNull() {
-			plan[i].IsGuardrail = s.IsGuardrail
+		if candidates == 1 && unmatchedByID[id] == 1 {
+			carry(i, candidate)
+			continue
 		}
+		resetUnset(i) // new evaluator (or ambiguous): known only after apply.
 	}
 }
 
