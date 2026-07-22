@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -265,5 +266,128 @@ func TestPolicyEvaluatorOptionsElisionKept(t *testing.T) {
 	}, &m2)
 	if !m2.Evaluators[0].Options.IsNull() {
 		t.Errorf("omitted options must collapse to null, got %q", m2.Evaluators[0].Options.ValueString())
+	}
+}
+
+// evalWithOptions builds a plan/state evaluator model with the given id and an
+// options value (unknown when opts is the sentinel "<unknown>", null when "").
+func evalWithOptions(id, opts string) policyEvaluatorModel {
+	m := policyEvaluatorModel{ID: types.StringValue(id), ExecuteOn: types.StringValue("input")}
+	switch opts {
+	case "<unknown>":
+		m.Options = jsontypes.NewNormalizedUnknown()
+	case "":
+		m.Options = jsontypes.NewNormalizedNull()
+	default:
+		m.Options = jsontypes.NewNormalizedValue(opts)
+	}
+	return m
+}
+
+// TestRetainEvaluatorOptionsOnUnrelatedUpdate proves the core MUST-FIX: options
+// set on an evaluator survive an UNRELATED update (a rename) where the config
+// omits options (planned unknown) — retained both in the outbound request and in
+// the post-apply state, not wiped by the wholesale evaluator replace.
+func TestRetainEvaluatorOptionsOnUnrelatedUpdate(t *testing.T) {
+	prior := []policyEvaluatorModel{evalWithOptions("ev_A", `{"threshold":0.8}`)}
+	// Plan for the rename: display_name changed elsewhere, options omitted -> unknown.
+	plan := []policyEvaluatorModel{evalWithOptions("ev_A", "<unknown>")}
+
+	retainEvaluatorOptions(plan, prior)
+
+	// Retained in the model (so apply writes it to state).
+	if got := plan[0].Options.ValueString(); got != `{"threshold":0.8}` {
+		t.Fatalf("options must be retained in the plan model, got %q", got)
+	}
+	// Retained in the outbound request (the wholesale replace re-sends it).
+	refs, diags := policyEvaluatorsFromModel(plan)
+	if diags.HasError() {
+		t.Fatalf("unexpected diags: %v", diags)
+	}
+	if len(refs) != 1 || refs[0].Options == nil {
+		t.Fatalf("options must be present in the sent request, got %+v", refs)
+	}
+	if !reflect.DeepEqual(refs[0].Options, map[string]any{"threshold": 0.8}) {
+		t.Errorf("sent options mismatch: %+v", refs[0].Options)
+	}
+	// Retained in state: server echoes non-empty options; apply writes them.
+	r := &policyResource{}
+	state := policyResourceModel{Evaluators: plan}
+	r.apply(&client.Policy{
+		ID:         "pol_1",
+		Evaluators: []client.EvaluatorRef{{ID: "ev_A", ExecuteOn: "input", Options: map[string]any{"threshold": 0.8}}},
+	}, &state)
+	if got := state.Evaluators[0].Options.ValueString(); got != `{"threshold":0.8}` {
+		t.Errorf("options must be retained in state, got %q", got)
+	}
+}
+
+// TestRetainEvaluatorOptionsByID proves reconciliation matches evaluators by id
+// (not position): reorder keeps each evaluator's own options, a removed evaluator
+// drops entirely, and an added evaluator gets no options.
+func TestRetainEvaluatorOptionsByID(t *testing.T) {
+	optA, optB := `{"a":1}`, `{"b":2}`
+
+	// Reorder: prior [A,B] -> plan [B,A], both options omitted (unknown).
+	t.Run("reorder", func(t *testing.T) {
+		prior := []policyEvaluatorModel{evalWithOptions("ev_A", optA), evalWithOptions("ev_B", optB)}
+		plan := []policyEvaluatorModel{evalWithOptions("ev_B", "<unknown>"), evalWithOptions("ev_A", "<unknown>")}
+		retainEvaluatorOptions(plan, prior)
+		if plan[0].Options.ValueString() != optB {
+			t.Errorf("reordered ev_B must keep its own options %q, got %q", optB, plan[0].Options.ValueString())
+		}
+		if plan[1].Options.ValueString() != optA {
+			t.Errorf("reordered ev_A must keep its own options %q, got %q", optA, plan[1].Options.ValueString())
+		}
+	})
+
+	// Removed: prior [A,B] -> plan [A]. B drops with the plan (never looked up).
+	t.Run("removed", func(t *testing.T) {
+		prior := []policyEvaluatorModel{evalWithOptions("ev_A", optA), evalWithOptions("ev_B", optB)}
+		plan := []policyEvaluatorModel{evalWithOptions("ev_A", "<unknown>")}
+		retainEvaluatorOptions(plan, prior)
+		if len(plan) != 1 || plan[0].ID.ValueString() != "ev_A" {
+			t.Fatalf("removed evaluator must be gone, got %+v", plan)
+		}
+		if plan[0].Options.ValueString() != optA {
+			t.Errorf("kept ev_A must retain %q, got %q", optA, plan[0].Options.ValueString())
+		}
+		refs, _ := policyEvaluatorsFromModel(plan)
+		if len(refs) != 1 || refs[0].ID != "ev_A" {
+			t.Errorf("request must contain only ev_A, got %+v", refs)
+		}
+	})
+
+	// Added: prior [A] -> plan [A, C]. C has no prior -> options stay null (unset).
+	t.Run("added", func(t *testing.T) {
+		prior := []policyEvaluatorModel{evalWithOptions("ev_A", optA)}
+		plan := []policyEvaluatorModel{evalWithOptions("ev_A", "<unknown>"), evalWithOptions("ev_C", "<unknown>")}
+		retainEvaluatorOptions(plan, prior)
+		if plan[0].Options.ValueString() != optA {
+			t.Errorf("ev_A must retain %q, got %q", optA, plan[0].Options.ValueString())
+		}
+		if !plan[1].Options.IsNull() {
+			t.Errorf("added ev_C must have null (unset) options, got %q", plan[1].Options.ValueString())
+		}
+		refs, _ := policyEvaluatorsFromModel(plan)
+		if len(refs) != 2 {
+			t.Fatalf("expected 2 refs, got %d", len(refs))
+		}
+		if refs[1].Options != nil {
+			t.Errorf("added ev_C must send no options, got %+v", refs[1].Options)
+		}
+	})
+}
+
+// TestRetainEvaluatorOptionsExplicitConfigUntouched proves an explicitly
+// configured options (including an empty {}) is left exactly as the operator
+// wrote it — retention only fills an omitted (unknown) options.
+func TestRetainEvaluatorOptionsExplicitConfigUntouched(t *testing.T) {
+	prior := []policyEvaluatorModel{evalWithOptions("ev_A", `{"a":1}`)}
+	// Operator now sets options explicitly to {} (a known, non-unknown value).
+	plan := []policyEvaluatorModel{evalWithOptions("ev_A", `{}`)}
+	retainEvaluatorOptions(plan, prior)
+	if plan[0].Options.ValueString() != `{}` {
+		t.Errorf("explicit {} must not be overwritten by prior options, got %q", plan[0].Options.ValueString())
 	}
 }

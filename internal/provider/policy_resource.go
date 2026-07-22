@@ -245,7 +245,7 @@ func (r *policyResource) apply(p *client.Policy, m *policyResourceModel) {
 		return
 	}
 	evs := make([]policyEvaluatorModel, 0, len(p.Evaluators))
-	for i, e := range p.Evaluators {
+	for _, e := range p.Evaluators {
 		em := policyEvaluatorModel{
 			ID:        types.StringValue(e.ID),
 			ExecuteOn: types.StringValue(e.ExecuteOn),
@@ -274,27 +274,66 @@ func (r *policyResource) apply(p *client.Policy, m *policyResourceModel) {
 			// The server elides an empty options object entirely. A non-null config
 			// options (e.g. `{}`) would otherwise read back null — a null vs
 			// non-null mismatch semantic equality cannot reconcile — so keep the
-			// operator's planned/prior value. An unknown (create with omitted
-			// options) collapses to null.
-			em.Options = priorEvaluatorOptions(priorEvals, i, e.ID)
+			// operator's planned/prior value, matched by evaluator id (the server
+			// replaces evaluators wholesale, so the read-back order equals the sent
+			// order, but id-matching is robust to reorder/add/remove). An unknown
+			// (create with omitted options) collapses to null.
+			em.Options = priorEvaluatorOptions(priorEvals, e.ID)
 		}
 		evs = append(evs, em)
 	}
 	m.Evaluators = evs
 }
 
-// priorEvaluatorOptions returns the options value for the i-th evaluator from
-// the plan/prior-state evaluators, matched positionally with an id sanity check
-// (the server replaces evaluators wholesale in the order sent). It returns a
-// concrete null when there is no match or the prior value is unknown, so the
-// post-apply state never carries an unknown.
-func priorEvaluatorOptions(prior []policyEvaluatorModel, i int, id string) jsontypes.Normalized {
-	if i < len(prior) && prior[i].ID.ValueString() == id {
-		if o := prior[i].Options; !o.IsUnknown() {
-			return o
+// priorEvaluatorOptions returns the options value for the evaluator with the
+// given id from the plan/prior-state evaluators. It returns a concrete null when
+// there is no match or the prior value is unknown, so the post-apply state never
+// carries an unknown.
+func priorEvaluatorOptions(prior []policyEvaluatorModel, id string) jsontypes.Normalized {
+	for _, p := range prior {
+		if p.ID.ValueString() == id {
+			if o := p.Options; !o.IsUnknown() {
+				return o
+			}
+			return jsontypes.NewNormalizedNull()
 		}
 	}
 	return jsontypes.NewNormalizedNull()
+}
+
+// retainEvaluatorOptions fills in each plan evaluator's options from the prior
+// state when the config omitted it. options is Optional+Computed with no
+// UseStateForUnknown, so an unconfigured options plans as UNKNOWN; because the
+// Update replaces the evaluator list WHOLESALE, sending an evaluator without its
+// options would clear options that were set on a prior apply or import. This
+// mutates plan in place so both the outbound request (policyEvaluatorsFromModel)
+// and the state write (apply) carry the retained value.
+//
+// Matching is by evaluator id, not position, so: a reordered evaluator keeps its
+// own options, a removed evaluator drops entirely (its prior options are never
+// looked up), and an added evaluator finds no prior and keeps its unconfigured
+// (null) options. An explicitly configured options (including `{}`, which is
+// known and non-unknown) is left exactly as the operator wrote it.
+func retainEvaluatorOptions(plan, prior []policyEvaluatorModel) {
+	if len(plan) == 0 {
+		return
+	}
+	priorByID := make(map[string]jsontypes.Normalized, len(prior))
+	for _, p := range prior {
+		priorByID[p.ID.ValueString()] = p.Options
+	}
+	for i := range plan {
+		if !plan[i].Options.IsUnknown() {
+			continue // operator set it explicitly (incl. {}) — keep as-is.
+		}
+		if o, ok := priorByID[plan[i].ID.ValueString()]; ok && !o.IsNull() && !o.IsUnknown() {
+			plan[i].Options = o
+			continue
+		}
+		// No prior options to retain (newly added evaluator, or prior had none):
+		// resolve the unknown to null so it isn't sent and never leaks into state.
+		plan[i].Options = jsontypes.NewNormalizedNull()
+	}
 }
 
 func (r *policyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -352,6 +391,16 @@ func (r *policyResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	// options is Optional+Computed: an unconfigured options plans as unknown. The
+	// evaluator list is a wholesale replace, so retain each evaluator's prior
+	// options (matched by id) when the config omits it — otherwise an unrelated
+	// change (e.g. a rename) would clear server-side options.
+	var state policyResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	retainEvaluatorOptions(plan.Evaluators, state.Evaluators)
 	evs, evDiags := policyEvaluatorsFromModel(plan.Evaluators)
 	resp.Diagnostics.Append(evDiags...)
 	if resp.Diagnostics.HasError() {
