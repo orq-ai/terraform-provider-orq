@@ -45,6 +45,9 @@ resource "orq_budget" "project_monthly" {
   alerts {
     threshold_percent = 95
     notifier_ids      = [orq_notifier.budget_alerts.id]
-    dimension         = "TOKENS"
+    # dimension defaults to COST. `TOKENS` is a valid enum value but current
+    # servers reject it ("the TOKENS dimension is not supported yet"), so this
+    # applyable example keeps both alerts on COST.
+    dimension = "COST"
   }
 }
