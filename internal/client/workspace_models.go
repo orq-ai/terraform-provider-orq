@@ -89,6 +89,13 @@ func (w *workspaceModels) Disable(ctx context.Context, modelID string) error {
 	switch resp.StatusCode() {
 	case http.StatusOK, http.StatusNoContent, http.StatusAccepted:
 		return nil
+	case http.StatusNotFound:
+		// Idempotent-disable contract: the platform is being reverted to returning
+		// 204 when disabling an already-disabled workspace model, but the currently
+		// deployed platform returns 404 for that case. Either way the desired end
+		// state (the model is not enabled) already holds, so a 404 here means
+		// "already disabled" — treat it as success rather than a spurious error.
+		return nil
 	default:
 		return mapRESTStatus(resp.StatusCode(), resp.Body)
 	}

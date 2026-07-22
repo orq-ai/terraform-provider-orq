@@ -160,3 +160,24 @@ func TestWorkspaceModels_Disable(t *testing.T) {
 		t.Errorf("disable did not DELETE the expected path: %v", *calls)
 	}
 }
+
+// TestWorkspaceModels_DisableTolerates404 proves the idempotent-disable contract:
+// the currently-deployed platform returns 404 when disabling an already-disabled
+// model, and Disable must treat that as success (the desired end state already
+// holds) rather than surfacing a spurious not-found error.
+func TestWorkspaceModels_DisableTolerates404(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v2/workspace-models/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"workspace model not found"}`))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	c, err := New(Config{URL: srv.URL, Token: sentinelToken})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := c.WorkspaceModels().Disable(context.Background(), "openai/gpt-4o"); err != nil {
+		t.Errorf("Disable should tolerate a 404 (already disabled), got: %v", err)
+	}
+}
