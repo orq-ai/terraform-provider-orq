@@ -54,36 +54,45 @@ func (rt *bearerRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 	return rt.next.RoundTrip(r)
 }
 
-// sameOrigin reports whether u has the same scheme and host as origin. Scheme
-// comparison is case-insensitive; host comparison ignores a default port spelled
-// out explicitly (https://host:443 == https://host, http://host:80 == http://host)
-// so an origin that names the standard port for its scheme still matches, while a
-// non-default port stays a distinct origin. An https→http downgrade fails this
-// check (schemes differ, and each scheme's default port normalizes independently).
+// sameOrigin reports whether u and origin denote the same web origin. It compares
+// the (scheme, host, effective port) triple FIELD BY FIELD — it never reassembles a
+// "host:port" string. Reassembly is unsafe for an IPv6 literal because
+// url.URL.Hostname() strips the brackets: https://[2001:db8::1]:8443 (host
+// 2001:db8::1, port 8443) and https://[2001:db8::1:8443] (host 2001:db8::1:8443, no
+// port) both render as "2001:db8::1:8443" and would collide, letting the bearer be
+// attached to a different destination.
+//
+// scheme and host are compared case-insensitively — URL schemes and DNS host names
+// are case-insensitive, so https://MY.ORQ.AI and https://my.orq.ai are the same
+// origin. The effective port is the explicit port or the scheme's default (443 for
+// https, 80 for http), so https://host and https://host:443 match while a non-default
+// port stays a distinct origin. An https→http downgrade fails (schemes differ, and
+// each scheme's default port is computed independently).
 func sameOrigin(u, origin *url.URL) bool {
 	if u == nil || origin == nil {
 		return false
 	}
-	if !strings.EqualFold(u.Scheme, origin.Scheme) {
-		return false
-	}
-	return normalizedHostPort(u) == normalizedHostPort(origin)
+	return strings.EqualFold(u.Scheme, origin.Scheme) &&
+		strings.EqualFold(u.Hostname(), origin.Hostname()) &&
+		effectivePort(u) == effectivePort(origin)
 }
 
-// normalizedHostPort returns u.Host with an explicit default port for its scheme
-// stripped (443 for https, 80 for http), so the same origin written with or
-// without its standard port compares equal. Host case is preserved (DNS hosts are
-// conventionally lowercase already, and the framework does not case-fold them).
-func normalizedHostPort(u *url.URL) string {
-	host, port := u.Hostname(), u.Port()
-	if port == "" {
-		return host
+// effectivePort returns u's explicit port, or the default port for its scheme when
+// none is given (443 for https, 80 for http, "" otherwise). It is compared as a
+// standalone field of the origin tuple — never concatenated onto the host — so an
+// IPv6 literal's colons can never be confused with the host:port separator.
+func effectivePort(u *url.URL) string {
+	if p := u.Port(); p != "" {
+		return p
 	}
-	scheme := strings.ToLower(u.Scheme)
-	if (scheme == "https" && port == "443") || (scheme == "http" && port == "80") {
-		return host
+	switch strings.ToLower(u.Scheme) {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	default:
+		return ""
 	}
-	return host + ":" + port
 }
 
 // rejectCrossOriginRedirect is an http.Client CheckRedirect that refuses to

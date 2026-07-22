@@ -51,6 +51,41 @@ func TestSameOrigin(t *testing.T) {
 	})
 }
 
+// TestSameOrigin_IPv6NoCollision proves the origin comparison treats (scheme, host,
+// port) as a field-by-field tuple rather than reassembling a "host:port" string: an
+// IPv6 literal whose brackets url.URL.Hostname() strips must never collide with a
+// different destination. https://[2001:db8::1]:8443 (host 2001:db8::1, port 8443) is
+// NOT the same origin as https://[2001:db8::1:8443] (host 2001:db8::1:8443, default
+// port), even though a naive host+":"+port renders both as "2001:db8::1:8443" —
+// attaching the bearer to the latter would leak it cross-origin.
+func TestSameOrigin_IPv6NoCollision(t *testing.T) {
+	withPort := mustURL(t, "https://[2001:db8::1]:8443")
+	embedded := mustURL(t, "https://[2001:db8::1:8443]")
+	if sameOrigin(withPort, embedded) || sameOrigin(embedded, withPort) {
+		t.Error("IPv6 host:port must not collide with a host that embeds the port digits")
+	}
+	// The same IPv6 address with and without its explicit default port IS one origin.
+	bare := mustURL(t, "https://[2001:db8::1]")
+	withDefault := mustURL(t, "https://[2001:db8::1]:443")
+	if !sameOrigin(bare, withDefault) || !sameOrigin(withDefault, bare) {
+		t.Error("same IPv6 address with/without explicit :443 must be the same origin")
+	}
+	// A different explicit port on the same IPv6 host stays a distinct origin.
+	if sameOrigin(mustURL(t, "https://[2001:db8::1]:8443"), mustURL(t, "https://[2001:db8::1]:9443")) {
+		t.Error("different explicit ports on the same IPv6 host must not be same-origin")
+	}
+}
+
+// TestSameOrigin_HostCaseInsensitive proves DNS host comparison is case-insensitive
+// (DNS is case-insensitive), so a redirect to https://MY.ORQ.AI from origin
+// https://my.orq.ai is same-origin and not spuriously rejected.
+func TestSameOrigin_HostCaseInsensitive(t *testing.T) {
+	origin := mustURL(t, "https://my.orq.ai")
+	if !sameOrigin(mustURL(t, "https://MY.ORQ.AI/v2/x"), origin) {
+		t.Error("host comparison must be case-insensitive")
+	}
+}
+
 func TestRejectCrossOriginRedirect(t *testing.T) {
 	origin := mustURL(t, "https://my.orq.ai")
 	check := rejectCrossOriginRedirect(origin)
