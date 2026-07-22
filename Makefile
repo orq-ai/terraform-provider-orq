@@ -9,7 +9,14 @@ BINARY  := terraform-provider-orq
 # Sync sources in the platform monorepo (adjust MONOREPO if checked out elsewhere).
 MONOREPO ?= ../orquesta-web
 
-.PHONY: build test testacc generate generate-connect generate-rest proto-sync openapi-sync record-source-commit check-generated tidy
+# Local-install coordinates for IDE completions (see DEVELOPMENT.md). VERSION is a
+# placeholder release used only by the local filesystem mirror; bump it when you
+# want `tofu init` to pick up a rebuilt binary in an already-initialised dir.
+VERSION    ?= 0.1.0
+OS_ARCH    := $(shell go env GOOS)_$(shell go env GOARCH)
+PLUGIN_DIR := $(HOME)/.terraform.d/plugins/registry.opentofu.org/orq-ai/orq/$(VERSION)/$(OS_ARCH)
+
+.PHONY: build test testacc generate generate-connect generate-rest proto-sync openapi-sync record-source-commit check-generated tidy ide-install
 
 build:
 	go build -o $(BINARY) .
@@ -17,9 +24,19 @@ build:
 test:
 	go test ./...
 
-# Acceptance tests hit a real orq stack; require ORQ_URL + ORQ_TOKEN.
+# Acceptance tests hit a real orq stack; require ORQ_URL + ORQ_API_KEY.
 testacc:
 	TF_ACC=1 go test ./... -v -timeout 120m
+
+# Build the provider into OpenTofu's implied local mirror so the IDE's Terraform
+# language server can read its schema (dev_overrides yields NO schema). After this,
+# run `tofu init` in dev-playground/ (or any dir with a versioned required_providers
+# block) to get completions for orq_* resources. See DEVELOPMENT.md.
+ide-install:
+	@mkdir -p "$(PLUGIN_DIR)"
+	go build -o "$(PLUGIN_DIR)/$(BINARY)_v$(VERSION)" .
+	@echo "Installed orq-ai/orq v$(VERSION) -> $(PLUGIN_DIR)"
+	@echo "Next: cd dev-playground && rm -rf .terraform .terraform.lock.hcl && tofu init"
 
 # Regenerate both clients. Never hand-edit internal/gen or internal/restgen.
 generate: generate-connect generate-rest
