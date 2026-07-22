@@ -86,7 +86,7 @@ func ParseBaseURL(raw string) (*url.URL, error) {
 		return nil, fmt.Errorf("URL has no host (got %q)", raw)
 	}
 	if u.User != nil {
-		return nil, fmt.Errorf("URL must not embed userinfo (credentials go in the token attribute / ORQ_TOKEN)")
+		return nil, fmt.Errorf("URL must not embed userinfo (credentials go in the api_key attribute / ORQ_API_KEY)")
 	}
 	if u.RawQuery != "" || u.ForceQuery {
 		return nil, fmt.Errorf("URL must not include a query string")

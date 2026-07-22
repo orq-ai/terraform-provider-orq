@@ -9,16 +9,16 @@ terraform {
 # Zero-config is the recommended form: the provider reads its credentials from the
 # environment, so nothing sensitive lives in your Terraform configuration.
 #
-#   export ORQ_TOKEN="sk-orq-..."      # a management key; the workspace is implied by the credential
+#   export ORQ_API_KEY="sk-orq-..."     # a management key; the workspace is implied by the credential
 #   export ORQ_URL="https://my.orq.ai" # optional; override only for on-prem or staging installs
 #
 provider "orq" {
   # Both attributes are optional and exist only as an escape hatch. Prefer the
-  # ORQ_URL / ORQ_TOKEN environment variables — an explicit value here beats the
-  # env var but hard-codes it into the config (and, for `token`, risks committing
+  # ORQ_URL / ORQ_API_KEY environment variables — an explicit value here beats the
+  # env var but hard-codes it into the config (and, for `api_key`, risks committing
   # a secret). Precedence is: explicit attribute > env var > built-in default.
 
   # url = "https://my.orq.ai" # defaults to ORQ_URL, then https://my.orq.ai
 
-  # token = "sk-orq-..." # defaults to ORQ_TOKEN; do NOT commit real secrets
+  # api_key = "sk-orq-..." # defaults to ORQ_API_KEY; do NOT commit real secrets
 }

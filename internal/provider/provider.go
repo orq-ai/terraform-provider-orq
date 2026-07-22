@@ -19,7 +19,7 @@ import (
 const (
 	defaultURL = "https://my.orq.ai"
 	envURL     = "ORQ_URL"
-	envToken   = "ORQ_TOKEN"
+	envAPIKey  = "ORQ_API_KEY"
 )
 
 // Ensure orqProvider satisfies the framework interface.
@@ -38,8 +38,8 @@ func New(version string) func() provider.Provider {
 
 // providerModel maps the provider "orq" HCL block.
 type providerModel struct {
-	URL   types.String `tfsdk:"url"`
-	Token types.String `tfsdk:"token"`
+	URL    types.String `tfsdk:"url"`
+	APIKey types.String `tfsdk:"api_key"`
 }
 
 func (p *orqProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -57,10 +57,10 @@ func (p *orqProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 				MarkdownDescription: "Base URL of the orq API. Falls back to the `ORQ_URL` environment " +
 					"variable, then `https://my.orq.ai`. Override for on-prem installs or staging.",
 			},
-			"token": schema.StringAttribute{
+			"api_key": schema.StringAttribute{
 				Optional:  true,
 				Sensitive: true,
-				MarkdownDescription: "Management key (`sk-orq-...`). Falls back to the `ORQ_TOKEN` " +
+				MarkdownDescription: "Management key (`sk-orq-...`). Falls back to the `ORQ_API_KEY` " +
 					"environment variable (like `GOOGLE_CREDENTIALS`). An explicit value beats the env var.",
 			},
 		},
@@ -91,26 +91,26 @@ func (p *orqProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		resp.Diagnostics.AddAttributeError(path.Root("url"), "Unknown provider URL",
 			"The url value is unknown at configuration time. Use a static value, ORQ_URL, or the default.")
 	}
-	if cfg.Token.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(path.Root("token"), "Unknown provider token",
-			"The token value is unknown at configuration time. Use a static value or the ORQ_TOKEN env var.")
+	if cfg.APIKey.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(path.Root("api_key"), "Unknown provider api_key",
+			"The api_key value is unknown at configuration time. Use a static value or the ORQ_API_KEY env var.")
 	}
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	url := resolveString(cfg.URL, envURL, defaultURL)
-	token := resolveString(cfg.Token, envToken, "")
+	apiKey := resolveString(cfg.APIKey, envAPIKey, "")
 
 	// Structural validation ONLY. Credential validation is LAZY: the first real
 	// API call (e.g. the orq_projects data source's ListProjects) surfaces auth
-	// errors naming ORQ_TOKEN. We deliberately do NOT probe
+	// errors naming ORQ_API_KEY. We deliberately do NOT probe
 	// /v2/management-keys/capabilities — it is a PUBLIC route and cannot
 	// validate a credential, and a narrowly-scoped but valid key must not
 	// hard-fail provider init.
-	if token == "" {
-		resp.Diagnostics.AddAttributeError(path.Root("token"), "Missing orq management key",
-			"Set the `token` attribute or the ORQ_TOKEN environment variable to an sk-orq-... management key.")
+	if apiKey == "" {
+		resp.Diagnostics.AddAttributeError(path.Root("api_key"), "Missing orq management key",
+			"Set the `api_key` attribute or the ORQ_API_KEY environment variable to an sk-orq-... management key.")
 	}
 	// Full structural URL validation: an absolute http(s) URL with a host, no
 	// embedded userinfo/query/fragment. A bare `https://` or a hostless value is
@@ -125,7 +125,7 @@ func (p *orqProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		return
 	}
 
-	c, err := client.New(client.Config{URL: url, Token: token})
+	c, err := client.New(client.Config{URL: url, Token: apiKey})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to build orq client", err.Error())
 		return

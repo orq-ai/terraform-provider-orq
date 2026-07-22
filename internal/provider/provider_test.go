@@ -11,7 +11,7 @@ import (
 // TestProjectsDataSourceRegistered is the wiring smoke test: the provider
 // registers orq_projects, its metadata resolves to the expected type name, and
 // its schema builds without diagnostics. (A live end-to-end read requires
-// ORQ_URL/ORQ_TOKEN and runs under `make testacc`.)
+// ORQ_URL/ORQ_API_KEY and runs under `make testacc`.)
 func TestProjectsDataSourceRegistered(t *testing.T) {
 	ctx := context.Background()
 	p := New("test")()

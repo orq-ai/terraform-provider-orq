@@ -20,21 +20,21 @@ GitHub repo named `NAMESPACE/terraform-provider-NAME`**. This repo is
 
 ```hcl
 provider "orq" {
-  url   = "https://api.orq.ai" # optional; env ORQ_URL; defaults to https://api.orq.ai
-  token = "sk-orq-..."         # optional; env ORQ_TOKEN (like GOOGLE_CREDENTIALS)
+  url     = "https://api.orq.ai" # optional; env ORQ_URL; defaults to https://api.orq.ai
+  api_key = "sk-orq-..."         # optional; env ORQ_API_KEY (like GOOGLE_CREDENTIALS)
 }
 ```
 
 - The credential is an opaque `sk-orq-...` **management key**; the workspace is
   implied by the credential (no `workspace` argument).
-- Precedence: explicit `token` attribute **beats** `ORQ_TOKEN`; same for `url` /
+- Precedence: explicit `api_key` attribute **beats** `ORQ_API_KEY`; same for `url` /
   `ORQ_URL`.
 - Sent as `Authorization: Bearer <token>` on **both** transports.
 - **Lazy credential validation:** provider init only checks that `url`/`token`
   are structurally present and well-formed. It does **not** probe
   `/v2/management-keys/capabilities` (a public, unauthenticated route that cannot
   validate a credential). The first real API call surfaces auth errors naming
-  `ORQ_TOKEN`.
+  `ORQ_API_KEY`.
 
 ## Architecture: two generated clients, one interface
 
@@ -87,7 +87,7 @@ in `openapi/oapi-codegen.yaml` (not a tag include) so the OpenAI-compatible
 |--------|---------|
 | `build` | compile the provider binary |
 | `test` | unit tests |
-| `testacc` | acceptance tests (`TF_ACC=1`; needs `ORQ_URL` + `ORQ_TOKEN`) |
+| `testacc` | acceptance tests (`TF_ACC=1`; needs `ORQ_URL` + `ORQ_API_KEY`) |
 | `generate` | regenerate both clients (buf + oapi-codegen) |
 | `check-generated` | CI guard: fail if generated code is stale |
 | `proto-sync` / `openapi-sync` | re-copy codegen inputs from the monorepo |

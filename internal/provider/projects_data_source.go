@@ -105,7 +105,7 @@ func (d *projectsDataSource) Read(ctx context.Context, _ datasource.ReadRequest,
 		page, err := d.projects.List(ctx, client.ListParams{Limit: projectsPageLimit, StartingAfter: cursor})
 		if err != nil {
 			resp.Diagnostics.AddError("Unable to list projects",
-				"Listing projects failed. Verify that ORQ_TOKEN is a valid management key and "+
+				"Listing projects failed. Verify that ORQ_API_KEY is a valid management key and "+
 					"ORQ_URL is reachable.\n\nerror ["+string(client.CodeOf(err))+"]: "+err.Error())
 			return
 		}

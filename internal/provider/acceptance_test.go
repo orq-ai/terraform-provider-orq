@@ -10,14 +10,14 @@ import (
 )
 
 // testAccProtoV6ProviderFactories wires the in-process provider for the
-// acceptance harness. The provider block reads ORQ_URL / ORQ_TOKEN from the env.
+// acceptance harness. The provider block reads ORQ_URL / ORQ_API_KEY from the env.
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
 	"orq": providerserver.NewProtocol6WithError(New("acctest")()),
 }
 
 func testAccPreCheck(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"ORQ_URL", "ORQ_TOKEN"} {
+	for _, k := range []string{"ORQ_URL", "ORQ_API_KEY"} {
 		if os.Getenv(k) == "" {
 			t.Fatalf("%s must be set for TF_ACC acceptance tests", k)
 		}
@@ -32,7 +32,7 @@ func TestAccProjectsDataSource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				// Empty provider block => url/token resolve from ORQ_URL/ORQ_TOKEN.
+				// Empty provider block => url/api_key resolve from ORQ_URL/ORQ_API_KEY.
 				Config: `
 provider "orq" {}
 
