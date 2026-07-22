@@ -68,20 +68,30 @@ func mapConnectError(domain string, err error) error {
 	var ce *connect.Error
 	if errors.As(err, &ce) {
 		code := connectCodeToCode(ce.Code())
-		// A genuine server error carries an operator-actionable, transport-neutral
-		// message: connect-go parses it from the Connect JSON error envelope and
-		// flags it as a WIRE error (IsWireError == true). Surface that message
-		// (not the connect envelope wrapper "unauthenticated: <msg>", and never
-		// the RPC URL) — the REST path surfaces the server message symmetrically.
+		// A server error's message rides the Connect JSON error envelope, which
+		// connect-go flags as a WIRE error (IsWireError == true). Surface it (not the
+		// connect envelope wrapper "unauthenticated: <msg>", and never the RPC URL) —
+		// the REST path surfaces the server message symmetrically.
 		//
-		// A client-SYNTHESIZED *connect.Error is NOT a wire error: connect-go
-		// produces one when a NON-Connect HTTP response comes back (a proxy /
-		// gateway error, an HTML error page), and its Message() embeds the raw
-		// HTTP status line ("HTTP status 505 ...", "502 Bad Gateway") — a transport
-		// leak. For that case emit the neutral phrase for the mapped code instead.
+		// NOTE: IsWireError is protocol-SHAPE information, NOT authenticated
+		// provenance — connect-go marks ANY JSON-shaped error response as a wire error,
+		// so a reverse proxy returning {"message":"upstream https://internal-host
+		// failed"} is surfaced as a "wire" message just the same. There is no reliable
+		// client-side discriminator, so run the message through sanitizeMessage (the
+		// same cap + control-strip as the REST envelope) — a hostile or misconfigured
+		// proxy's message is then at least bounded and control-free; if it sanitizes to
+		// empty, fall back to the neutral phrase.
+		//
+		// A client-SYNTHESIZED *connect.Error is NOT a wire error: connect-go produces
+		// one when a NON-Connect HTTP response comes back (a proxy / gateway error, an
+		// HTML error page), and its Message() embeds the raw HTTP status line
+		// ("HTTP status 505 ...", "502 Bad Gateway") — a transport leak. For that case
+		// emit the neutral phrase for the mapped code instead.
 		msg := neutralMessage(code)
 		if connect.IsWireError(err) {
-			msg = ce.Message()
+			if s := sanitizeMessage(ce.Message()); s != "" {
+				msg = s
+			}
 		}
 		return &Error{Code: code, Message: msg, err: err}
 	}
@@ -159,9 +169,46 @@ func serverRESTMessage(body []byte) string {
 	if json.Unmarshal(body, &env) != nil {
 		return ""
 	}
-	msg := strings.TrimSpace(env.Error)
-	if len(msg) > 512 {
-		msg = msg[:512] + "…"
+	return sanitizeMessage(env.Error)
+}
+
+// sanitizeMessage bounds and cleans an operator-facing server message before it
+// crosses the client seam into a Terraform diagnostic. It is applied to BOTH the
+// REST JSON envelope message and the Connect wire message — neither is trustworthy
+// content: the Connect path accepts a wire message on protocol SHAPE, not
+// authenticated provenance (see mapConnectError), and a reverse proxy can inject
+// either — so every surfaced server message is first passed through here.
+//
+// It maps the common whitespace controls (\n, \r, \t) to a single space, DROPS every
+// other C0 control (incl. ESC 0x1b, so an ANSI escape sequence cannot reach the
+// terminal) and C1 control (0x7f–0x9f), collapses any run of whitespace to one
+// space, trims, and truncates by RUNE count to 512 (appending an ellipsis when
+// truncated) so a multibyte value is never split mid-rune. Inert markup such as
+// <b>…</b> is deliberately left as-is: it renders literally in a terminal, and
+// stripping HTML is out of scope here.
+func sanitizeMessage(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	prevSpace := false
+	for _, r := range s {
+		switch {
+		case r == ' ' || r == '\n' || r == '\r' || r == '\t':
+			// Whitespace (incl. the mapped control whitespace) collapses to one space.
+			if !prevSpace {
+				b.WriteByte(' ')
+				prevSpace = true
+			}
+		case r < 0x20 || (r >= 0x7f && r <= 0x9f):
+			// Any other C0 control (incl. ESC) or C1 control: drop entirely.
+			continue
+		default:
+			b.WriteRune(r)
+			prevSpace = false
+		}
+	}
+	msg := strings.TrimSpace(b.String())
+	if runes := []rune(msg); len(runes) > 512 {
+		msg = string(runes[:512]) + "…"
 	}
 	return msg
 }

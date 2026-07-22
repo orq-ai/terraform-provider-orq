@@ -9,6 +9,62 @@ import (
 	connect "connectrpc.com/connect"
 )
 
+// TestSanitizeMessage locks in the shared server-message sanitizer (used by BOTH the
+// REST envelope and the Connect wire message): whitespace controls collapse to a
+// single space, other C0/C1 controls (incl. ESC) are dropped, the message is trimmed,
+// inert markup is left alone, and truncation is by RUNE count (never mid-rune).
+func TestSanitizeMessage(t *testing.T) {
+	cases := []struct{ name, in, want string }{
+		{"newline and tab collapse to single space", "line1\nline2\tline3", "line1 line2 line3"},
+		{"repeated whitespace collapses", "a  \n\t  b", "a b"},
+		{"ESC/ANSI control dropped, literal brackets kept", "red\x1b[31mtext\x1b[0m", "red[31mtext[0m"},
+		{"C1 control dropped", "ab", "ab"},
+		{"surrounding whitespace trimmed", "  \n hello \t ", "hello"},
+		{"inert markup left as-is", "line\nline[2J<b>x</b>", "line line[2J<b>x</b>"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := sanitizeMessage(tc.in); got != tc.want {
+				t.Errorf("sanitizeMessage(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+
+	// Truncation is by RUNE count (512), never mid-rune, with an ellipsis appended.
+	t.Run("truncates by rune count without splitting a rune", func(t *testing.T) {
+		in := strings.Repeat("é", 600) // 600 runes, 1200 bytes
+		got := sanitizeMessage(in)
+		runes := []rune(got)
+		if len(runes) != 513 { // 512 kept + 1 ellipsis rune
+			t.Fatalf("want 513 runes (512 + ellipsis), got %d", len(runes))
+		}
+		if runes[512] != '…' {
+			t.Errorf("truncated message must end with an ellipsis, got %q", string(runes[512]))
+		}
+		for i := 0; i < 512; i++ {
+			if runes[i] != 'é' {
+				t.Fatalf("rune %d altered/split: %q", i, string(runes[i]))
+			}
+		}
+	})
+}
+
+// TestMapConnectError_WireMessageSanitized proves FINDING 5: a wire message (which
+// connect-go flags on protocol SHAPE, not authenticated provenance — a hostile proxy
+// can supply it) is run through the sanitizer, so control characters (e.g. an ANSI
+// escape) never reach the diagnostic.
+func TestMapConnectError_WireMessageSanitized(t *testing.T) {
+	ce := connect.NewWireError(connect.CodeInvalidArgument, errors.New("bad\x1b[2Jinput\nvalue"))
+	e := mapConnectError("budget", ce)
+	msg := e.Error()
+	if strings.ContainsRune(msg, '\x1b') || strings.ContainsRune(msg, '\n') {
+		t.Errorf("wire message not sanitized: %q", msg)
+	}
+	if !strings.Contains(msg, "bad") || !strings.Contains(msg, "input value") {
+		t.Errorf("sanitized wire message lost content: %q", msg)
+	}
+}
+
 // TestMapRESTTransportError_NoRouteLeak proves a Go *url.Error (which renders as
 // `Delete "https://host/v2/…": …`) is not folded into the diagnostic message,
 // so the REST route/protocol never crosses the seam — while the raw error stays
