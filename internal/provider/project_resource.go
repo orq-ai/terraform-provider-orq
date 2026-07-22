@@ -63,9 +63,11 @@ func (r *projectResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"key": schema.StringAttribute{
-				Computed:            true,
-				MarkdownDescription: "Stable project key derived from the name.",
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				Computed: true,
+				MarkdownDescription: "Project key derived from the name by orq. The server re-derives it on " +
+					"every update, so it is planned as \"known after apply\" whenever `name` changes and kept " +
+					"stable otherwise.",
+				PlanModifiers: []planmodifier.String{projectKeyPlanModifier{}},
 			},
 			"teams": schema.ListAttribute{
 				Optional:            true,
@@ -212,4 +214,43 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 
 func (r *projectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// projectKeyPlanModifier keeps the prior key when `name` is unchanged and marks
+// key unknown ("known after apply") when `name` changes. UseStateForUnknown is
+// wrong here: the server RE-DERIVES key from name on every update, so keeping
+// the stale key across a rename produces "inconsistent result after apply: .key".
+type projectKeyPlanModifier struct{}
+
+func (projectKeyPlanModifier) Description(context.Context) string {
+	return "keep the prior key while name is unchanged; mark key unknown when name changes"
+}
+
+func (m projectKeyPlanModifier) MarkdownDescription(ctx context.Context) string {
+	return m.Description(ctx)
+}
+
+func (projectKeyPlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	// Create: no prior state — the key is known only after apply.
+	if req.State.Raw.IsNull() {
+		resp.PlanValue = types.StringUnknown()
+		return
+	}
+	var planName, stateName types.String
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("name"), &planName)...)
+	resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("name"), &stateName)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.PlanValue = projectKeyPlanValue(planName, stateName, req.StateValue)
+}
+
+// projectKeyPlanValue is the pure core of projectKeyPlanModifier for the update
+// case: keep the prior key while name is unchanged, else mark it unknown (the
+// server re-derives key from name, so a rename makes the prior key stale).
+func projectKeyPlanValue(planName, stateName, priorKey types.String) types.String {
+	if planName.Equal(stateName) {
+		return priorKey
+	}
+	return types.StringUnknown()
 }
