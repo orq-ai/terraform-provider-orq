@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/restgen"
@@ -310,8 +311,40 @@ func (r *restModels) Delete(ctx context.Context, id string) error {
 	}
 	switch resp.StatusCode() {
 	case http.StatusOK, http.StatusNoContent, http.StatusAccepted:
+		// A genuine delete replies 200 with an EMPTY body; a REFUSED delete replies
+		// 200 with a JSON `{"message": ...}` body and leaves the model intact. Treat
+		// the refusal as a conflict so the resource keeps the still-live model in
+		// state instead of silently orphaning it — see modelDeleteRefusalMessage.
+		if msg := modelDeleteRefusalMessage(resp.Body); msg != "" {
+			return &Error{
+				Code: CodeConflict,
+				Message: "the server refused to delete the model and left it in place: " + msg +
+					" If it is still referenced by experiments, disable it (orq_workspace_model) or " +
+					"remove the references, then retry.",
+			}
+		}
 		return nil
 	default:
 		return mapRESTStatus(resp.StatusCode(), resp.Body)
 	}
+}
+
+// modelDeleteRefusalMessage returns the server's refusal message when a 2xx
+// delete body signals a REFUSED (not performed) delete, or "" for a genuine
+// delete. The server replies 200 with an empty body on success and 200 with a
+// JSON `{"message": ...}` body when it declines and leaves the model intact —
+// e.g. the model is still referenced by experiments ("The model is being used
+// in N experiments and cannot be deleted. Try disabling it instead.") or is a
+// system model ("This model is a system model and cannot be deleted.")
+// (apps/platform-api/models/delete.go:45,53-54,99-100). Presence of a non-empty
+// message is the structural signal — no string matching required; an empty body
+// fails to unmarshal and reads as a genuine delete.
+func modelDeleteRefusalMessage(body []byte) string {
+	var refusal struct {
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(body, &refusal) != nil {
+		return ""
+	}
+	return strings.TrimSpace(refusal.Message)
 }

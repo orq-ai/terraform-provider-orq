@@ -226,3 +226,40 @@ func TestModels_Delete(t *testing.T) {
 		t.Errorf("wrong request: %s %s", gotMethod, gotPath)
 	}
 }
+
+// TestModels_DeleteRefusedByServer proves the delete client distinguishes a
+// genuine delete (200, empty body) from a REFUSED delete (200 with a JSON
+// `{"message": ...}` body — the model is left intact, see
+// apps/platform-api/models/delete.go:45,53-54,99-100). A refusal must surface as
+// a typed conflict so the resource keeps the still-live model in state rather
+// than silently orphaning it; a genuine (empty-body) delete must still succeed.
+func TestModels_DeleteRefusedByServer(t *testing.T) {
+	t.Run("200-with-message refusal returns a conflict error", func(t *testing.T) {
+		c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"message": "The model is being used in 3 experiments and cannot be deleted. Try disabling it instead.",
+			})
+		})
+		err := c.Models().Delete(context.Background(), "mdl_uuid_1")
+		if err == nil {
+			t.Fatal("expected an error for a refused delete, got nil (model would be orphaned)")
+		}
+		if CodeOf(err) != CodeConflict {
+			t.Errorf("expected conflict code, got %q (%v)", CodeOf(err), err)
+		}
+		if !strings.Contains(err.Error(), "experiments") {
+			t.Errorf("error should surface the server's refusal message, got %q", err.Error())
+		}
+	})
+
+	t.Run("200 with an empty body is a genuine delete", func(t *testing.T) {
+		c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK) // TS parity: 200 + empty body on success
+		})
+		if err := c.Models().Delete(context.Background(), "mdl_uuid_1"); err != nil {
+			t.Fatalf("genuine delete must succeed, got %v", err)
+		}
+	})
+}
