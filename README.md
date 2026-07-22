@@ -20,8 +20,8 @@ GitHub repo named `NAMESPACE/terraform-provider-NAME`**. This repo is
 
 ```hcl
 provider "orq" {
-  url     = "https://api.orq.ai" # optional; env ORQ_URL; defaults to https://api.orq.ai
-  api_key = "sk-orq-..."         # optional; env ORQ_API_KEY (like GOOGLE_CREDENTIALS)
+  url     = "https://my.orq.ai" # optional; env ORQ_URL; defaults to https://my.orq.ai
+  api_key = "sk-orq-..."        # optional; env ORQ_API_KEY (like GOOGLE_CREDENTIALS)
 }
 ```
 
@@ -30,7 +30,7 @@ provider "orq" {
 - Precedence: explicit `api_key` attribute **beats** `ORQ_API_KEY`; same for `url` /
   `ORQ_URL`.
 - Sent as `Authorization: Bearer <token>` on **both** transports.
-- **Lazy credential validation:** provider init only checks that `url`/`token`
+- **Lazy credential validation:** provider init only checks that `url`/`api_key`
   are structurally present and well-formed. It does **not** probe
   `/v2/management-keys/capabilities` (a public, unauthenticated route that cannot
   validate a credential). The first real API call surfaces auth errors naming

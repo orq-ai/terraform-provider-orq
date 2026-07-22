@@ -27,7 +27,9 @@ func TestSameOrigin(t *testing.T) {
 	}{
 		{"identical", "https://my.orq.ai/v2/x", true},
 		{"scheme case-insensitive", "HTTPS://my.orq.ai", true},
+		{"explicit default https port", "https://my.orq.ai:443/v2/x", true},
 		{"downgrade https->http", "http://my.orq.ai", false},
+		{"http explicit port 80 vs https default", "http://my.orq.ai:80", false},
 		{"different host", "https://evil.example.com", false},
 		{"different port", "https://my.orq.ai:8443", false},
 	}
@@ -38,6 +40,15 @@ func TestSameOrigin(t *testing.T) {
 			}
 		})
 	}
+
+	// Default-port normalization is symmetric: an origin that spells :443
+	// explicitly still matches a portless request URL on the same host.
+	t.Run("origin spells default port", func(t *testing.T) {
+		originWithPort := mustURL(t, "https://my.orq.ai:443")
+		if !sameOrigin(mustURL(t, "https://my.orq.ai/v2/x"), originWithPort) {
+			t.Errorf("portless URL should match origin that names :443")
+		}
+	})
 }
 
 func TestRejectCrossOriginRedirect(t *testing.T) {

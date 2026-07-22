@@ -55,13 +55,35 @@ func (rt *bearerRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 }
 
 // sameOrigin reports whether u has the same scheme and host as origin. Scheme
-// comparison is case-insensitive; host comparison is exact (a differing port is
-// a different origin). An https→http downgrade therefore fails this check.
+// comparison is case-insensitive; host comparison ignores a default port spelled
+// out explicitly (https://host:443 == https://host, http://host:80 == http://host)
+// so an origin that names the standard port for its scheme still matches, while a
+// non-default port stays a distinct origin. An https→http downgrade fails this
+// check (schemes differ, and each scheme's default port normalizes independently).
 func sameOrigin(u, origin *url.URL) bool {
 	if u == nil || origin == nil {
 		return false
 	}
-	return strings.EqualFold(u.Scheme, origin.Scheme) && u.Host == origin.Host
+	if !strings.EqualFold(u.Scheme, origin.Scheme) {
+		return false
+	}
+	return normalizedHostPort(u) == normalizedHostPort(origin)
+}
+
+// normalizedHostPort returns u.Host with an explicit default port for its scheme
+// stripped (443 for https, 80 for http), so the same origin written with or
+// without its standard port compares equal. Host case is preserved (DNS hosts are
+// conventionally lowercase already, and the framework does not case-fold them).
+func normalizedHostPort(u *url.URL) string {
+	host, port := u.Hostname(), u.Port()
+	if port == "" {
+		return host
+	}
+	scheme := strings.ToLower(u.Scheme)
+	if (scheme == "https" && port == "443") || (scheme == "http" && port == "80") {
+		return host
+	}
+	return host + ":" + port
 }
 
 // rejectCrossOriginRedirect is an http.Client CheckRedirect that refuses to
