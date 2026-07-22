@@ -120,11 +120,12 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"api_key": schema.StringAttribute{
 				Required:  true,
 				Sensitive: true,
-				MarkdownDescription: "API key for the endpoint. Accepts a literal key or an `env://VAR` " +
-					"reference (stored verbatim; server-side env resolution is out of scope here). Stored in " +
-					"Terraform state — use an encrypted remote backend. The server never returns it, so it is " +
-					"held config-authoritatively and NEVER refreshed from a read. The update endpoint cannot " +
-					"rotate it, so changing this value (or setting it after an import) forces replacement.",
+				MarkdownDescription: "API key for the endpoint. Sensitive: passed through to the server " +
+					"verbatim, so source it from a Terraform variable or secret store rather than hard-coding " +
+					"it. Stored in Terraform state — use an encrypted remote backend. The server never returns " +
+					"it, so it is held config-authoritatively and NEVER refreshed from a read. The update " +
+					"endpoint cannot rotate it, so changing this value (or setting it after an import) forces " +
+					"replacement.",
 				Validators:    []validator.String{stringvalidator.LengthAtLeast(1)},
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},

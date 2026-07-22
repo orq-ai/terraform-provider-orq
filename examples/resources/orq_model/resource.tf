@@ -22,7 +22,7 @@ resource "orq_model" "self_hosted" {
   region       = "europe"
   base_url     = "https://llm.internal.example.com/v1"
 
-  # Literal key or an "env://VAR" reference (stored verbatim).
+  # Sensitive: passed through verbatim; sourced here from a Terraform variable.
   api_key = var.model_api_key
 
   # Optional cost / capability metadata (all omittable):
