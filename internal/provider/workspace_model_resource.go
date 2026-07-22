@@ -65,8 +65,11 @@ func (r *workspaceModelResource) Schema(_ context.Context, _ resource.SchemaRequ
 			},
 			"model_id": schema.StringAttribute{
 				Required: true,
-				MarkdownDescription: "The model reference (the model document ID, e.g. `openai/gpt-4o` for a " +
-					"system model). Changing it forces replacement.",
+				MarkdownDescription: "The model DOCUMENT ID as returned in `id` by `GET /v2/models` (the list " +
+					"endpoint). On this backend that is a document UUID, NOT a display slug: a slug such as " +
+					"`openai/gpt-4o` can map to MULTIPLE provider documents (e.g. one each for different " +
+					"upstream providers), so enabling by slug fails with a 404 — always use the document `id` " +
+					"from the list. Changing it forces replacement.",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"enabled": schema.BoolAttribute{
