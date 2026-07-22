@@ -23,6 +23,7 @@ var (
 	_ resource.Resource                = &policyResource{}
 	_ resource.ResourceWithConfigure   = &policyResource{}
 	_ resource.ResourceWithImportState = &policyResource{}
+	_ resource.ResourceWithModifyPlan  = &policyResource{}
 )
 
 // NewPolicyResource is the factory registered on the provider.
@@ -252,8 +253,14 @@ func (r *policyResource) apply(p *client.Policy, m *policyResourceModel) {
 		m.Evaluators = nil
 		return
 	}
+	// The server echoes evaluators in the order they were sent, so pair each one
+	// with its prior/plan model to recover an elided options value. Keyed on id
+	// with positional consumption among same-id evaluators (a stable tie-break
+	// consistent with ModifyPlan), so duplicate ids don't all collapse onto the
+	// first prior match.
+	priorIdx := matchPriorByID(p.Evaluators, priorEvals)
 	evs := make([]policyEvaluatorModel, 0, len(p.Evaluators))
-	for _, e := range p.Evaluators {
+	for i, e := range p.Evaluators {
 		em := policyEvaluatorModel{
 			ID:        types.StringValue(e.ID),
 			ExecuteOn: types.StringValue(e.ExecuteOn),
@@ -282,65 +289,149 @@ func (r *policyResource) apply(p *client.Policy, m *policyResourceModel) {
 			// The server elides an empty options object entirely. A non-null config
 			// options (e.g. `{}`) would otherwise read back null — a null vs
 			// non-null mismatch semantic equality cannot reconcile — so keep the
-			// operator's planned/prior value, matched by evaluator id (the server
-			// replaces evaluators wholesale, so the read-back order equals the sent
-			// order, but id-matching is robust to reorder/add/remove). An unknown
-			// (create with omitted options) collapses to null.
-			em.Options = priorEvaluatorOptions(priorEvals, e.ID)
+			// operator's planned/prior value from the matched evaluator. An unknown
+			// (create with omitted options) or an unmatched evaluator collapses to
+			// null so the post-apply state never carries an unknown.
+			em.Options = jsontypes.NewNormalizedNull()
+			if pi := priorIdx[i]; pi >= 0 {
+				if o := priorEvals[pi].Options; !o.IsUnknown() {
+					em.Options = o
+				}
+			}
 		}
 		evs = append(evs, em)
 	}
 	m.Evaluators = evs
 }
 
-// priorEvaluatorOptions returns the options value for the evaluator with the
-// given id from the plan/prior-state evaluators. It returns a concrete null when
-// there is no match or the prior value is unknown, so the post-apply state never
-// carries an unknown.
-func priorEvaluatorOptions(prior []policyEvaluatorModel, id string) jsontypes.Normalized {
-	for _, p := range prior {
-		if p.ID.ValueString() == id {
-			if o := p.Options; !o.IsUnknown() {
-				return o
-			}
-			return jsontypes.NewNormalizedNull()
+// matchPriorByID pairs each server-returned evaluator with a prior/plan evaluator
+// of the same id, consuming matches so duplicate ids pair positionally (server[0]
+// with the first prior of that id, server[1] with the second, ...). priorIdx[i]
+// is the matched prior index for server[i], or -1 when there is no unused prior
+// of that id. Keyed on id alone: the server guarantees each returned evaluator's
+// execute_on, so only the operator's prior options — which id already locates —
+// need recovering. The tie-break (first-unused-among-same-id) is consistent with
+// ModifyPlan's identity correlation.
+func matchPriorByID(server []client.EvaluatorRef, prior []policyEvaluatorModel) []int {
+	byID := make(map[string][]int, len(prior))
+	for i, p := range prior {
+		id := p.ID.ValueString()
+		byID[id] = append(byID[id], i)
+	}
+	cursor := make(map[string]int, len(byID))
+	out := make([]int, len(server))
+	for i, e := range server {
+		idxs := byID[e.ID]
+		if c := cursor[e.ID]; c < len(idxs) {
+			out[i] = idxs[c]
+			cursor[e.ID] = c + 1
+		} else {
+			out[i] = -1
 		}
 	}
-	return jsontypes.NewNormalizedNull()
+	return out
 }
 
-// retainEvaluatorOptions fills in each plan evaluator's options from the prior
-// state when the config omitted it. options is Optional+Computed with no
-// UseStateForUnknown, so an unconfigured options plans as UNKNOWN; because the
-// Update replaces the evaluator list WHOLESALE, sending an evaluator without its
-// options would clear options that were set on a prior apply or import. This
-// mutates plan in place so both the outbound request (policyEvaluatorsFromModel)
-// and the state write (apply) carry the retained value.
-//
-// Matching is by evaluator id, not position, so: a reordered evaluator keeps its
-// own options, a removed evaluator drops entirely (its prior options are never
-// looked up), and an added evaluator finds no prior and keeps its unconfigured
-// (null) options. An explicitly configured options (including `{}`, which is
-// known and non-unknown) is left exactly as the operator wrote it.
-func retainEvaluatorOptions(plan, prior []policyEvaluatorModel) {
-	if len(plan) == 0 {
+// ModifyPlan re-correlates each planned evaluator to the prior-state evaluator
+// that shares its identity so a reordered / inserted / removed evaluator block
+// keeps its OWN server-derived options and is_guardrail. Terraform core merges
+// nested list blocks positionally (prior[i] into plan[i]); for a swapped or
+// shifted list that cross-assigns one evaluator's computed data onto another. This
+// is the single mechanism that both fixes that cross-assignment and suppresses the
+// phantom diff an unrelated update (e.g. a rename) would otherwise show on the
+// unconfigured, wholesale-replaced evaluator fields.
+func (r *policyResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Destroy (null plan) or create (null prior state): nothing to correlate.
+	if req.Plan.Raw.IsNull() || req.State.Raw.IsNull() {
 		return
 	}
-	priorByID := make(map[string]jsontypes.Normalized, len(prior))
-	for _, p := range prior {
-		priorByID[p.ID.ValueString()] = p.Options
+	var plan, state, config policyResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
-	for i := range plan {
-		if !plan[i].Options.IsUnknown() {
-			continue // operator set it explicitly (incl. {}) — keep as-is.
-		}
-		if o, ok := priorByID[plan[i].ID.ValueString()]; ok && !o.IsNull() && !o.IsUnknown() {
-			plan[i].Options = o
+	if len(plan.Evaluators) == 0 {
+		return
+	}
+	correlateEvaluatorComputed(plan.Evaluators, config.Evaluators, state.Evaluators)
+	resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
+}
+
+// correlateEvaluatorComputed carries each matched evaluator's OWN prior value for
+// a server-derived field (options, is_guardrail) into the plan, undoing Terraform
+// core's positional (by-index) merge of computed nested-block attributes. It
+// mutates plan in place.
+//
+// The identity key is (id, execute_on) — the two Required fields. Duplicate keys
+// pair positionally among themselves (the first unused prior with that key pairs
+// with the first plan element with that key, and so on): a stable, documented
+// tie-break the server does not forbid.
+//
+// config[i] (NOT plan[i]) decides whether a field is unset: plan[i] may already
+// carry a wrong, positionally-merged known value, so only a null CONFIG value is
+// treated as unset. A matched, unset field is set to the matched prior value; an
+// unmatched (new) evaluator's unset fields are reset to unknown ("known after
+// apply"); an evaluator whose id is unknown (interpolated) cannot be correlated,
+// so its unset fields are reset to unknown as well. Only unset (null-config)
+// fields are ever touched, so AssertPlanValid never sees a non-null config value
+// change.
+func correlateEvaluatorComputed(plan, config, prior []policyEvaluatorModel) {
+	type identity struct{ id, executeOn string }
+	stateByKey := make(map[identity][]int, len(prior))
+	for i, s := range prior {
+		if s.ID.IsUnknown() {
 			continue
 		}
-		// No prior options to retain (newly added evaluator, or prior had none):
-		// resolve the unknown to null so it isn't sent and never leaks into state.
-		plan[i].Options = jsontypes.NewNormalizedNull()
+		k := identity{s.ID.ValueString(), s.ExecuteOn.ValueString()}
+		stateByKey[k] = append(stateByKey[k], i)
+	}
+	used := make([]bool, len(prior))
+	for i := range plan {
+		var cfg policyEvaluatorModel
+		if i < len(config) {
+			cfg = config[i]
+		}
+		// resetUnset marks a field "known after apply" when config left it unset
+		// and no prior value can be correlated. An explicitly configured value
+		// (non-null config) is left untouched.
+		resetUnset := func() {
+			if cfg.Options.IsNull() {
+				plan[i].Options = jsontypes.NewNormalizedUnknown()
+			}
+			if cfg.IsGuardrail.IsNull() {
+				plan[i].IsGuardrail = types.BoolUnknown()
+			}
+		}
+		// An unknown id (interpolated from another not-yet-applied resource) cannot
+		// be correlated — never guess, leave the unset fields unknown.
+		if plan[i].ID.IsUnknown() {
+			resetUnset()
+			continue
+		}
+		k := identity{plan[i].ID.ValueString(), plan[i].ExecuteOn.ValueString()}
+		matched := -1
+		for _, idx := range stateByKey[k] {
+			if !used[idx] {
+				matched = idx
+				break
+			}
+		}
+		if matched < 0 {
+			resetUnset() // new evaluator: computed fields are known only after apply.
+			continue
+		}
+		used[matched] = true
+		s := prior[matched]
+		// Carry the matched evaluator's OWN prior value for any field the config
+		// left unset, overriding core's positional merge.
+		if cfg.Options.IsNull() {
+			plan[i].Options = s.Options
+		}
+		if cfg.IsGuardrail.IsNull() {
+			plan[i].IsGuardrail = s.IsGuardrail
+		}
 	}
 }
 
@@ -399,16 +490,11 @@ func (r *policyResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	// options is Optional+Computed: an unconfigured options plans as unknown. The
-	// evaluator list is a wholesale replace, so retain each evaluator's prior
-	// options (matched by id) when the config omits it — otherwise an unrelated
-	// change (e.g. a rename) would clear server-side options.
-	var state policyResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	retainEvaluatorOptions(plan.Evaluators, state.Evaluators)
+	// Evaluator options / is_guardrail are Optional+Computed and the evaluator list
+	// is a wholesale replace, so an unconfigured value must survive an unrelated
+	// change (e.g. a rename). That retention — correlated to the prior state by
+	// evaluator identity — is done in ModifyPlan, so the plan reaching here already
+	// carries the retained values and the outbound request re-sends them.
 	evs, evDiags := policyEvaluatorsFromModel(plan.Evaluators)
 	resp.Diagnostics.Append(evDiags...)
 	if resp.Diagnostics.HasError() {
