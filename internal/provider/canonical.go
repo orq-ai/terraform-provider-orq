@@ -3,90 +3,264 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/attr/xattr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
-// This file canonicalizes opaque JSON-object attributes (models_config,
-// retry_config, evaluator options) to the server's stored representation at plan
-// time, so an operator's config and the server's read-back converge instead of
-// producing a perpetual diff or an "inconsistent result after apply" error.
+// This file defines custom string types for the opaque JSON-object attributes
+// whose textual config differs from the server's stored read-back
+// (models_config, retry_config). They mirror the proven rfc3339Instant pattern:
+// a custom type whose StringSemanticEquals CANONICALIZES BOTH operands before
+// comparing, so the operator's config and the server's read-back converge
+// without ever rewriting the config value at plan time.
 //
-// The server applies defaulting/eliding the provider cannot see through the
-// jsontypes.Normalized blob:
-//   - models_config: a model with omitted/zero weight is stored with weight 0.5
-//     (routingrules/routes.go, policies/routes.go).
-//   - retry_config: an empty/absent on_codes is elided (omitempty) on read.
-//   - evaluator options: an empty object is elided (omitempty) on read → null.
+// Why not a plan modifier? A plan modifier that rewrites a NON-NULL config value
+// (the previous approach) is rejected by Terraform's AssertPlanValid: for an
+// Optional+Computed attribute the planned value may differ from config ONLY when
+// config is null. Semantic equality has no such restriction — it suppresses the
+// diff between plan/state and lets refresh keep the prior value, exactly like
+// jsontypes.Normalized (whitespace/key-order) and rfc3339Instant (instant).
 //
-// Because a plan modifier here deliberately produces a plan value that differs
-// from the raw config value, every attribute using one MUST be Computed —
-// Terraform only permits a non-config plan value for Computed attributes.
+// The server-side defaulting these types absorb:
+//   - models_config: a model entry with an omitted or zero weight is stored with
+//     weight 0.5 (routingrules/routes.go, policies/routes.go).
+//   - retry_config: an empty or absent on_codes is elided on read (omitempty), so
+//     `on_codes: []` and an absent on_codes are equivalent.
+//
+// The retain-on-null behavior (dropping the attribute from config keeps the
+// prior server value with no diff) is NOT provided here — it comes from marking
+// the attribute Optional+Computed, whose "sticky" plan value on a null config is
+// the prior state. Semantic equality cannot reconcile null vs non-null and is
+// never invoked for it.
 
-// jsonObjectCanon transforms a decoded JSON object into its server-canonical
-// form. A true second return means the value canonicalizes to null. It must be
-// pure and idempotent (canon(canon(x)) == canon(x)).
-type jsonObjectCanon func(map[string]any) (obj map[string]any, isNull bool)
+// ---------------------------------------------------------------------------
+// models_config: weight-0.5 canonicalizing JSON string type
+// ---------------------------------------------------------------------------
 
-// jsonCanonPlanModifier canonicalizes a jsontypes.Normalized (JSON object
-// string) attribute at plan time via fn.
-type jsonCanonPlanModifier struct {
-	fn jsonObjectCanon
-	// retainOnNull keeps the prior state value when the config is null, for
-	// fields the server PATCH cannot clear (a nil in the sparse update means
-	// "keep"). When false, a null config plans as null.
-	retainOnNull bool
-	description  string
+type modelsConfigType struct {
+	basetypes.StringType
 }
 
-func (m jsonCanonPlanModifier) Description(context.Context) string         { return m.description }
-func (m jsonCanonPlanModifier) MarkdownDescription(context.Context) string { return m.description }
+var (
+	_ basetypes.StringTypable                    = modelsConfigType{}
+	_ basetypes.StringValuableWithSemanticEquals = modelsConfigValue{}
+	_ xattr.ValidateableAttribute                = modelsConfigValue{}
+)
 
-func (m jsonCanonPlanModifier) PlanModifyString(_ context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	if req.ConfigValue.IsNull() {
-		if m.retainOnNull {
-			resp.PlanValue = req.StateValue
-		}
-		return
-	}
-	if req.ConfigValue.IsUnknown() {
-		return
-	}
-	canon, ok := canonicalizeJSONObject(req.ConfigValue.ValueString(), m.fn)
+func (t modelsConfigType) String() string { return "provider.modelsConfigType" }
+
+func (t modelsConfigType) ValueType(context.Context) attr.Value { return modelsConfigValue{} }
+
+func (t modelsConfigType) Equal(o attr.Type) bool {
+	other, ok := o.(modelsConfigType)
 	if !ok {
-		// Not a JSON object: leave the plan as the config value so the downstream
-		// decode/validation surfaces the real error rather than this modifier.
-		return
+		return false
 	}
-	resp.PlanValue = canon
+	return t.StringType.Equal(other.StringType)
 }
 
-// canonicalizeJSONObject decodes s as a JSON object, applies fn, and returns the
-// canonical value as a plain string value (the framework re-wraps it into the
-// attribute's custom type). ok is false when s is not a JSON object.
-func canonicalizeJSONObject(s string, fn jsonObjectCanon) (types.String, bool) {
-	var obj map[string]any
-	if err := json.Unmarshal([]byte(s), &obj); err != nil {
-		return types.StringNull(), false
-	}
-	out, isNull := fn(obj)
-	if isNull {
-		return types.StringNull(), true
-	}
-	b, err := json.Marshal(out)
+func (t modelsConfigType) ValueFromString(_ context.Context, in basetypes.StringValue) (basetypes.StringValuable, diag.Diagnostics) {
+	return modelsConfigValue{StringValue: in}, nil
+}
+
+func (t modelsConfigType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	attrValue, err := t.StringType.ValueFromTerraform(ctx, in)
 	if err != nil {
-		return types.StringNull(), false
+		return nil, err
 	}
-	return types.StringValue(string(b)), true
+	sv, ok := attrValue.(basetypes.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("unexpected value type of %T", attrValue)
+	}
+	valuable, diags := t.ValueFromString(ctx, sv)
+	if diags.HasError() {
+		return nil, fmt.Errorf("unexpected error converting StringValue to StringValuable: %v", diags)
+	}
+	return valuable, nil
 }
 
-// modelsConfigWeightCanon injects the server default weight (0.5) for any model
-// whose weight is omitted or zero, mirroring the server. Never null.
-func modelsConfigWeightCanon(obj map[string]any) (map[string]any, bool) {
+type modelsConfigValue struct {
+	basetypes.StringValue
+}
+
+func (v modelsConfigValue) Type(context.Context) attr.Type { return modelsConfigType{} }
+
+func (v modelsConfigValue) Equal(o attr.Value) bool {
+	other, ok := o.(modelsConfigValue)
+	if !ok {
+		return false
+	}
+	return v.StringValue.Equal(other.StringValue)
+}
+
+// StringSemanticEquals treats two model configs as equal when they are equal
+// after every weight-less/zero-weight model entry is defaulted to weight 0.5 on
+// BOTH sides — the value the server stores. Null/unknown fall back to exact
+// equality (semantic equality is not meant to bridge null vs non-null).
+func (v modelsConfigValue) StringSemanticEquals(_ context.Context, newValuable basetypes.StringValuable) (bool, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	o, ok := newValuable.(modelsConfigValue)
+	if !ok {
+		return false, diags
+	}
+	if v.IsNull() || v.IsUnknown() || o.IsNull() || o.IsUnknown() {
+		return v.StringValue.Equal(o.StringValue), diags
+	}
+	return canonicalJSONEqual(v.ValueString(), o.ValueString(), modelsConfigCanon), diags
+}
+
+func (v modelsConfigValue) ValidateAttribute(_ context.Context, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
+	validateJSONString(v.StringValue, req, resp)
+}
+
+func modelsConfigFromRaw(raw json.RawMessage) modelsConfigValue {
+	if len(raw) == 0 {
+		return modelsConfigValue{StringValue: basetypes.NewStringNull()}
+	}
+	return modelsConfigValue{StringValue: basetypes.NewStringValue(string(raw))}
+}
+
+func (v modelsConfigValue) toRaw() json.RawMessage { return jsonStringToRaw(v.StringValue) }
+
+// ---------------------------------------------------------------------------
+// retry_config: empty-on_codes-eliding JSON string type
+// ---------------------------------------------------------------------------
+
+type retryConfigType struct {
+	basetypes.StringType
+}
+
+var (
+	_ basetypes.StringTypable                    = retryConfigType{}
+	_ basetypes.StringValuableWithSemanticEquals = retryConfigValue{}
+	_ xattr.ValidateableAttribute                = retryConfigValue{}
+)
+
+func (t retryConfigType) String() string { return "provider.retryConfigType" }
+
+func (t retryConfigType) ValueType(context.Context) attr.Value { return retryConfigValue{} }
+
+func (t retryConfigType) Equal(o attr.Type) bool {
+	other, ok := o.(retryConfigType)
+	if !ok {
+		return false
+	}
+	return t.StringType.Equal(other.StringType)
+}
+
+func (t retryConfigType) ValueFromString(_ context.Context, in basetypes.StringValue) (basetypes.StringValuable, diag.Diagnostics) {
+	return retryConfigValue{StringValue: in}, nil
+}
+
+func (t retryConfigType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	attrValue, err := t.StringType.ValueFromTerraform(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	sv, ok := attrValue.(basetypes.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("unexpected value type of %T", attrValue)
+	}
+	valuable, diags := t.ValueFromString(ctx, sv)
+	if diags.HasError() {
+		return nil, fmt.Errorf("unexpected error converting StringValue to StringValuable: %v", diags)
+	}
+	return valuable, nil
+}
+
+type retryConfigValue struct {
+	basetypes.StringValue
+}
+
+func (v retryConfigValue) Type(context.Context) attr.Type { return retryConfigType{} }
+
+func (v retryConfigValue) Equal(o attr.Value) bool {
+	other, ok := o.(retryConfigValue)
+	if !ok {
+		return false
+	}
+	return v.StringValue.Equal(other.StringValue)
+}
+
+// StringSemanticEquals treats two retry configs as equal when they are equal
+// after an empty or absent on_codes is elided on BOTH sides (`on_codes: []` and
+// an absent on_codes are the same, matching the server's omitempty read-back).
+func (v retryConfigValue) StringSemanticEquals(_ context.Context, newValuable basetypes.StringValuable) (bool, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	o, ok := newValuable.(retryConfigValue)
+	if !ok {
+		return false, diags
+	}
+	if v.IsNull() || v.IsUnknown() || o.IsNull() || o.IsUnknown() {
+		return v.StringValue.Equal(o.StringValue), diags
+	}
+	return canonicalJSONEqual(v.ValueString(), o.ValueString(), retryConfigCanon), diags
+}
+
+func (v retryConfigValue) ValidateAttribute(_ context.Context, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
+	validateJSONString(v.StringValue, req, resp)
+}
+
+func retryConfigFromRaw(raw json.RawMessage) retryConfigValue {
+	if len(raw) == 0 {
+		return retryConfigValue{StringValue: basetypes.NewStringNull()}
+	}
+	return retryConfigValue{StringValue: basetypes.NewStringValue(string(raw))}
+}
+
+func (v retryConfigValue) toRaw() json.RawMessage { return jsonStringToRaw(v.StringValue) }
+
+// ---------------------------------------------------------------------------
+// shared helpers
+// ---------------------------------------------------------------------------
+
+// canonicalJSONEqual reports whether a and b are equal after canon is applied to
+// each (when it decodes to a JSON object) and both are re-serialized to a
+// normalized form. It is a strict superset of jsontypes.Normalized equality
+// (whitespace / key order / number text are all normalized identically), plus
+// the canon defaulting. Non-JSON inputs fall back to exact string equality
+// (ValidateAttribute already rejects invalid JSON, so this is defensive).
+func canonicalJSONEqual(a, b string, canon func(map[string]any)) bool {
+	na, oka := canonicalizeJSON(a, canon)
+	nb, okb := canonicalizeJSON(b, canon)
+	if !oka || !okb {
+		return a == b
+	}
+	return na == nb
+}
+
+func canonicalizeJSON(s string, canon func(map[string]any)) (string, bool) {
+	dec := json.NewDecoder(strings.NewReader(s))
+	// Preserve number text (429 stays 429, never 429.0) so equality matches
+	// jsontypes.Normalized exactly for the parts canon does not touch.
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
+		return "", false
+	}
+	if obj, ok := v.(map[string]any); ok {
+		canon(obj)
+		v = obj
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", false
+	}
+	return string(b), true
+}
+
+// modelsConfigCanon injects the server default weight (0.5) for any model entry
+// whose weight is omitted or zero, mirroring the server. Mutates obj in place.
+func modelsConfigCanon(obj map[string]any) {
 	models, ok := obj["models"].([]any)
 	if !ok {
-		return obj, false
+		return
 	}
 	for _, el := range models {
 		m, ok := el.(map[string]any)
@@ -97,34 +271,59 @@ func modelsConfigWeightCanon(obj map[string]any) (map[string]any, bool) {
 			m["weight"] = 0.5
 		}
 	}
-	return obj, false
 }
 
-// retryConfigOnCodesCanon drops an empty or null on_codes so it matches the
-// server's elided (omitempty) read-back. Never null.
-func retryConfigOnCodesCanon(obj map[string]any) (map[string]any, bool) {
-	if v, present := obj["on_codes"]; present {
-		if v == nil {
-			delete(obj, "on_codes")
-		} else if arr, ok := v.([]any); ok && len(arr) == 0 {
-			delete(obj, "on_codes")
-		}
+// retryConfigCanon drops an empty or null on_codes so `on_codes: []` matches the
+// server's elided (omitempty) read-back. Mutates obj in place.
+func retryConfigCanon(obj map[string]any) {
+	v, present := obj["on_codes"]
+	if !present {
+		return
 	}
-	return obj, false
-}
-
-// optionsEmptyToNullCanon canonicalizes an empty options object to null so it
-// matches the server's elided (omitempty) read-back.
-func optionsEmptyToNullCanon(obj map[string]any) (map[string]any, bool) {
-	if len(obj) == 0 {
-		return nil, true
+	if v == nil {
+		delete(obj, "on_codes")
+		return
 	}
-	return obj, false
+	if arr, ok := v.([]any); ok && len(arr) == 0 {
+		delete(obj, "on_codes")
+	}
 }
 
-// jsonNumberIsZero reports whether v is a JSON number equal to zero. encoding/json
-// decodes numbers into float64 by default.
+// jsonNumberIsZero reports whether v is a JSON number equal to zero. With a
+// UseNumber decoder, numbers arrive as json.Number; the plain float64 case is
+// kept for callers that decode without UseNumber.
 func jsonNumberIsZero(v any) bool {
-	f, ok := v.(float64)
-	return ok && f == 0
+	switch n := v.(type) {
+	case float64:
+		return n == 0
+	case json.Number:
+		f, err := n.Float64()
+		return err == nil && f == 0
+	}
+	return false
+}
+
+// jsonStringToRaw converts a JSON string attribute value to raw bytes, or nil
+// when null/unknown (so the field is omitted from a sparse write).
+func jsonStringToRaw(v basetypes.StringValue) json.RawMessage {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	return json.RawMessage(v.ValueString())
+}
+
+// validateJSONString rejects a non-JSON value at plan time (mirrors
+// jsontypes.Normalized.ValidateAttribute).
+func validateJSONString(v basetypes.StringValue, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
+	if v.IsNull() || v.IsUnknown() {
+		return
+	}
+	if !json.Valid([]byte(v.ValueString())) {
+		resp.Diagnostics.AddAttributeError(
+			req.Path,
+			"Invalid JSON String Value",
+			"A string value was provided that is not valid JSON string format (RFC 7159).\n\n"+
+				"Given Value: "+v.ValueString()+"\n",
+		)
+	}
 }

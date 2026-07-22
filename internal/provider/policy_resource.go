@@ -42,8 +42,8 @@ type policyResourceModel struct {
 	Timeout      types.Int64            `tfsdk:"timeout"`
 	Evaluators   []policyEvaluatorModel `tfsdk:"evaluators"`
 	Limits       jsontypes.Normalized   `tfsdk:"limits"`
-	ModelsConfig jsontypes.Normalized   `tfsdk:"models_config"`
-	RetryConfig  jsontypes.Normalized   `tfsdk:"retry_config"`
+	ModelsConfig modelsConfigValue      `tfsdk:"models_config"`
+	RetryConfig  retryConfigValue       `tfsdk:"retry_config"`
 	CreatedAt    types.String           `tfsdk:"created_at"`
 	UpdatedAt    types.String           `tfsdk:"updated_at"`
 }
@@ -105,26 +105,22 @@ func (r *policyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				MarkdownDescription: "Budget / request / token limits as a JSON object string. Compared semantically.",
 			},
 			"models_config": schema.StringAttribute{
-				CustomType: jsontypes.NormalizedType{},
+				CustomType: modelsConfigType{},
 				Optional:   true,
 				Computed:   true,
 				MarkdownDescription: "Model routing configuration as a JSON object string. Compared semantically. " +
-					"A model with an omitted or zero `weight` is stored by the server with `weight` = 0.5; " +
-					"that default is canonicalized into the plan so config and read-back converge.",
-				PlanModifiers: []planmodifier.String{
-					jsonCanonPlanModifier{fn: modelsConfigWeightCanon, retainOnNull: true, description: "canonicalize model weights to the server default"},
-				},
+					"A model entry with an omitted or zero `weight` is stored by the server with `weight` = 0.5; " +
+					"the two forms are treated as equal, so a weight-less config does not drift against the " +
+					"server read-back. Optional+Computed: dropping it from config keeps the prior value.",
 			},
 			"retry_config": schema.StringAttribute{
-				CustomType: jsontypes.NormalizedType{},
+				CustomType: retryConfigType{},
 				Optional:   true,
 				Computed:   true,
 				MarkdownDescription: "Retry configuration as a JSON object string (`{\"count\":...,\"on_codes\":[...]}`). " +
-					"Compared semantically. An empty `on_codes` is elided by the server on read; that is " +
-					"canonicalized into the plan so config and read-back converge.",
-				PlanModifiers: []planmodifier.String{
-					jsonCanonPlanModifier{fn: retryConfigOnCodesCanon, retainOnNull: true, description: "canonicalize empty on_codes to the server's elided form"},
-				},
+					"Compared semantically. An empty `on_codes: []` is elided by the server on read and is treated " +
+					"as equal to an absent `on_codes`, so it does not drift. Optional+Computed: dropping it from " +
+					"config keeps the prior value.",
 			},
 			"created_at": schema.StringAttribute{
 				Computed:            true,
@@ -168,11 +164,9 @@ func (r *policyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 							Optional:   true,
 							Computed:   true,
 							MarkdownDescription: "Arbitrary per-evaluator configuration as a JSON object string. " +
-								"Compared semantically. An empty object is elided by the server on read; that is " +
-								"canonicalized to null in the plan so config and read-back converge. Preserved across updates.",
-							PlanModifiers: []planmodifier.String{
-								jsonCanonPlanModifier{fn: optionsEmptyToNullCanon, retainOnNull: false, description: "canonicalize an empty options object to null"},
-							},
+								"Compared semantically. The server elides an empty object entirely on read; the " +
+								"provider keeps the operator's value (e.g. an explicit `{}`) in state so a non-null " +
+								"config does not read back null. Preserved across updates.",
 						},
 					},
 				},
@@ -237,17 +231,21 @@ func (r *policyResource) apply(p *client.Policy, m *policyResourceModel) {
 	m.Slug = types.StringValue(p.Slug)
 	m.Timeout = types.Int64Value(p.Timeout)
 	m.Limits = rawToNormalized(p.Limits)
-	m.ModelsConfig = rawToNormalized(p.ModelsConfig)
-	m.RetryConfig = rawToNormalized(p.RetryConfig)
+	m.ModelsConfig = modelsConfigFromRaw(p.ModelsConfig)
+	m.RetryConfig = retryConfigFromRaw(p.RetryConfig)
 	m.CreatedAt = types.StringValue(p.CreatedAt)
 	m.UpdatedAt = types.StringValue(p.UpdatedAt)
+
+	// Capture the plan/prior evaluators (m still holds them here) so we can keep
+	// the operator's options value when the server elides an empty options object.
+	priorEvals := m.Evaluators
 
 	if len(p.Evaluators) == 0 {
 		m.Evaluators = nil
 		return
 	}
 	evs := make([]policyEvaluatorModel, 0, len(p.Evaluators))
-	for _, e := range p.Evaluators {
+	for i, e := range p.Evaluators {
 		em := policyEvaluatorModel{
 			ID:        types.StringValue(e.ID),
 			ExecuteOn: types.StringValue(e.ExecuteOn),
@@ -273,11 +271,30 @@ func (r *policyResource) apply(p *client.Policy, m *policyResourceModel) {
 				em.Options = jsontypes.NewNormalizedNull()
 			}
 		} else {
-			em.Options = jsontypes.NewNormalizedNull()
+			// The server elides an empty options object entirely. A non-null config
+			// options (e.g. `{}`) would otherwise read back null — a null vs
+			// non-null mismatch semantic equality cannot reconcile — so keep the
+			// operator's planned/prior value. An unknown (create with omitted
+			// options) collapses to null.
+			em.Options = priorEvaluatorOptions(priorEvals, i, e.ID)
 		}
 		evs = append(evs, em)
 	}
 	m.Evaluators = evs
+}
+
+// priorEvaluatorOptions returns the options value for the i-th evaluator from
+// the plan/prior-state evaluators, matched positionally with an id sanity check
+// (the server replaces evaluators wholesale in the order sent). It returns a
+// concrete null when there is no match or the prior value is unknown, so the
+// post-apply state never carries an unknown.
+func priorEvaluatorOptions(prior []policyEvaluatorModel, i int, id string) jsontypes.Normalized {
+	if i < len(prior) && prior[i].ID.ValueString() == id {
+		if o := prior[i].Options; !o.IsUnknown() {
+			return o
+		}
+	}
+	return jsontypes.NewNormalizedNull()
 }
 
 func (r *policyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -299,8 +316,8 @@ func (r *policyResource) Create(ctx context.Context, req resource.CreateRequest,
 		Timeout:      int64Ptr(plan.Timeout),
 		Evaluators:   evs,
 		Limits:       normalizedToRaw(plan.Limits),
-		ModelsConfig: normalizedToRaw(plan.ModelsConfig),
-		RetryConfig:  normalizedToRaw(plan.RetryConfig),
+		ModelsConfig: plan.ModelsConfig.toRaw(),
+		RetryConfig:  plan.RetryConfig.toRaw(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to create policy", errDetail(err))
@@ -361,8 +378,8 @@ func (r *policyResource) Update(ctx context.Context, req resource.UpdateRequest,
 		Timeout:      int64Ptr(plan.Timeout),
 		Evaluators:   evs,
 		Limits:       normalizedToRaw(plan.Limits),
-		ModelsConfig: normalizedToRaw(plan.ModelsConfig),
-		RetryConfig:  normalizedToRaw(plan.RetryConfig),
+		ModelsConfig: plan.ModelsConfig.toRaw(),
+		RetryConfig:  plan.RetryConfig.toRaw(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to update policy", errDetail(err))

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -36,7 +35,7 @@ type routingRuleResourceModel struct {
 	ProjectID    types.String            `tfsdk:"project_id"`
 	Priority     types.Int64             `tfsdk:"priority"`
 	Expression   *routingExpressionModel `tfsdk:"expression"`
-	ModelsConfig jsontypes.Normalized    `tfsdk:"models_config"`
+	ModelsConfig modelsConfigValue       `tfsdk:"models_config"`
 	CreatedAt    types.String            `tfsdk:"created_at"`
 	UpdatedAt    types.String            `tfsdk:"updated_at"`
 }
@@ -96,17 +95,16 @@ func (r *routingRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 				},
 			},
 			"models_config": schema.StringAttribute{
-				CustomType: jsontypes.NormalizedType{},
+				CustomType: modelsConfigType{},
 				Optional:   true,
 				Computed:   true,
 				MarkdownDescription: "Model routing configuration as a JSON object string " +
 					"(`{\"mode\":...,\"models\":[...]}`). Compared semantically, so key order and " +
-					"insignificant whitespace do not produce a diff. A model with an omitted or " +
-					"zero `weight` is stored by the server with `weight` = 0.5; that default is " +
-					"canonicalized into the plan so config and read-back converge. Preserved across updates.",
-				PlanModifiers: []planmodifier.String{
-					jsonCanonPlanModifier{fn: modelsConfigWeightCanon, retainOnNull: true, description: "canonicalize model weights to the server default"},
-				},
+					"insignificant whitespace do not produce a diff. A model entry with an omitted or " +
+					"zero `weight` is stored by the server with `weight` = 0.5; the two forms are treated " +
+					"as equal, so a weight-less config does not drift against the server read-back. " +
+					"Optional+Computed: dropping it from config keeps the prior value (the update API " +
+					"cannot clear it).",
 			},
 			"created_at": schema.StringAttribute{
 				Computed:            true,
@@ -150,7 +148,7 @@ func (r *routingRuleResource) apply(g *client.RoutingRule, m *routingRuleResourc
 	} else {
 		m.Expression = nil
 	}
-	m.ModelsConfig = rawToNormalized(g.ModelsConfig)
+	m.ModelsConfig = modelsConfigFromRaw(g.ModelsConfig)
 	m.CreatedAt = types.StringValue(g.CreatedAt)
 	m.UpdatedAt = types.StringValue(g.UpdatedAt)
 }
@@ -190,7 +188,7 @@ func (r *routingRuleResource) Create(ctx context.Context, req resource.CreateReq
 		ProjectID:     strPtr(plan.ProjectID),
 		Priority:      int64Ptr(plan.Priority),
 		ExpressionCEL: plan.expressionCEL(),
-		ModelsConfig:  normalizedToRaw(plan.ModelsConfig),
+		ModelsConfig:  plan.ModelsConfig.toRaw(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to create routing rule", errDetail(err))
@@ -233,7 +231,7 @@ func (r *routingRuleResource) Update(ctx context.Context, req resource.UpdateReq
 		Enabled:       boolPtr(plan.Enabled),
 		Priority:      int64Ptr(plan.Priority),
 		ExpressionCEL: plan.expressionCELForUpdate(),
-		ModelsConfig:  normalizedToRaw(plan.ModelsConfig),
+		ModelsConfig:  plan.ModelsConfig.toRaw(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to update routing rule", errDetail(err))

@@ -5,135 +5,157 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
 )
 
-// jsonSemanticEqual reports whether two JSON strings are semantically equal under
-// jsontypes.Normalized (the comparison Terraform uses for these attributes).
-func jsonSemanticEqual(t *testing.T, a, b string) bool {
+// modelsConfigEqual reports whether two model-config strings are semantically
+// equal under the custom type (the comparison Terraform uses for the attribute).
+func modelsConfigEqual(t *testing.T, a, b string) bool {
 	t.Helper()
-	eq, diags := jsontypes.NewNormalizedValue(a).StringSemanticEquals(context.Background(), jsontypes.NewNormalizedValue(b))
+	eq, diags := modelsConfigFromRaw([]byte(a)).StringSemanticEquals(context.Background(), modelsConfigFromRaw([]byte(b)))
 	if diags.HasError() {
-		t.Fatalf("semantic-equality diags: %v", diags)
+		t.Fatalf("models_config semantic-equality diags: %v", diags)
 	}
 	return eq
 }
 
-// TestModelsConfigWeightConverges proves a weight-less model config canonicalizes
-// to the server's stored form (weight 0.5), so the plan value and the server
-// read-back are semantically equal — no diff after apply.
-func TestModelsConfigWeightConverges(t *testing.T) {
-	config := `{"mode":"fallback","models":[{"model":"x"},{"model":"y","weight":0.25}]}`
-	// What the server stores/returns: weight 0.5 injected for the model that
-	// omitted it, the explicit 0.25 preserved.
-	serverReadBack := `{"mode":"fallback","models":[{"model":"x","weight":0.5},{"model":"y","weight":0.25}]}`
-
-	canon, ok := canonicalizeJSONObject(config, modelsConfigWeightCanon)
-	if !ok {
-		t.Fatal("canonicalize failed to parse config")
+func retryConfigEqual(t *testing.T, a, b string) bool {
+	t.Helper()
+	eq, diags := retryConfigFromRaw([]byte(a)).StringSemanticEquals(context.Background(), retryConfigFromRaw([]byte(b)))
+	if diags.HasError() {
+		t.Fatalf("retry_config semantic-equality diags: %v", diags)
 	}
-	if !jsonSemanticEqual(t, canon.ValueString(), serverReadBack) {
-		t.Errorf("canonicalized config %q does not converge with server read-back %q",
-			canon.ValueString(), serverReadBack)
+	return eq
+}
+
+// TestModelsConfigSemanticEquals proves the weight-0.5 canonicalization holds in
+// BOTH directions and tolerates formatting differences, while still catching a
+// genuine value difference.
+func TestModelsConfigSemanticEquals(t *testing.T) {
+	weightless := `{"mode":"fallback","models":[{"model":"x"},{"model":"y","weight":0.25}]}`
+	serverForm := `{"mode":"fallback","models":[{"model":"x","weight":0.5},{"model":"y","weight":0.25}]}`
+
+	if !modelsConfigEqual(t, weightless, serverForm) {
+		t.Error("weight-less config must equal the server's weight-0.5 read-back")
+	}
+	if !modelsConfigEqual(t, serverForm, weightless) {
+		t.Error("semantic equality must be symmetric (server form vs weight-less)")
+	}
+	// Zero weight is coerced to 0.5 as well.
+	if !modelsConfigEqual(t, `{"models":[{"model":"x","weight":0}]}`, `{"models":[{"model":"x","weight":0.5}]}`) {
+		t.Error("zero weight must be treated as the server default 0.5")
+	}
+	// Formatting-only differences (key order, whitespace) are equal.
+	if !modelsConfigEqual(t, `{"mode":"fallback","models":[{"model":"x","weight":0.5}]}`,
+		`{ "models": [ {"weight":0.5,"model":"x"} ], "mode":"fallback" }`) {
+		t.Error("key order / whitespace must not produce a diff")
+	}
+	// A genuine value difference is NOT equal.
+	if modelsConfigEqual(t, `{"models":[{"model":"x","weight":0.5}]}`, `{"models":[{"model":"x","weight":0.75}]}`) {
+		t.Error("differing explicit weights must not be equal")
+	}
+	if modelsConfigEqual(t, `{"models":[{"model":"x"}]}`, `{"models":[{"model":"z"}]}`) {
+		t.Error("differing model names must not be equal")
 	}
 }
 
-// TestModelsConfigWeightCanonIdempotent proves canon(canon(x)) == canon(x).
-func TestModelsConfigWeightCanonIdempotent(t *testing.T) {
-	config := `{"mode":"weighted","models":[{"model":"x"},{"model":"z","weight":0}]}`
-	first, _ := canonicalizeJSONObject(config, modelsConfigWeightCanon)
-	second, _ := canonicalizeJSONObject(first.ValueString(), modelsConfigWeightCanon)
-	if !jsonSemanticEqual(t, first.ValueString(), second.ValueString()) {
-		t.Errorf("not idempotent: %q vs %q", first.ValueString(), second.ValueString())
-	}
-	// A zero weight is also coerced to 0.5.
-	if !jsonSemanticEqual(t, first.ValueString(), `{"mode":"weighted","models":[{"model":"x","weight":0.5},{"model":"z","weight":0.5}]}`) {
-		t.Errorf("zero weight not coerced: %q", first.ValueString())
-	}
-}
-
-// TestRetryConfigOnCodesConverges proves an empty on_codes canonicalizes to the
-// server's elided read-back.
-func TestRetryConfigOnCodesConverges(t *testing.T) {
-	for _, in := range []string{`{"count":3,"on_codes":[]}`, `{"count":3,"on_codes":null}`} {
-		canon, ok := canonicalizeJSONObject(in, retryConfigOnCodesCanon)
-		if !ok {
-			t.Fatalf("canonicalize failed for %q", in)
+// TestRetryConfigSemanticEquals proves `on_codes: []` and a null/absent on_codes
+// are all equal, while a populated on_codes is preserved.
+func TestRetryConfigSemanticEquals(t *testing.T) {
+	for _, empty := range []string{`{"count":3,"on_codes":[]}`, `{"count":3,"on_codes":null}`} {
+		if !retryConfigEqual(t, empty, `{"count":3}`) {
+			t.Errorf("%s must equal the server's elided {\"count\":3}", empty)
 		}
-		if !jsonSemanticEqual(t, canon.ValueString(), `{"count":3}`) {
-			t.Errorf("input %q did not converge with server read-back {\"count\":3}, got %q", in, canon.ValueString())
+		if !retryConfigEqual(t, `{"count":3}`, empty) {
+			t.Errorf("semantic equality must be symmetric for %s", empty)
 		}
 	}
-	// A populated on_codes is preserved.
-	canon, _ := canonicalizeJSONObject(`{"count":3,"on_codes":[429,503]}`, retryConfigOnCodesCanon)
-	if !jsonSemanticEqual(t, canon.ValueString(), `{"count":3,"on_codes":[429,503]}`) {
-		t.Errorf("populated on_codes must be preserved, got %q", canon.ValueString())
+	// A populated on_codes is a real value: preserved and compared.
+	if !retryConfigEqual(t, `{"count":3,"on_codes":[429,503]}`, `{"count":3,"on_codes":[429,503]}`) {
+		t.Error("identical populated on_codes must be equal")
+	}
+	if retryConfigEqual(t, `{"count":3,"on_codes":[429]}`, `{"count":3}`) {
+		t.Error("a populated on_codes must NOT equal an absent one")
+	}
+	if retryConfigEqual(t, `{"count":3,"on_codes":[429,503]}`, `{"count":3,"on_codes":[500]}`) {
+		t.Error("differing on_codes must not be equal")
 	}
 }
 
-// TestOptionsEmptyToNull proves an empty options object canonicalizes to null.
-func TestOptionsEmptyToNull(t *testing.T) {
-	canon, ok := canonicalizeJSONObject(`{}`, optionsEmptyToNullCanon)
-	if !ok {
-		t.Fatal("canonicalize failed")
+// TestNullAndUnknownSemanticEquals proves null/unknown fall back to exact
+// equality (semantic equality is never meant to bridge null vs non-null).
+func TestNullAndUnknownSemanticEquals(t *testing.T) {
+	nullV := modelsConfigFromRaw(nil)
+	if !nullV.IsNull() {
+		t.Fatal("modelsConfigFromRaw(nil) should be null")
 	}
-	if !canon.IsNull() {
-		t.Errorf("empty options must canonicalize to null, got %q", canon.ValueString())
+	// null vs null -> equal.
+	eq, _ := nullV.StringSemanticEquals(context.Background(), modelsConfigFromRaw(nil))
+	if !eq {
+		t.Error("null vs null must be equal")
 	}
-	// A populated options object is preserved.
-	canon2, _ := canonicalizeJSONObject(`{"language":"en"}`, optionsEmptyToNullCanon)
-	if canon2.IsNull() || !jsonSemanticEqual(t, canon2.ValueString(), `{"language":"en"}`) {
-		t.Errorf("populated options must be preserved, got null=%v %q", canon2.IsNull(), canon2.ValueString())
+	// null vs a value -> NOT equal (retain-on-null is handled by Computed, not here).
+	eq, _ = nullV.StringSemanticEquals(context.Background(), modelsConfigFromRaw([]byte(`{"models":[]}`)))
+	if eq {
+		t.Error("null vs non-null must NOT be semantically equal")
 	}
 }
 
-// TestJSONCanonPlanModifier exercises the plan-modifier plumbing: a set config is
-// canonicalized into the plan; a null config either retains prior state or plans
-// null depending on retainOnNull.
-func TestJSONCanonPlanModifier(t *testing.T) {
+// TestCanonAttributesHaveNoPlanModifier is the regression guard for the redesign:
+// the broken approach used a plan modifier that rewrote a non-null config value
+// at plan time. These attributes must now rely purely on the custom type's
+// semantic equality — NO plan modifier — or Terraform's AssertPlanValid rejects a
+// from-scratch weight-less create.
+func TestCanonAttributesHaveNoPlanModifier(t *testing.T) {
 	ctx := context.Background()
-	mod := jsonCanonPlanModifier{fn: modelsConfigWeightCanon, retainOnNull: true}
 
-	// Set config → canonical plan (weight injected).
-	req := planmodifier.StringRequest{
-		ConfigValue: types.StringValue(`{"mode":"fallback","models":[{"model":"x"}]}`),
-		StateValue:  types.StringNull(),
-		PlanValue:   types.StringValue(`{"mode":"fallback","models":[{"model":"x"}]}`),
-	}
-	resp := &planmodifier.StringResponse{PlanValue: req.PlanValue}
-	mod.PlanModifyString(ctx, req, resp)
-	if !jsonSemanticEqual(t, resp.PlanValue.ValueString(), `{"mode":"fallback","models":[{"model":"x","weight":0.5}]}`) {
-		t.Errorf("plan not canonicalized: %q", resp.PlanValue.ValueString())
+	var routing resource.SchemaResponse
+	NewRoutingRuleResource().Schema(ctx, resource.SchemaRequest{}, &routing)
+	assertStringAttrNoPlanModifier(t, routing.Schema.Attributes, "models_config")
+	if _, ok := routing.Schema.Attributes["models_config"].(schema.StringAttribute).CustomType.(modelsConfigType); !ok {
+		t.Error("routing_rule.models_config must use modelsConfigType")
 	}
 
-	// Null config with retainOnNull → prior state retained (server PATCH cannot clear).
-	prior := types.StringValue(`{"mode":"fallback","models":[{"model":"x","weight":0.5}]}`)
-	reqNull := planmodifier.StringRequest{ConfigValue: types.StringNull(), StateValue: prior, PlanValue: types.StringNull()}
-	respNull := &planmodifier.StringResponse{PlanValue: reqNull.PlanValue}
-	mod.PlanModifyString(ctx, reqNull, respNull)
-	if respNull.PlanValue.ValueString() != prior.ValueString() {
-		t.Errorf("retainOnNull must keep prior state, got %q", respNull.PlanValue.ValueString())
+	var policy resource.SchemaResponse
+	NewPolicyResource().Schema(ctx, resource.SchemaRequest{}, &policy)
+	assertStringAttrNoPlanModifier(t, policy.Schema.Attributes, "models_config")
+	assertStringAttrNoPlanModifier(t, policy.Schema.Attributes, "retry_config")
+	if _, ok := policy.Schema.Attributes["models_config"].(schema.StringAttribute).CustomType.(modelsConfigType); !ok {
+		t.Error("policy.models_config must use modelsConfigType")
+	}
+	if _, ok := policy.Schema.Attributes["retry_config"].(schema.StringAttribute).CustomType.(retryConfigType); !ok {
+		t.Error("policy.retry_config must use retryConfigType")
 	}
 
-	// Null config without retainOnNull → plans null.
-	modClear := jsonCanonPlanModifier{fn: optionsEmptyToNullCanon, retainOnNull: false}
-	reqClear := planmodifier.StringRequest{ConfigValue: types.StringNull(), StateValue: prior, PlanValue: types.StringNull()}
-	respClear := &planmodifier.StringResponse{PlanValue: reqClear.PlanValue}
-	modClear.PlanModifyString(ctx, reqClear, respClear)
-	if !respClear.PlanValue.IsNull() {
-		t.Errorf("non-retaining modifier must plan null on null config, got %q", respClear.PlanValue.ValueString())
+	// The nested evaluator `options` attribute must likewise carry no plan modifier.
+	block, ok := policy.Schema.Blocks["evaluators"].(schema.ListNestedBlock)
+	if !ok {
+		t.Fatal("policy evaluators is not a ListNestedBlock")
+	}
+	assertStringAttrNoPlanModifier(t, block.NestedObject.Attributes, "options")
+}
+
+func assertStringAttrNoPlanModifier(t *testing.T, attrs map[string]schema.Attribute, name string) {
+	t.Helper()
+	attr, ok := attrs[name].(schema.StringAttribute)
+	if !ok {
+		t.Fatalf("%s is not a StringAttribute", name)
+	}
+	if len(attr.PlanModifiers) != 0 {
+		t.Errorf("%s must have NO plan modifier (semantic equality only), found %d", name, len(attr.PlanModifiers))
 	}
 }
 
-// TestPolicyModelsConfigApplyConverges proves the full round-trip: the operator's
-// canonicalized plan and the value apply() stores from the server read-back are
-// semantically equal (no diff after apply).
+// TestPolicyModelsConfigApplyConverges proves the full round-trip: an operator's
+// weight-less config and the value apply() stores from the server read-back
+// (weight 0.5) are semantically equal — so post-apply reconciliation and the next
+// plan see no diff.
 func TestPolicyModelsConfigApplyConverges(t *testing.T) {
 	config := `{"mode":"fallback","models":[{"model":"x"}]}`
-	canonPlan, _ := canonicalizeJSONObject(config, modelsConfigWeightCanon)
 
 	r := &policyResource{}
 	var m policyResourceModel
@@ -145,8 +167,59 @@ func TestPolicyModelsConfigApplyConverges(t *testing.T) {
 	if m.ModelsConfig.IsNull() {
 		t.Fatal("models_config not applied")
 	}
-	if !jsonSemanticEqual(t, canonPlan.ValueString(), m.ModelsConfig.ValueString()) {
-		t.Errorf("canonical plan %q does not converge with applied read-back %q",
-			canonPlan.ValueString(), m.ModelsConfig.ValueString())
+	eq, diags := m.ModelsConfig.StringSemanticEquals(context.Background(), modelsConfigFromRaw([]byte(config)))
+	if diags.HasError() {
+		t.Fatalf("semantic-equality diags: %v", diags)
+	}
+	if !eq {
+		t.Errorf("applied read-back %q does not converge with weight-less config %q",
+			m.ModelsConfig.ValueString(), config)
+	}
+}
+
+// TestPolicyEvaluatorOptionsElisionKept proves that when the server elides an
+// empty options object entirely, apply() keeps the operator's `{}` (matched from
+// the plan/prior evaluators) rather than reading back null — the null-vs-non-null
+// case semantic equality cannot bridge.
+func TestPolicyEvaluatorOptionsElisionKept(t *testing.T) {
+	r := &policyResource{}
+	// m stands in for the plan/prior state: evaluator has an explicit `{}` options.
+	m := policyResourceModel{
+		Evaluators: []policyEvaluatorModel{{
+			ID:      types.StringValue("ev_1"),
+			Options: jsontypes.NewNormalizedValue(`{}`),
+		}},
+	}
+	// Server read-back elides options entirely (nil).
+	r.apply(&client.Policy{
+		ID:         "pol_1",
+		Evaluators: []client.EvaluatorRef{{ID: "ev_1", ExecuteOn: "input", Options: nil}},
+	}, &m)
+
+	if len(m.Evaluators) != 1 {
+		t.Fatalf("expected 1 evaluator, got %d", len(m.Evaluators))
+	}
+	got := m.Evaluators[0].Options
+	if got.IsNull() {
+		t.Fatal("elided options with a non-null config must keep the config value, not read back null")
+	}
+	if got.ValueString() != `{}` {
+		t.Errorf("expected kept options {}, got %q", got.ValueString())
+	}
+
+	// When the operator never set options (unknown on create), the elided read-back
+	// collapses to a concrete null.
+	m2 := policyResourceModel{
+		Evaluators: []policyEvaluatorModel{{
+			ID:      types.StringValue("ev_1"),
+			Options: jsontypes.NewNormalizedUnknown(),
+		}},
+	}
+	r.apply(&client.Policy{
+		ID:         "pol_1",
+		Evaluators: []client.EvaluatorRef{{ID: "ev_1", ExecuteOn: "input", Options: nil}},
+	}, &m2)
+	if !m2.Evaluators[0].Options.IsNull() {
+		t.Errorf("omitted options must collapse to null, got %q", m2.Evaluators[0].Options.ValueString())
 	}
 }
