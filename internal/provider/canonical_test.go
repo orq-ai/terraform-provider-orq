@@ -63,6 +63,50 @@ func TestModelsConfigSemanticEquals(t *testing.T) {
 	}
 }
 
+// TestModelsConfigWeightSpelling proves the weight is normalized to canonical
+// float64 spelling so an operator's `0.50` / `1` / `5e-1` converges with the
+// server's float64 read-back (`0.5` / `1`), while genuine value differences stay
+// unequal.
+func TestModelsConfigWeightSpelling(t *testing.T) {
+	// Differing textual spellings of the same numeric weight are equal.
+	for _, tc := range []struct{ a, b string }{
+		{`{"models":[{"model":"x","weight":0.50}]}`, `{"models":[{"model":"x","weight":0.5}]}`},
+		{`{"models":[{"model":"x","weight":0.500}]}`, `{"models":[{"model":"x","weight":0.5}]}`},
+		{`{"models":[{"model":"x","weight":5e-1}]}`, `{"models":[{"model":"x","weight":0.5}]}`},
+		{`{"models":[{"model":"x","weight":1}]}`, `{"models":[{"model":"x","weight":1.0}]}`},
+		{`{"models":[{"model":"x","weight":1.00}]}`, `{"models":[{"model":"x","weight":1}]}`},
+	} {
+		if !modelsConfigEqual(t, tc.a, tc.b) {
+			t.Errorf("%s must equal %s (same numeric weight, different spelling)", tc.a, tc.b)
+		}
+		if !modelsConfigEqual(t, tc.b, tc.a) {
+			t.Errorf("weight-spelling equality must be symmetric: %s vs %s", tc.b, tc.a)
+		}
+	}
+	// Genuinely different weights across a fallback config remain unequal.
+	if modelsConfigEqual(t,
+		`{"models":[{"model":"x","weight":0.3},{"model":"y","weight":0.7}]}`,
+		`{"models":[{"model":"x","weight":0.7},{"model":"y","weight":0.3}]}`) {
+		t.Error("0.3/0.7 must NOT equal 0.7/0.3 — spelling normalization must not collapse real value differences")
+	}
+	if modelsConfigEqual(t, `{"models":[{"model":"x","weight":0.3}]}`, `{"models":[{"model":"x","weight":0.7}]}`) {
+		t.Error("0.3 must NOT equal 0.7")
+	}
+}
+
+// TestRetryConfigOnCodesStayIntegers guards that number-spelling normalization is
+// scoped to weight only: retry_config.on_codes are integer HTTP status codes and
+// must NOT be float-normalized (429, never 429).
+func TestRetryConfigOnCodesStayIntegers(t *testing.T) {
+	got, ok := canonicalizeJSON(`{"count":3,"on_codes":[429,503]}`, retryConfigCanon)
+	if !ok {
+		t.Fatal("canonicalize failed")
+	}
+	if got != `{"count":3,"on_codes":[429,503]}` {
+		t.Errorf("on_codes must stay integer-spelled, got %q", got)
+	}
+}
+
 // TestRetryConfigSemanticEquals proves `on_codes: []` and a null/absent on_codes
 // are all equal, while a populated on_codes is preserved.
 func TestRetryConfigSemanticEquals(t *testing.T) {

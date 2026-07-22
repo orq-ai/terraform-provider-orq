@@ -255,8 +255,24 @@ func canonicalizeJSON(s string, canon func(map[string]any)) (string, bool) {
 	return string(b), true
 }
 
-// modelsConfigCanon injects the server default weight (0.5) for any model entry
-// whose weight is omitted or zero, mirroring the server. Mutates obj in place.
+// modelsConfigCanon canonicalizes each model entry's weight so an operator's
+// config converges with the server's float64 read-back. Mutates obj in place.
+//
+//   - An omitted or zero weight is defaulted to 0.5. The server marshals weight
+//     with omitempty, so both an absent field and a literal 0 drop out of the
+//     request and the server fills in its 0.5 default (routingrules/routes.go,
+//     policies/routes.go) — collapsing 0 -> 0.5 here is therefore CORRECT, the
+//     server treats weight:0 identically to an omitted weight.
+//   - A present non-zero weight is re-emitted in canonical float64 spelling: the
+//     transport round-trips weights as float64 and reads `0.50` back as `0.5`,
+//     so we parse the number and let json.Marshal(float64) normalize the text
+//     (0.50 / 0.500 / 5e-1 -> 0.5, 1 / 1.0 -> 1). WITHOUT this, the UseNumber
+//     decoder preserves the literal `0.50` and a `weight = 0.50` config drifts
+//     against the server's `0.5` read-back ("inconsistent result after apply").
+//
+// Only weight is float-normalized. Other numbers keep their exact text — notably
+// retry_config.on_codes are integer HTTP status codes (429, 503) that must stay
+// integers, and retryConfigCanon does not touch them.
 func modelsConfigCanon(obj map[string]any) {
 	models, ok := obj["models"].([]any)
 	if !ok {
@@ -269,6 +285,8 @@ func modelsConfigCanon(obj map[string]any) {
 		}
 		if w, present := m["weight"]; !present || jsonNumberIsZero(w) {
 			m["weight"] = 0.5
+		} else if f, ok := jsonNumberAsFloat(w); ok {
+			m["weight"] = f
 		}
 	}
 }
@@ -301,6 +319,22 @@ func jsonNumberIsZero(v any) bool {
 		return err == nil && f == 0
 	}
 	return false
+}
+
+// jsonNumberAsFloat parses v (a json.Number from a UseNumber decoder, or a plain
+// float64) into a float64 so it can be re-emitted in canonical spelling. Storing
+// a float64 back into the decoded map makes json.Marshal print the shortest
+// round-trippable form (0.50 -> 0.5, 1.0 -> 1), matching the server's float64
+// read-back. Reports false for non-numbers, leaving the value untouched.
+func jsonNumberAsFloat(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case json.Number:
+		f, err := n.Float64()
+		return f, err == nil
+	}
+	return 0, false
 }
 
 // jsonStringToRaw converts a JSON string attribute value to raw bytes, or nil
