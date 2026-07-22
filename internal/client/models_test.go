@@ -20,19 +20,26 @@ func modelDocJSON(id, displayName string) map[string]any {
 		"model_id":     "liquid/lfm2.5-1.2b",
 		"model_type":   "chat",
 		"description":  "a custom model",
-		"provider":     "openai",
-		"enabled":      true,
+		// A custom openai-like model: provider "openailike", owner = workspace id.
+		"provider": "openailike",
+		"owner":    "ws_1",
+		"enabled":  true,
 		"configuration": map[string]any{
-			"provider":             "openai",
+			"provider":             "openailike",
 			"base_url":             "http://host.docker.internal:1234/v1",
 			"region":               "europe",
 			"is_openai_compatible": true,
 			"api_key_env":          nil,
 		},
-		"metadata":   map[string]any{"is_private": true},
-		"created":    "2020-01-01T00:00:00Z",
-		"updated":    "2020-01-02T00:00:00Z",
-		"input_cost": nil,
+		"metadata": map[string]any{
+			"is_private":            true,
+			"supports_vision":       true,
+			"supports_tool_calling": false,
+		},
+		"created":     "2020-01-01T00:00:00Z",
+		"updated":     "2020-01-02T00:00:00Z",
+		"input_cost":  0.5,
+		"output_cost": 1.5,
 	}
 }
 
@@ -169,6 +176,40 @@ func TestModels_UpdateOmitsAPIKey(t *testing.T) {
 	}
 	if m.DisplayName != "renamed" {
 		t.Errorf("update read-back wrong: %+v", m)
+	}
+}
+
+// TestModels_DecodesMarkerAndRefreshFields proves the client projects the
+// custom-vs-system marker (provider/owner) and the refreshed list fields
+// (input/output cost + supports_*) so the resource can guard imports and detect
+// drift. A field the server omits stays nil (distinguishable from a real value).
+func TestModels_DecodesMarkerAndRefreshFields(t *testing.T) {
+	c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]map[string]any{modelDocJSON("mdl_uuid_1", "tf model")})
+	})
+	m, err := c.Models().Get(context.Background(), "mdl_uuid_1")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if m.Provider != ModelProviderOpenAILike {
+		t.Errorf("provider marker not decoded: %q", m.Provider)
+	}
+	if m.Owner != "ws_1" {
+		t.Errorf("owner not decoded: %q", m.Owner)
+	}
+	if m.InputCost == nil || *m.InputCost != 0.5 || m.OutputCost == nil || *m.OutputCost != 1.5 {
+		t.Errorf("costs not decoded: in=%v out=%v", m.InputCost, m.OutputCost)
+	}
+	if m.SupportsVision == nil || !*m.SupportsVision {
+		t.Errorf("supports_vision not decoded: %v", m.SupportsVision)
+	}
+	if m.SupportsToolCalling == nil || *m.SupportsToolCalling {
+		t.Errorf("supports_tool_calling not decoded as false: %v", m.SupportsToolCalling)
+	}
+	// A field the server omits stays nil (kept config-authoritative by the resource).
+	if m.CostPerImage != nil || m.SupportsImageEdit != nil {
+		t.Errorf("omitted fields must stay nil: cost_per_image=%v image_edit=%v", m.CostPerImage, m.SupportsImageEdit)
 	}
 }
 

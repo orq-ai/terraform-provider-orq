@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -67,13 +68,21 @@ func (r *modelResource) Metadata(_ context.Context, req resource.MetadataRequest
 func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A custom OpenAI-compatible (\"openai-like\") model registered in the workspace " +
-			"catalog (POST /v2/models/openai-like). Only custom models are managed here; system models " +
-			"(slug ids like `openai/gpt-4o`) are not.\n\n" +
-			"The secret `api_key` is never returned by the API, so it is stored config-authoritatively and " +
-			"changing it forces replacement (the update endpoint re-probes with the stored key and cannot " +
-			"rotate it). The optional cost / capability metadata is likewise kept config-authoritative: the " +
-			"server scatters, defaults and merges those fields, so the provider does not refresh them (an " +
-			"out-of-band change to them is not detected as drift).",
+			"catalog (POST /v2/models/openai-like). This resource manages ONLY custom openai-like models " +
+			"(server `provider` = `openailike`); Read and import REFUSE any other model (a system or " +
+			"non-custom model) so it can never be PATCHed or DELETEd here.\n\n" +
+			"**Secret in state:** `api_key` is stored in Terraform state (it is never returned by the API). " +
+			"Use an encrypted remote backend. Because the update endpoint re-probes with the stored key and " +
+			"cannot rotate it, changing `api_key` forces replacement.\n\n" +
+			"**Import:** import recovers only the model id. `api_key` is required and unreadable, so after " +
+			"importing you must add it to config; the next apply then REPLACES (destroy + recreate) the " +
+			"model rather than adopting it in place.\n\n" +
+			"**Refreshed fields:** the cost fields (`input_cost`, `output_cost`, `cost_per_image`) and the " +
+			"`supports_*` capability booleans are read back from the server, so out-of-band changes surface " +
+			"as drift. The server only stores those it applies for the given `model_type`; a field it drops " +
+			"keeps its configured value (no false drift). `max_tokens`, `temperature` and `has_reasoning` " +
+			"are encoded into the server's parameter list and cannot be refreshed or cleared, so removing " +
+			"one from config keeps the last value in state (retain-on-null).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -82,8 +91,8 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			},
 			"display_name": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "Human-readable model name.",
-				Validators:          []validator.String{stringvalidator.LengthAtLeast(1)},
+				MarkdownDescription: "Human-readable model name (1-128 characters).",
+				Validators:          []validator.String{stringvalidator.LengthBetween(1, 128)},
 			},
 			"model_id": schema.StringAttribute{
 				Required: true,
@@ -92,9 +101,11 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Validators: []validator.String{stringvalidator.LengthAtLeast(1)},
 			},
 			"model_type": schema.StringAttribute{
-				Required:            true,
-				MarkdownDescription: "Model modality: one of `chat`, `embedding`, `image`, `rerank`, `stt`, `tts`, `moderation`, `realtime`, `completion`.",
-				Validators:          []validator.String{stringvalidator.OneOf(modelTypeValues...)},
+				Required: true,
+				MarkdownDescription: "Model modality: one of `chat`, `embedding`, `image`, `rerank`, `stt`, `tts`, " +
+					"`moderation`, `realtime`, `completion`. (The server contract is an open string; this enum " +
+					"reflects the currently known modalities.)",
+				Validators: []validator.String{stringvalidator.OneOf(modelTypeValues...)},
 			},
 			"region": schema.StringAttribute{
 				Required:            true,
@@ -103,16 +114,17 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			},
 			"base_url": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "Base URL of the OpenAI-compatible endpoint (e.g. `https://host/v1`).",
-				Validators:          []validator.String{stringvalidator.LengthAtLeast(1)},
+				MarkdownDescription: "Base URL of the OpenAI-compatible endpoint (an absolute http(s) URL, e.g. `https://host/v1`).",
+				Validators:          []validator.String{absoluteHTTPURLValidator{}},
 			},
 			"api_key": schema.StringAttribute{
 				Required:  true,
 				Sensitive: true,
 				MarkdownDescription: "API key for the endpoint. Accepts a literal key or an `env://VAR` " +
-					"reference (stored verbatim; server-side env resolution is out of scope here). The server " +
-					"never returns it, so it is held config-authoritatively and NEVER refreshed from a read. " +
-					"The update endpoint cannot rotate it, so changing this value forces replacement.",
+					"reference (stored verbatim; server-side env resolution is out of scope here). Stored in " +
+					"Terraform state — use an encrypted remote backend. The server never returns it, so it is " +
+					"held config-authoritatively and NEVER refreshed from a read. The update endpoint cannot " +
+					"rotate it, so changing this value (or setting it after an import) forces replacement.",
 				Validators:    []validator.String{stringvalidator.LengthAtLeast(1)},
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
@@ -124,43 +136,53 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			},
 			"input_cost": schema.Float64Attribute{
 				Optional:            true,
-				MarkdownDescription: "Optional input cost. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Optional input cost. Refreshed from the server; a value the server does not apply for this `model_type` keeps the configured value.",
 			},
 			"output_cost": schema.Float64Attribute{
 				Optional:            true,
-				MarkdownDescription: "Optional output cost. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Optional output cost. Refreshed from the server; a value the server does not apply for this `model_type` keeps the configured value.",
 			},
 			"cost_per_image": schema.Float64Attribute{
 				Optional:            true,
-				MarkdownDescription: "Optional per-image cost. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Optional per-image cost (image models). Refreshed from the server metadata; kept as configured when the server does not apply it.",
 			},
 			"max_tokens": schema.Int64Attribute{
 				Optional:            true,
-				MarkdownDescription: "Optional max tokens. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Optional max tokens. Config-authoritative: encoded into the server parameter list, so it is neither refreshed nor clearable — removing it from config keeps the last value (retain-on-null).",
 			},
 			"temperature": schema.Float64Attribute{
 				Optional:            true,
-				MarkdownDescription: "Optional default temperature. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Optional default temperature. Config-authoritative: encoded into the server parameter list, so it is neither refreshed nor clearable — removing it from config keeps the last value (retain-on-null).",
 			},
 			"has_reasoning": schema.BoolAttribute{
 				Optional:            true,
-				MarkdownDescription: "Whether the model exposes reasoning. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Whether the model exposes reasoning. Config-authoritative: encoded into the server parameter list, so it is neither refreshed nor clearable — removing it from config keeps the last value (retain-on-null).",
 			},
 			"supports_vision": schema.BoolAttribute{
 				Optional:            true,
-				MarkdownDescription: "Whether the model accepts image input. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Whether the model accepts image input. Refreshed from the server metadata.",
 			},
 			"supports_tool_calling": schema.BoolAttribute{
 				Optional:            true,
-				MarkdownDescription: "Whether the model supports tool calling. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Whether the model supports tool calling. Refreshed from the server metadata.",
 			},
 			"supports_strict_tool": schema.BoolAttribute{
 				Optional:            true,
-				MarkdownDescription: "Whether the model supports strict tool schemas. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Whether the model supports strict tool schemas. Refreshed from the server metadata.",
 			},
 			"supports_image_edit": schema.BoolAttribute{
 				Optional:            true,
-				MarkdownDescription: "Whether the model supports image editing. Config-authoritative (not refreshed from the server).",
+				Computed:            true,
+				MarkdownDescription: "Whether the model supports image editing (image models). Refreshed from the server metadata.",
 			},
 			"created": schema.StringAttribute{
 				Computed:            true,
@@ -188,11 +210,12 @@ func (r *modelResource) Configure(_ context.Context, req resource.ConfigureReque
 	r.models = c.Models()
 }
 
-// apply refreshes the reliably-echoed fields from a server projection while
-// leaving the config-authoritative fields (api_key + the derived metadata
-// optionals) untouched. `data` must already carry those from the plan (on
-// create/update) or prior state (on read), so leaving them alone keeps state ==
-// config and can never manufacture drift from a server default / transform.
+// apply refreshes the server-echoed fields onto the model. The secret api_key is
+// never touched (the server never echoes it — `data` carries it from the plan on
+// create/update or prior state on read). The cost + supports_* fields ARE
+// refreshed (so drift is visible), keeping the configured value when the server
+// omits one for this model_type; max_tokens/temperature/has_reasoning stay
+// config-authoritative with retain-on-null.
 func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
 	data.ID = types.StringValue(m.ID)
 	data.DisplayName = types.StringValue(m.DisplayName)
@@ -203,8 +226,7 @@ func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
 	data.Description = types.StringValue(m.Description)
 	// region and base_url live under the server's `configuration` sub-object and
 	// are Required, so `data` already holds the configured value. Refresh when the
-	// server echoes a value; fall back to the configured value if it omits one (the
-	// wire fields are optional) so a Required attribute never reads back empty.
+	// server echoes a value; fall back to the configured value if it omits one.
 	if m.Region != "" {
 		data.Region = types.StringValue(m.Region)
 	}
@@ -213,9 +235,62 @@ func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
 	}
 	data.Created = types.StringValue(m.Created)
 	data.Updated = types.StringValue(m.Updated)
-	// api_key and input_cost/output_cost/cost_per_image/max_tokens/temperature/
-	// has_reasoning/supports_* are deliberately NOT written here — see the struct
-	// doc on client.Model and the schema description.
+
+	// Refreshed cost + capability fields: server value when present, else keep the
+	// operator's plan/prior value (a create-time unknown collapses to null).
+	data.InputCost = refreshFloat(data.InputCost, m.InputCost)
+	data.OutputCost = refreshFloat(data.OutputCost, m.OutputCost)
+	data.CostPerImage = refreshFloat(data.CostPerImage, m.CostPerImage)
+	data.SupportsVision = refreshBool(data.SupportsVision, m.SupportsVision)
+	data.SupportsToolCalling = refreshBool(data.SupportsToolCalling, m.SupportsToolCalling)
+	data.SupportsStrictTool = refreshBool(data.SupportsStrictTool, m.SupportsStrictTool)
+	data.SupportsImageEdit = refreshBool(data.SupportsImageEdit, m.SupportsImageEdit)
+
+	// Config-authoritative, retain-on-null: collapse a create-time unknown to null,
+	// otherwise keep the plan/prior value (the server merges on PATCH and cannot
+	// clear these, so a null-in-state would be a false null).
+	data.MaxTokens = int64OrNull(data.MaxTokens)
+	data.Temperature = float64UnknownToNull(data.Temperature)
+	data.HasReasoning = boolUnknownToNull(data.HasReasoning)
+	// api_key is deliberately NOT written — the server never echoes it.
+}
+
+// refreshFloat takes the server value when present; otherwise keeps the current
+// (plan/prior) value, collapsing an unknown to null so post-apply state is concrete.
+func refreshFloat(cur types.Float64, srv *float64) types.Float64 {
+	if srv != nil {
+		return types.Float64Value(*srv)
+	}
+	return float64UnknownToNull(cur)
+}
+
+// refreshBool mirrors refreshFloat for the supports_* capability booleans.
+func refreshBool(cur types.Bool, srv *bool) types.Bool {
+	if srv != nil {
+		return types.BoolValue(*srv)
+	}
+	return boolUnknownToNull(cur)
+}
+
+func float64UnknownToNull(v types.Float64) types.Float64 {
+	if v.IsUnknown() {
+		return types.Float64Null()
+	}
+	return v
+}
+
+func int64OrNull(v types.Int64) types.Int64 {
+	if v.IsUnknown() {
+		return types.Int64Null()
+	}
+	return v
+}
+
+func boolUnknownToNull(v types.Bool) types.Bool {
+	if v.IsUnknown() {
+		return types.BoolNull()
+	}
+	return v
 }
 
 func (r *modelResource) createInput(plan *modelResourceModel) client.ModelCreateInput {
@@ -251,7 +326,7 @@ func (r *modelResource) Create(ctx context.Context, req resource.CreateRequest, 
 		resp.Diagnostics.AddError("Unable to create model", errDetail(err))
 		return
 	}
-	// apply leaves api_key + the metadata optionals as configured in `plan`.
+	// apply leaves api_key as configured in `plan` and refreshes the rest.
 	r.apply(m, &plan)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -271,8 +346,11 @@ func (r *modelResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		resp.Diagnostics.AddError("Unable to read model", errDetail(err))
 		return
 	}
-	// apply preserves the config-authoritative fields already in `state` (the
-	// server never echoes api_key, and the metadata optionals are not refreshed).
+	if summary, detail, ok := modelNotCustom(m); ok {
+		resp.Diagnostics.AddError(summary, detail)
+		return
+	}
+	// apply preserves the config-authoritative api_key already in `state`.
 	r.apply(m, &state)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -324,8 +402,78 @@ func (r *modelResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	}
 }
 
-// ImportState seeds the resource id. api_key cannot be imported (the server
-// never returns it); the operator must set it in config after import.
+// ImportState verifies the id is a custom openai-like model (refusing a system /
+// non-custom model, which would otherwise be PATCHed / DELETEd destructively),
+// seeds the id, and warns that api_key must be set afterwards (which replaces).
 func (r *modelResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+	// r.models is set by Configure, which the framework runs before import. Guard
+	// defensively: if it is somehow unset, seed the id and let Read verify.
+	if r.models != nil {
+		m, err := r.models.Get(ctx, req.ID)
+		if err != nil {
+			if isNotFound(err) {
+				resp.Diagnostics.AddError("Model not found",
+					"No model with id "+req.ID+" exists in the workspace catalog.")
+				return
+			}
+			resp.Diagnostics.AddError("Unable to read model for import", errDetail(err))
+			return
+		}
+		if summary, detail, ok := modelNotCustom(m); ok {
+			resp.Diagnostics.AddError(summary, detail)
+			return
+		}
+	}
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), req.ID)...)
+	resp.Diagnostics.AddWarning("api_key must be set in config after import",
+		"orq_model.api_key is required and can never be read back from the server, so it is not populated "+
+			"by import. Add api_key to config after importing; because the update endpoint cannot rotate the "+
+			"key, the next apply will REPLACE (destroy + recreate) the model rather than adopting it in place.")
+}
+
+// modelNotCustom reports whether m is NOT a custom openai-like model managed by
+// this resource (server `provider` != "openailike"), returning a diagnostic
+// summary/detail for it. System models have owner "system"; other custom models
+// carry a different provider — neither can be safely PATCHed/DELETEd here.
+func modelNotCustom(m *client.Model) (summary, detail string, notCustom bool) {
+	if m.Provider == client.ModelProviderOpenAILike {
+		return "", "", false
+	}
+	owner := m.Owner
+	if owner == "" {
+		owner = "unknown"
+	}
+	provider := m.Provider
+	if provider == "" {
+		provider = "unknown"
+	}
+	return "Not a custom openai-like model",
+		fmt.Sprintf("Model %q is not a custom OpenAI-compatible model managed by orq_model "+
+			"(provider = %q, owner = %q). orq_model only manages models created via "+
+			"POST /v2/models/openai-like (provider %q). Refusing to manage it, because doing so "+
+			"would PATCH it via the openai-like endpoint and DELETE it — potentially destroying a "+
+			"system or non-custom model.", m.ID, provider, owner, client.ModelProviderOpenAILike),
+		true
+}
+
+// absoluteHTTPURLValidator rejects a base_url that is not an absolute http(s) URL.
+type absoluteHTTPURLValidator struct{}
+
+func (absoluteHTTPURLValidator) Description(context.Context) string {
+	return "must be an absolute http(s) URL"
+}
+
+func (v absoluteHTTPURLValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (absoluteHTTPURLValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	u, err := url.Parse(req.ConfigValue.ValueString())
+	if err != nil || !u.IsAbs() || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		resp.Diagnostics.AddAttributeError(req.Path, "Invalid base URL",
+			"base_url must be an absolute http(s) URL (e.g. https://host/v1)")
+	}
 }

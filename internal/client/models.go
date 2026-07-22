@@ -9,17 +9,26 @@ import (
 	"github.com/orq-ai/terraform-provider-orq/internal/restgen"
 )
 
+// ModelProviderOpenAILike is the `provider` discriminator the server stamps on
+// a CUSTOM OpenAI-compatible model (apps/platform-api/models/openai_like.go).
+// System models carry owner "system" and a real provider ("openai", ...); other
+// custom models carry a different provider. The orq_model resource manages ONLY
+// openai-like models, so Read/Import verify this marker before touching a model
+// (a mismatched id would otherwise be PATCHed / DELETEd destructively).
+const ModelProviderOpenAILike = "openailike"
+
 // Model is the transport-agnostic projection of a CUSTOM OpenAI-compatible
-// ("openai-like") model, REST-backed via /v2/models/openai-like. Only the
-// fields the server reliably echoes on create/read are modeled here.
+// ("openai-like") model, REST-backed via /v2/models/openai-like.
 //
-// The write-only inputs the server does NOT round-trip — the secret api_key
-// (never echoed; only its env-var NAME appears, as configuration.api_key_env)
-// and the scattered/derived metadata (costs, max_tokens, temperature,
-// has_reasoning, supports_*) — are deliberately absent: the resource keeps
-// those config-authoritative so a server default/transform can never manufacture
-// drift. BaseURL and Region live under the server's `configuration` sub-object;
-// they are surfaced flat here.
+// The secret api_key is never round-tripped (only its env-var NAME appears, as
+// configuration.api_key_env), so the resource keeps it config-authoritative.
+// The cost + capability fields below ARE exposed in the list/read response
+// (ModelDocument / metadata), so they are refreshed to surface out-of-band
+// drift; they are pointers so the resource can tell "server omitted this for
+// this model_type" (nil) from a real value. max_tokens / temperature /
+// has_reasoning are encoded into the server's `parameters` array (not clean
+// scalars) and stay config-authoritative. BaseURL and Region live under the
+// server's `configuration` sub-object; they are surfaced flat here.
 type Model struct {
 	ID          string
 	DisplayName string
@@ -28,8 +37,19 @@ type Model struct {
 	Region      string // from configuration.region
 	BaseURL     string // from configuration.base_url
 	Description string // "" when the server omits it
+	Provider    string // configuration/provider discriminator (e.g. "openailike")
+	Owner       string // "system" for system models; workspace id for custom ones
 	Created     string // RFC 3339 (UTC)
 	Updated     string // RFC 3339 (UTC)
+
+	// Refreshed cost + capability fields (nil => server omitted it for this model).
+	InputCost           *float64
+	OutputCost          *float64
+	CostPerImage        *float64
+	SupportsVision      *bool
+	SupportsToolCalling *bool
+	SupportsStrictTool  *bool
+	SupportsImageEdit   *bool
 }
 
 // ModelCreateInput carries the fields for a create. The six leading fields are
@@ -104,27 +124,47 @@ type restModels struct {
 // on oapi-codegen's per-operation anonymous response struct types. Only the
 // reliably-echoed fields are pulled out; everything else on the wire is ignored.
 type modelWire struct {
-	ID            string  `json:"id"`
-	DisplayName   string  `json:"display_name"`
-	ModelID       string  `json:"model_id"`
-	ModelType     string  `json:"model_type"`
-	Description   *string `json:"description"`
+	ID            string   `json:"id"`
+	DisplayName   string   `json:"display_name"`
+	ModelID       string   `json:"model_id"`
+	ModelType     string   `json:"model_type"`
+	Description   *string  `json:"description"`
+	Provider      string   `json:"provider"`
+	Owner         string   `json:"owner"`
+	InputCost     *float64 `json:"input_cost"`
+	OutputCost    *float64 `json:"output_cost"`
 	Configuration struct {
 		BaseURL *string `json:"base_url"`
 		Region  *string `json:"region"`
 	} `json:"configuration"`
+	Metadata struct {
+		CostPerImage        *float64 `json:"cost_per_image"`
+		SupportsVision      *bool    `json:"supports_vision"`
+		SupportsToolCalling *bool    `json:"supports_tool_calling"`
+		SupportsStrictTool  *bool    `json:"supports_strict_tool"`
+		SupportsImageEdit   *bool    `json:"supports_image_edit"`
+	} `json:"metadata"`
 	Created time.Time `json:"created"`
 	Updated time.Time `json:"updated"`
 }
 
 func (w *modelWire) toModel() Model {
 	m := Model{
-		ID:          w.ID,
-		DisplayName: w.DisplayName,
-		ModelID:     w.ModelID,
-		ModelType:   w.ModelType,
-		Created:     w.Created.UTC().Format(time.RFC3339),
-		Updated:     w.Updated.UTC().Format(time.RFC3339),
+		ID:                  w.ID,
+		DisplayName:         w.DisplayName,
+		ModelID:             w.ModelID,
+		ModelType:           w.ModelType,
+		Provider:            w.Provider,
+		Owner:               w.Owner,
+		InputCost:           w.InputCost,
+		OutputCost:          w.OutputCost,
+		CostPerImage:        w.Metadata.CostPerImage,
+		SupportsVision:      w.Metadata.SupportsVision,
+		SupportsToolCalling: w.Metadata.SupportsToolCalling,
+		SupportsStrictTool:  w.Metadata.SupportsStrictTool,
+		SupportsImageEdit:   w.Metadata.SupportsImageEdit,
+		Created:             w.Created.UTC().Format(time.RFC3339),
+		Updated:             w.Updated.UTC().Format(time.RFC3339),
 	}
 	if w.Description != nil {
 		m.Description = *w.Description
@@ -153,12 +193,21 @@ func decodeModelBody(body []byte) (*Model, error) {
 // transport-neutral Model.
 func modelFromDocument(d *restgen.ModelDocument) Model {
 	m := Model{
-		ID:          d.Id,
-		DisplayName: d.DisplayName,
-		ModelID:     d.ModelId,
-		ModelType:   d.ModelType,
-		Created:     d.Created.UTC().Format(time.RFC3339),
-		Updated:     d.Updated.UTC().Format(time.RFC3339),
+		ID:                  d.Id,
+		DisplayName:         d.DisplayName,
+		ModelID:             d.ModelId,
+		ModelType:           d.ModelType,
+		Provider:            d.Provider,
+		Owner:               d.Owner,
+		InputCost:           d.InputCost,
+		OutputCost:          d.OutputCost,
+		CostPerImage:        d.Metadata.CostPerImage,
+		SupportsVision:      d.Metadata.SupportsVision,
+		SupportsToolCalling: d.Metadata.SupportsToolCalling,
+		SupportsStrictTool:  d.Metadata.SupportsStrictTool,
+		SupportsImageEdit:   d.Metadata.SupportsImageEdit,
+		Created:             d.Created.UTC().Format(time.RFC3339),
+		Updated:             d.Updated.UTC().Format(time.RFC3339),
 	}
 	if d.Description != nil {
 		m.Description = *d.Description

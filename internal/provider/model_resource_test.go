@@ -5,17 +5,20 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
 )
 
-// TestModelApplyPreservesSecretAndMetadata is the #1 correctness proof: apply()
-// (used by Create/Read/Update) never clobbers the config-authoritative fields —
-// the secret api_key (never echoed by the server) and the derived metadata
-// optionals — while it DOES refresh the reliably round-tripped identity fields.
+// TestModelApplyPreservesSecretAndMetadata proves apply() never clobbers the
+// secret api_key (never echoed by the server) and, when the server OMITS a
+// cost / capability field (nil — i.e. it does not apply it for this model_type),
+// keeps the operator's configured value (no false drift), while refreshing the
+// reliably round-tripped identity fields.
 func TestModelApplyPreservesSecretAndMetadata(t *testing.T) {
 	r := &modelResource{}
 	// `m` stands in for the plan (Create/Update) or prior state (Read): it carries
@@ -55,7 +58,7 @@ func TestModelApplyPreservesSecretAndMetadata(t *testing.T) {
 	if m.APIKey.ValueString() != "sk-secret-xyz" {
 		t.Errorf("apply() must preserve api_key, got %q", m.APIKey.ValueString())
 	}
-	// Metadata optionals preserved (not refreshed → no false drift).
+	// Server omitted all cost/capability fields (nil) → keep the config values.
 	if m.InputCost.ValueFloat64() != 0.5 || m.OutputCost.ValueFloat64() != 1.5 {
 		t.Errorf("apply() clobbered cost metadata: in=%v out=%v", m.InputCost, m.OutputCost)
 	}
@@ -105,6 +108,113 @@ func TestModelApplyRegionBaseURLEmptyFallback(t *testing.T) {
 	}
 	if m.BaseURL.ValueString() != "http://host/v1" {
 		t.Errorf("empty server base_url must fall back to config, got %q", m.BaseURL.ValueString())
+	}
+}
+
+func f64ptr(f float64) *float64 { return &f }
+func bptr(b bool) *bool         { return &b }
+
+// TestModelApplyRefreshesListFields proves the cost / capability fields ARE
+// refreshed from the server when present, so out-of-band drift is visible.
+func TestModelApplyRefreshesListFields(t *testing.T) {
+	r := &modelResource{}
+	// Prior/plan values that the server has since changed out of band.
+	m := &modelResourceModel{
+		InputCost:      types.Float64Value(0.1),
+		OutputCost:     types.Float64Value(0.2),
+		CostPerImage:   types.Float64Value(0.01),
+		SupportsVision: types.BoolValue(false),
+	}
+	r.apply(&client.Model{
+		ID:             "mdl_1",
+		Provider:       client.ModelProviderOpenAILike,
+		InputCost:      f64ptr(0.9),
+		OutputCost:     f64ptr(1.8),
+		CostPerImage:   f64ptr(0.05),
+		SupportsVision: bptr(true),
+	}, m)
+	if m.InputCost.ValueFloat64() != 0.9 || m.OutputCost.ValueFloat64() != 1.8 {
+		t.Errorf("costs not refreshed from server: in=%v out=%v", m.InputCost, m.OutputCost)
+	}
+	if m.CostPerImage.ValueFloat64() != 0.05 {
+		t.Errorf("cost_per_image not refreshed: %v", m.CostPerImage)
+	}
+	if !m.SupportsVision.ValueBool() {
+		t.Error("supports_vision not refreshed from server")
+	}
+}
+
+// TestModelApplyCollapsesUnknownToNull proves a create-time unknown (Optional+
+// Computed, omitted in config) collapses to a concrete null when the server also
+// omits the field — a post-apply state must never carry an unknown.
+func TestModelApplyCollapsesUnknownToNull(t *testing.T) {
+	r := &modelResource{}
+	m := &modelResourceModel{
+		InputCost:         types.Float64Unknown(),
+		MaxTokens:         types.Int64Unknown(),
+		Temperature:       types.Float64Unknown(),
+		HasReasoning:      types.BoolUnknown(),
+		SupportsImageEdit: types.BoolUnknown(),
+	}
+	// Server omits all of them (nil).
+	r.apply(&client.Model{ID: "mdl_1", Provider: client.ModelProviderOpenAILike}, m)
+	for name, isNull := range map[string]bool{
+		"input_cost":          m.InputCost.IsNull(),
+		"max_tokens":          m.MaxTokens.IsNull(),
+		"temperature":         m.Temperature.IsNull(),
+		"has_reasoning":       m.HasReasoning.IsNull(),
+		"supports_image_edit": m.SupportsImageEdit.IsNull(),
+	} {
+		if !isNull {
+			t.Errorf("%s must collapse unknown → null when the server omits it", name)
+		}
+	}
+}
+
+// TestModelNotCustom proves the custom-vs-system guard: a system / non-openai-like
+// model is rejected, a custom openai-like model is accepted.
+func TestModelNotCustom(t *testing.T) {
+	// System model (owner "system", real provider) → refused.
+	if _, _, notCustom := modelNotCustom(&client.Model{ID: "openai/gpt-4o", Provider: "openai", Owner: "system"}); !notCustom {
+		t.Error("a system model must be rejected as not-custom")
+	}
+	// Custom model of a different provider type → refused.
+	if _, _, notCustom := modelNotCustom(&client.Model{ID: "u1", Provider: "aws", Owner: "ws_1"}); !notCustom {
+		t.Error("a non-openai-like custom model must be rejected")
+	}
+	// Custom openai-like model → accepted.
+	if _, _, notCustom := modelNotCustom(&client.Model{ID: "u2", Provider: client.ModelProviderOpenAILike, Owner: "ws_1"}); notCustom {
+		t.Error("a custom openai-like model must be accepted")
+	}
+}
+
+// TestAbsoluteHTTPURLValidator locks in the base_url validation.
+func TestAbsoluteHTTPURLValidator(t *testing.T) {
+	ctx := context.Background()
+	ok := []string{"https://host/v1", "http://host:1234/v1", "https://a.b.example.com/openai/v1"}
+	bad := []string{"host/v1", "ftp://host/v1", "/v1", "://nope", "not a url"}
+	check := func(s string) bool {
+		req := validator.StringRequest{Path: path.Root("base_url"), ConfigValue: types.StringValue(s)}
+		resp := &validator.StringResponse{}
+		absoluteHTTPURLValidator{}.ValidateString(ctx, req, resp)
+		return resp.Diagnostics.HasError()
+	}
+	for _, s := range ok {
+		if check(s) {
+			t.Errorf("%q should be a valid base_url", s)
+		}
+	}
+	for _, s := range bad {
+		if !check(s) {
+			t.Errorf("%q should be an invalid base_url", s)
+		}
+	}
+	// A null / unknown value is not validated (skipped).
+	req := validator.StringRequest{Path: path.Root("base_url"), ConfigValue: types.StringNull()}
+	resp := &validator.StringResponse{}
+	absoluteHTTPURLValidator{}.ValidateString(ctx, req, resp)
+	if resp.Diagnostics.HasError() {
+		t.Error("null base_url must be skipped by the validator")
 	}
 }
 
