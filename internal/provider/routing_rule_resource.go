@@ -98,6 +98,11 @@ func (r *routingRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 				CustomType: modelsConfigType{},
 				Optional:   true,
 				Computed:   true,
+				// UseStateForUnknown keeps an unrelated update from marking this
+				// Optional+Computed value unknown and churning updated_at. It only
+				// acts on an unknown plan (null config) and never rewrites a non-null
+				// configured value, so it cannot reintroduce the AssertPlanValid bug.
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 				MarkdownDescription: "Model routing configuration as a JSON object string " +
 					"(`{\"mode\":...,\"models\":[...]}`). Compared semantically, so key order and " +
 					"insignificant whitespace do not produce a diff. A model entry with an omitted or " +

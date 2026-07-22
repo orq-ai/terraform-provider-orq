@@ -108,6 +108,12 @@ func (r *policyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				CustomType: modelsConfigType{},
 				Optional:   true,
 				Computed:   true,
+				// UseStateForUnknown keeps an unrelated update (e.g. a rename) from
+				// marking this Optional+Computed value unknown and churning updated_at.
+				// It only ever acts on an unknown plan (null config); a non-null
+				// configured value is never rewritten, so it cannot reintroduce the
+				// AssertPlanValid bug the canon redesign fixed.
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 				MarkdownDescription: "Model routing configuration as a JSON object string. Compared semantically. " +
 					"A model entry with an omitted or zero `weight` is stored by the server with `weight` = 0.5; " +
 					"the two forms are treated as equal, so a weight-less config does not drift against the " +
@@ -117,6 +123,8 @@ func (r *policyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				CustomType: retryConfigType{},
 				Optional:   true,
 				Computed:   true,
+				// See models_config: unknown-only, never rewrites a non-null config.
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 				MarkdownDescription: "Retry configuration as a JSON object string (`{\"count\":...,\"on_codes\":[...]}`). " +
 					"Compared semantically. An empty `on_codes: []` is elided by the server on read and is treated " +
 					"as equal to an absent `on_codes`, so it does not drift. Optional+Computed: dropping it from " +

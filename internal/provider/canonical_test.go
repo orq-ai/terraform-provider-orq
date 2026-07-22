@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
@@ -150,25 +151,28 @@ func TestNullAndUnknownSemanticEquals(t *testing.T) {
 	}
 }
 
-// TestCanonAttributesHaveNoPlanModifier is the regression guard for the redesign:
-// the broken approach used a plan modifier that rewrote a non-null config value
-// at plan time. These attributes must now rely purely on the custom type's
-// semantic equality — NO plan modifier — or Terraform's AssertPlanValid rejects a
-// from-scratch weight-less create.
-func TestCanonAttributesHaveNoPlanModifier(t *testing.T) {
+// TestCanonAttributesPlanModifiersDoNotRewriteConfig is the regression guard for
+// the redesign: the broken approach used a plan modifier (jsonCanonPlanModifier)
+// that rewrote a NON-NULL config value at plan time, which Terraform's
+// AssertPlanValid rejects for a from-scratch weight-less create. The canon now
+// lives entirely in the custom type's semantic equality. models_config /
+// retry_config additionally carry UseStateForUnknown (a churn-reduction that only
+// touches an UNKNOWN plan), so the guard is no longer "zero plan modifiers": it
+// asserts that no plan modifier present rewrites a non-null config value.
+func TestCanonAttributesPlanModifiersDoNotRewriteConfig(t *testing.T) {
 	ctx := context.Background()
 
 	var routing resource.SchemaResponse
 	NewRoutingRuleResource().Schema(ctx, resource.SchemaRequest{}, &routing)
-	assertStringAttrNoPlanModifier(t, routing.Schema.Attributes, "models_config")
+	assertNoPlanModifierRewritesNonNullConfig(t, routing.Schema.Attributes, "models_config")
 	if _, ok := routing.Schema.Attributes["models_config"].(schema.StringAttribute).CustomType.(modelsConfigType); !ok {
 		t.Error("routing_rule.models_config must use modelsConfigType")
 	}
 
 	var policy resource.SchemaResponse
 	NewPolicyResource().Schema(ctx, resource.SchemaRequest{}, &policy)
-	assertStringAttrNoPlanModifier(t, policy.Schema.Attributes, "models_config")
-	assertStringAttrNoPlanModifier(t, policy.Schema.Attributes, "retry_config")
+	assertNoPlanModifierRewritesNonNullConfig(t, policy.Schema.Attributes, "models_config")
+	assertNoPlanModifierRewritesNonNullConfig(t, policy.Schema.Attributes, "retry_config")
 	if _, ok := policy.Schema.Attributes["models_config"].(schema.StringAttribute).CustomType.(modelsConfigType); !ok {
 		t.Error("policy.models_config must use modelsConfigType")
 	}
@@ -176,12 +180,14 @@ func TestCanonAttributesHaveNoPlanModifier(t *testing.T) {
 		t.Error("policy.retry_config must use retryConfigType")
 	}
 
-	// The nested evaluator `options` attribute must likewise carry no plan modifier.
+	// The nested evaluator `options` attribute carries no plan modifier at all —
+	// its retention is handled in Update/apply, not by a modifier.
 	block, ok := policy.Schema.Blocks["evaluators"].(schema.ListNestedBlock)
 	if !ok {
 		t.Fatal("policy evaluators is not a ListNestedBlock")
 	}
 	assertStringAttrNoPlanModifier(t, block.NestedObject.Attributes, "options")
+	assertNoPlanModifierRewritesNonNullConfig(t, block.NestedObject.Attributes, "options")
 }
 
 func assertStringAttrNoPlanModifier(t *testing.T, attrs map[string]schema.Attribute, name string) {
@@ -191,7 +197,39 @@ func assertStringAttrNoPlanModifier(t *testing.T, attrs map[string]schema.Attrib
 		t.Fatalf("%s is not a StringAttribute", name)
 	}
 	if len(attr.PlanModifiers) != 0 {
-		t.Errorf("%s must have NO plan modifier (semantic equality only), found %d", name, len(attr.PlanModifiers))
+		t.Errorf("%s must have NO plan modifier, found %d", name, len(attr.PlanModifiers))
+	}
+}
+
+// assertNoPlanModifierRewritesNonNullConfig runs every plan modifier on the named
+// string attribute against a non-null configured value (plan == config, a
+// different prior state) and asserts none of them changes the planned value. This
+// is the property that matters: the OLD jsonCanonPlanModifier rewrote a non-null
+// config (tripping AssertPlanValid), whereas UseStateForUnknown leaves a known
+// plan untouched and only fills an unknown.
+func assertNoPlanModifierRewritesNonNullConfig(t *testing.T, attrs map[string]schema.Attribute, name string) {
+	t.Helper()
+	attr, ok := attrs[name].(schema.StringAttribute)
+	if !ok {
+		t.Fatalf("%s is not a StringAttribute", name)
+	}
+	ctx := context.Background()
+	// A non-null configured value; the prior state differs (and is spelled
+	// differently) so a canonicalizing rewrite would be observable.
+	config := types.StringValue(`{"models":[{"model":"x","weight":0.50}]}`)
+	state := types.StringValue(`{"models":[{"model":"x","weight":0.5}]}`)
+	for i, pm := range attr.PlanModifiers {
+		req := planmodifier.StringRequest{
+			ConfigValue: config,
+			PlanValue:   config,
+			StateValue:  state,
+		}
+		resp := &planmodifier.StringResponse{PlanValue: config}
+		pm.PlanModifyString(ctx, req, resp)
+		if !resp.PlanValue.Equal(config) {
+			t.Errorf("%s plan modifier #%d rewrote a non-null config value: %q -> %q",
+				name, i, config.ValueString(), resp.PlanValue.ValueString())
+		}
 	}
 }
 
