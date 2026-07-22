@@ -112,8 +112,11 @@ type ModelUpdateInput struct {
 // normalized to not_found: the list applies workspace/project scope + visibility
 // filters, so an absent id may be invisible to this credential rather than deleted,
 // and dropping it from state would make the next apply create a DUPLICATE. Get
-// therefore returns a non-not_found error on a miss; only an authoritative 404
-// (e.g. from Delete's own /:id route) is treated as "gone".
+// therefore returns a non-not_found error on a miss. A 404/410 from the LIST endpoint
+// itself is likewise NOT authoritative — the collection route cannot state that one
+// id is gone, so such a status (a routing / reverse-proxy / deployment anomaly) is
+// demoted to a non-not_found error too. Only Delete's own /:id route is authoritative
+// for not_found ("gone").
 type ModelsAPI interface {
 	Get(ctx context.Context, id string) (*Model, error)
 	Create(ctx context.Context, in ModelCreateInput) (*Model, error)
@@ -249,7 +252,25 @@ func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
 		return nil, mapRESTTransportError("model", err)
 	}
 	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
-		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
+		mapped := mapRESTStatus(resp.StatusCode(), resp.Body)
+		// Get hits the COLLECTION endpoint — there is NO GET-by-id route. A 404/410
+		// here is a routing / reverse-proxy / deployment anomaly (the list route is
+		// missing), NOT an authoritative "this model is gone": the collection cannot
+		// make that statement about a single id. Normalizing it to not_found would make
+		// Read drop the resource from state and the next apply create a DUPLICATE, so
+		// demote a not_found status to a non-not_found error (only Delete's own /:id
+		// route is authoritative for not_found). Every other status passes through.
+		if CodeOf(mapped) == CodeNotFound {
+			return nil, &Error{
+				Code: CodeUnavailable,
+				Message: "the model catalog list endpoint returned not-found; there is no GET-by-id " +
+					"route, so this is a routing or deployment anomaly rather than a deleted model. " +
+					"State is left intact — verify the API base URL and that the model list route is " +
+					"reachable.",
+				err: mapped,
+			}
+		}
+		return nil, mapped
 	}
 	for i := range *resp.JSON200 {
 		d := &(*resp.JSON200)[i]

@@ -154,17 +154,25 @@ func TestModels_GetListMissIsError(t *testing.T) {
 	}
 }
 
-// TestModels_GetAuthoritative404 proves that — in contrast to a list-miss — an
-// authoritative 404 from the endpoint IS normalized to not_found. That is the ONLY
-// signal treated as "genuinely gone" (so Read may drop the resource / Delete treats
-// it as done).
-func TestModels_GetAuthoritative404(t *testing.T) {
+// TestModels_GetList404NotAuthoritative proves a 404 from the LIST/collection
+// endpoint is NOT authoritative: there is no GET-by-id route, so a 404 there is a
+// routing / reverse-proxy / deployment anomaly, not a "this model is gone" statement.
+// It must NOT normalize to not_found (which would make Read drop the resource from
+// state and the next apply create a DUPLICATE); only Delete's own /:id route is
+// authoritative for not_found. The message must not leak the REST route.
+func TestModels_GetList404NotAuthoritative(t *testing.T) {
 	c := newModelServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 	_, err := c.Models().Get(context.Background(), "mdl_1")
-	if err == nil || CodeOf(err) != CodeNotFound {
-		t.Fatalf("an authoritative 404 must normalize to not_found, got %v", err)
+	if err == nil {
+		t.Fatal("expected an error for a list-endpoint 404, got nil")
+	}
+	if CodeOf(err) == CodeNotFound {
+		t.Fatalf("a list-endpoint 404 must NOT be not_found (Read would drop state → duplicate on apply), got %v", err)
+	}
+	if strings.Contains(err.Error(), "/v2/models") {
+		t.Errorf("error leaks REST route: %q", err.Error())
 	}
 }
 
