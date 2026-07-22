@@ -29,7 +29,8 @@ func TestValidateAccessForMode(t *testing.T) {
 		{"all without access ok", types.StringValue(client.ManagementPermissionModeAll), types.MapNull(types.StringType), false},
 		{"null mode without access ok", types.StringNull(), types.MapNull(types.StringType), false},
 		// Unknown involved value → defer (no diagnostics); the cross-field decision
-		// can't be made on an interpolated placeholder, so it re-runs at apply.
+		// can't be made on an interpolated placeholder, so it is re-enforced by the
+		// Create/Update recheck once known (the framework never re-runs ValidateConfig).
 		{"unknown mode with access defers", types.StringUnknown(), accessMap, false},
 		{"unknown mode without access defers", types.StringUnknown(), types.MapNull(types.StringType), false},
 		{"restricted with unknown access defers", types.StringValue(client.ManagementPermissionModeRestricted), types.MapUnknown(types.StringType), false},
@@ -40,6 +41,42 @@ func TestValidateAccessForMode(t *testing.T) {
 			diags := validateAccessForMode(tc.mode, tc.access, client.ManagementPermissionModeRestricted)
 			if diags.HasError() != tc.wantError {
 				t.Errorf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
+			}
+		})
+	}
+}
+
+// TestKeyAccessInvariantRecheckedAtCreate documents the Create/Update recheck
+// (FINDING 1): the framework runs ValidateConfig ONLY at validate/plan time and
+// DEFERS the access-vs-mode check when the mode is unknown (interpolated), and it
+// never re-runs ValidateConfig at apply. So Create/Update call validateAccessForMode
+// again with the NOW-KNOWN plan values. This drives that helper with the exact
+// FINDING 1(a) scenario — an interpolation that resolved to a non-restricted mode
+// (ALL) while carrying a non-empty access map — and proves it is rejected before any
+// server call (which would otherwise orphan a created key and trip an inconsistent
+// result). Both key resources share the helper; only the restricted constant differs.
+func TestKeyAccessInvariantRecheckedAtCreate(t *testing.T) {
+	accessMap := stringMapValue(map[string]string{"project": client.AccessLevelWrite})
+	for _, tc := range []struct {
+		name       string
+		restricted string
+	}{
+		{"api_key", client.PermissionModeRestricted},
+		{"management_key", client.ManagementPermissionModeRestricted},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Interpolation resolved to ALL (a non-restricted mode) with an access map:
+			// must be rejected by the Create/Update recheck.
+			resolvedToAll := types.StringValue(map[string]string{
+				"api_key":        client.PermissionModeAll,
+				"management_key": client.ManagementPermissionModeAll,
+			}[tc.name])
+			if d := validateAccessForMode(resolvedToAll, accessMap, tc.restricted); !d.HasError() {
+				t.Error("mode resolved to ALL with a non-empty access map must be rejected at create")
+			}
+			// Interpolation resolved to RESTRICTED with the access map: accepted.
+			if d := validateAccessForMode(types.StringValue(tc.restricted), accessMap, tc.restricted); d.HasError() {
+				t.Errorf("RESTRICTED + access must be accepted: %v", d)
 			}
 		})
 	}

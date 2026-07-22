@@ -212,15 +212,18 @@ func (r *budgetResource) ValidateConfig(ctx context.Context, req resource.Valida
 }
 
 // validateBudgetScopeXOR enforces the scope-XOR-match_cel invariant. Pure so it
-// is unit-testable without a tfsdk.Config.
+// is unit-testable without a tfsdk.Config, and is called from BOTH ValidateConfig
+// and the top of Create/Update.
 //
 // An UNKNOWN match_cel (interpolated from a not-yet-applied resource) counts as
-// "possibly present", so the XOR cannot be decided yet: defer (no diagnostics)
-// and let Terraform re-run ValidateConfig at the apply-time plan once the value
-// is known. Treating unknown as absent would wrongly reject a valid scope-less
-// config whose match_cel is only known after apply. (The competing selector,
-// `scope`, is a structural block whose presence is always known at plan time, so
-// it has no unknown case to guard here.)
+// "possibly present", so the XOR cannot be decided yet: defer (no diagnostics). The
+// framework invokes ValidateConfig ONLY at validate/plan time and does NOT re-run it
+// at apply, so this deferred invariant would otherwise never be enforced for an
+// interpolated match_cel; the Create/Update recheck (where match_cel is known) is the
+// actual enforcement. Treating unknown as absent would wrongly reject a valid
+// scope-less config whose match_cel is only known after apply. (The competing
+// selector, `scope`, is a structural block whose presence is always known at plan
+// time, so it has no unknown case to guard here.)
 func validateBudgetScopeXOR(scope *budgetScopeModel, matchCEL types.String) diag.Diagnostics {
 	var diags diag.Diagnostics
 	if matchCEL.IsUnknown() {
@@ -434,6 +437,16 @@ func (r *budgetResource) Create(ctx context.Context, req resource.CreateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	// Re-enforce the scope-XOR-match_cel invariant here: ValidateConfig defers it when
+	// match_cel is unknown (interpolated), and the framework never re-runs
+	// ValidateConfig at apply. match_cel is known now, so reject a forbidden
+	// combination BEFORE the create call — otherwise writeInput silently picks scope
+	// and discards match_cel (or vice versa) and the post-create state nulls the
+	// dropped attribute.
+	resp.Diagnostics.Append(validateBudgetScopeXOR(plan.Scope, plan.MatchCEL)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	in, err := r.writeInput(ctx, &plan)
 	if err != nil {
@@ -471,6 +484,12 @@ func (r *budgetResource) Read(ctx context.Context, req resource.ReadRequest, res
 func (r *budgetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan budgetResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Re-enforce the scope-XOR-match_cel invariant (ValidateConfig defers it on an
+	// unknown match_cel and is not re-run at apply — see validateBudgetScopeXOR).
+	resp.Diagnostics.Append(validateBudgetScopeXOR(plan.Scope, plan.MatchCEL)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

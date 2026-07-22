@@ -149,13 +149,17 @@ func (r *apiKeyResource) ValidateConfig(ctx context.Context, req resource.Valida
 }
 
 // validateAccessForMode enforces that the access map is present exactly when the
-// permission mode is RESTRICTED. It is pure so it is unit-testable.
+// permission mode is RESTRICTED. It is pure so it is unit-testable, and is called
+// from BOTH ValidateConfig and the top of Create/Update.
 //
 // When any value the cross-field decision depends on (the permission mode or the
 // access map) is UNKNOWN — interpolated from a not-yet-applied resource — it
-// defers: returning no diagnostics rather than guessing. Terraform re-runs
-// ValidateConfig at the apply-time plan once the values are known, so a valid
-// config whose mode/access is only known after apply is not spuriously rejected.
+// defers: returning no diagnostics rather than guessing. The framework invokes
+// ValidateConfig ONLY at validate/plan time and does NOT re-run it at apply, so this
+// deferred invariant would otherwise never be enforced for interpolated values; the
+// Create/Update recheck (where the values are known) is the actual enforcement.
+// Deferring here keeps a valid config whose mode/access is only known after apply
+// from being spuriously rejected at plan time.
 func validateAccessForMode(mode types.String, access types.Map, restricted string) diag.Diagnostics {
 	var diags diag.Diagnostics
 	if mode.IsUnknown() || access.IsUnknown() {
@@ -190,8 +194,8 @@ func (r *apiKeyResource) apply(k *client.APIKey, m *apiKeyResourceModel) {
 	// READ_ONLY switch the server CLEARS the stored access map (it unsets `access`
 	// so resolution falls back to the preset — see libs/go/apikeys UpdateApiKey),
 	// so it reads back absent; nulling it here keeps state aligned with config.
-	// ValidateConfig already forbids access unless RESTRICTED, so null here
-	// matches config and never drifts.
+	// ValidateConfig and the Create/Update recheck forbid access unless RESTRICTED,
+	// so null here matches config and never drifts.
 	if k.PermissionMode == client.PermissionModeRestricted {
 		m.Access = stringMapValue(k.Access)
 	} else {
@@ -207,6 +211,17 @@ func (r *apiKeyResource) apply(k *client.APIKey, m *apiKeyResourceModel) {
 func (r *apiKeyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan apiKeyResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Re-enforce the access-vs-mode invariant here: ValidateConfig defers it when the
+	// mode/access was unknown (interpolated), and the framework never re-runs
+	// ValidateConfig at apply. The plan values are known now, so an unknown that
+	// resolved to a forbidden combination (e.g. mode ALL with a non-empty access map)
+	// must be rejected BEFORE the create call — otherwise the server stores the access
+	// map, apply then nulls it for the non-restricted mode, and the changed known value
+	// trips "inconsistent result after apply" while leaving an orphaned created key.
+	resp.Diagnostics.Append(validateAccessForMode(plan.PermissionMode, plan.Access, client.PermissionModeRestricted)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -254,6 +269,12 @@ func (r *apiKeyResource) Read(ctx context.Context, req resource.ReadRequest, res
 func (r *apiKeyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan apiKeyResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Re-enforce the access-vs-mode invariant (ValidateConfig defers it on unknown
+	// values and is not re-run at apply — see validateAccessForMode).
+	resp.Diagnostics.Append(validateAccessForMode(plan.PermissionMode, plan.Access, client.PermissionModeRestricted)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

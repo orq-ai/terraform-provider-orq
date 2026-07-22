@@ -156,7 +156,8 @@ func TestValidateBudgetScopeXOR(t *testing.T) {
 		{"both set rejected", scope, types.StringValue("x"), true},
 		{"neither set rejected", nil, types.StringNull(), true},
 		// Unknown match_cel counts as "possibly present" → defer (no diagnostics),
-		// regardless of whether scope is also set; the check re-runs at apply.
+		// regardless of whether scope is also set; the Create/Update recheck enforces it
+		// once known (the framework never re-runs ValidateConfig at apply).
 		{"unknown match without scope defers", nil, types.StringUnknown(), false},
 		{"unknown match with scope defers", scope, types.StringUnknown(), false},
 	}

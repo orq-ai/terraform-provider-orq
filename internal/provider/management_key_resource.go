@@ -152,8 +152,8 @@ func (r *managementKeyResource) apply(k *client.ManagementKey, m *managementKeyR
 	// Only surface access when the key is RESTRICTED. After a RESTRICTED→ALL/
 	// READ_ONLY switch the live server CLEARS the access map to {} (an empty map
 	// on read); nulling it here keeps state aligned with config regardless.
-	// ValidateConfig already forbids access unless RESTRICTED, so null here
-	// matches config and never drifts.
+	// ValidateConfig and the Create/Update recheck forbid access unless RESTRICTED,
+	// so null here matches config and never drifts.
 	if k.PermissionMode == client.ManagementPermissionModeRestricted {
 		m.Access = stringMapValue(k.Access)
 	} else {
@@ -169,6 +169,17 @@ func (r *managementKeyResource) apply(k *client.ManagementKey, m *managementKeyR
 func (r *managementKeyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan managementKeyResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Re-enforce the access-vs-mode invariant here: ValidateConfig defers it when the
+	// mode/access was unknown (interpolated), and the framework never re-runs
+	// ValidateConfig at apply. The plan values are known now, so a forbidden
+	// combination that an interpolation resolved to must be rejected BEFORE the create
+	// call — otherwise apply nulls the stored access for the non-restricted mode and
+	// the changed known value trips "inconsistent result after apply" while leaving an
+	// orphaned created key.
+	resp.Diagnostics.Append(validateAccessForMode(plan.PermissionMode, plan.Access, client.ManagementPermissionModeRestricted)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -214,6 +225,12 @@ func (r *managementKeyResource) Read(ctx context.Context, req resource.ReadReque
 func (r *managementKeyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan managementKeyResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Re-enforce the access-vs-mode invariant (ValidateConfig defers it on unknown
+	// values and is not re-run at apply — see validateAccessForMode).
+	resp.Diagnostics.Append(validateAccessForMode(plan.PermissionMode, plan.Access, client.ManagementPermissionModeRestricted)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
