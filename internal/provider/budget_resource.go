@@ -23,6 +23,7 @@ var (
 	_ resource.Resource                   = &budgetResource{}
 	_ resource.ResourceWithConfigure      = &budgetResource{}
 	_ resource.ResourceWithImportState    = &budgetResource{}
+	_ resource.ResourceWithModifyPlan     = &budgetResource{}
 	_ resource.ResourceWithValidateConfig = &budgetResource{}
 )
 
@@ -322,6 +323,100 @@ func float64OrNull(p *float64) types.Float64 {
 	return types.Float64Value(*p)
 }
 
+// ModifyPlan re-correlates each planned alert's server-issued id to the
+// prior-state alert that shares its stable identity (threshold_percent +
+// dimension) so a reordered / inserted / removed alert block keeps its OWN id.
+// Terraform core merges nested list blocks positionally (prior[i] into plan[i]);
+// for a swapped or shifted list that hands one alert's id to a DIFFERENT threshold
+// — silently changing alert identity, which the server accepts (any id belonging
+// to the budget is valid) and tracks fired alerts by. Only the computed `id` is
+// touched (its config is always null), so AssertPlanValid never sees a non-null
+// config value change.
+func (r *budgetResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Destroy (null plan) or create (null prior state): nothing to correlate.
+	if req.Plan.Raw.IsNull() || req.State.Raw.IsNull() {
+		return
+	}
+	var plan, state, config budgetResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if len(plan.Alerts) == 0 {
+		return
+	}
+	correlateAlertIDs(plan.Alerts, config.Alerts, state.Alerts)
+	resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
+}
+
+// correlateAlertIDs carries each matched alert's OWN prior server-issued id into
+// the plan, undoing Terraform core's positional (by-index) merge of the computed
+// `id`. It mutates plan in place.
+//
+// The identity key is (dimension, threshold_percent) — the tuple the server treats
+// as an alert's identity (its duplicate fingerprint). Duplicate keys pair
+// positionally among themselves (the first unused prior with that key pairs with
+// the first plan element with that key, and so on): a stable tie-break the server
+// does not forbid.
+//
+// config[i] (NOT plan[i]) supplies the key: plan[i]'s dimension may already be a
+// wrong, positionally-merged value, whereas config carries the operator's own. A
+// plan alert whose key is not yet known (an interpolated threshold/dimension), or
+// that matches no prior alert, gets an unknown id ("known after apply"); unmatched
+// prior ids are simply never carried over (the server deletes those alerts).
+func correlateAlertIDs(plan, config, prior []budgetAlertModel) {
+	stateByKey := make(map[string][]int, len(prior))
+	for i, s := range prior {
+		if k, ok := alertKey(s); ok {
+			stateByKey[k] = append(stateByKey[k], i)
+		}
+	}
+	used := make([]bool, len(prior))
+	for i := range plan {
+		var cfg budgetAlertModel
+		if i < len(config) {
+			cfg = config[i]
+		}
+		k, ok := alertKey(cfg)
+		if !ok {
+			// threshold or dimension not known yet — never guess.
+			plan[i].ID = types.StringUnknown()
+			continue
+		}
+		matched := -1
+		for _, idx := range stateByKey[k] {
+			if !used[idx] {
+				matched = idx
+				break
+			}
+		}
+		if matched < 0 {
+			plan[i].ID = types.StringUnknown() // new alert: id known only after apply.
+			continue
+		}
+		used[matched] = true
+		plan[i].ID = prior[matched].ID
+	}
+}
+
+// alertKey is an alert's stable identity: its dimension (defaulting to the
+// server's COST when unset) and threshold percent, formatted like the server's own
+// duplicate fingerprint. ok is false when a value the key needs is not known at
+// plan time, so the caller leaves the id for the server to assign rather than
+// guessing a match.
+func alertKey(a budgetAlertModel) (string, bool) {
+	if a.ThresholdPercent.IsNull() || a.ThresholdPercent.IsUnknown() || a.Dimension.IsUnknown() {
+		return "", false
+	}
+	dim := a.Dimension.ValueString() // "" when null / unset
+	if dim == "" {
+		dim = "COST" // the server's default dimension
+	}
+	return fmt.Sprintf("%s:%d", dim, a.ThresholdPercent.ValueInt64()), true
+}
+
 func (r *budgetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan budgetResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
@@ -363,23 +458,15 @@ func (r *budgetResource) Read(ctx context.Context, req resource.ReadRequest, res
 }
 
 func (r *budgetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan, state budgetResourceModel
+	var plan budgetResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Carry existing alert ids from prior state into the plan by position so the
-	// update edits alerts in place rather than deleting + recreating them (which
-	// re-mints every id). UseStateForUnknown covers the stable-ordering case;
-	// this positional backfill covers ids the framework left unknown/null.
-	for i := range plan.Alerts {
-		if (plan.Alerts[i].ID.IsNull() || plan.Alerts[i].ID.IsUnknown()) && i < len(state.Alerts) {
-			plan.Alerts[i].ID = state.Alerts[i].ID
-		}
-	}
-
+	// Alert ids were already matched to the prior state by stable key in
+	// ModifyPlan, so plan.Alerts carries the right id for each alert (or an unknown
+	// id for a new one); writeInput sends them as-is.
 	in, err := r.writeInput(ctx, &plan)
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid budget input", err.Error())
