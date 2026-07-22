@@ -117,6 +117,7 @@ func (v modelsConfigValue) StringSemanticEquals(_ context.Context, newValuable b
 
 func (v modelsConfigValue) ValidateAttribute(_ context.Context, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
 	validateJSONString(v.StringValue, req, resp)
+	validateModelsConfigShape(v.StringValue, req, resp)
 }
 
 func modelsConfigFromRaw(raw json.RawMessage) modelsConfigValue {
@@ -205,6 +206,7 @@ func (v retryConfigValue) StringSemanticEquals(_ context.Context, newValuable ba
 
 func (v retryConfigValue) ValidateAttribute(_ context.Context, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
 	validateJSONString(v.StringValue, req, resp)
+	validateRetryConfigShape(v.StringValue, req, resp)
 }
 
 func retryConfigFromRaw(raw json.RawMessage) retryConfigValue {
@@ -360,4 +362,187 @@ func validateJSONString(v basetypes.StringValue, req xattr.ValidateAttributeRequ
 				"Given Value: "+v.ValueString()+"\n",
 		)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// plan-time shape validation
+// ---------------------------------------------------------------------------
+//
+// validateJSONString only proves a value is SOME valid JSON. The client, however,
+// decodes these attributes into fixed Go structs (routing_rules.go / policies.go):
+// models_config -> restgen.ModelsConfig, retry_config -> restgen.PolicyRetryConfig.
+// A struct decode SILENTLY DROPS unknown keys and FAILS on a non-object top level
+// or a wrong-typed known field — problems that otherwise surface only at apply (a
+// dropped key reappears missing in the read-back as "inconsistent result after
+// apply"; an array/scalar fails the decode). The validators below mirror those
+// struct shapes so the same problems are caught at plan time, with a diagnostic
+// that names the offending key. The canonicalization/semantic-equality above is
+// untouched. The allowed key sets are DERIVED from the restgen structs
+// (mode + models{display_name,integration_id,model,weight}; count + on_codes), not
+// invented here.
+
+// validateModelsConfigShape enforces the restgen.ModelsConfig object shape.
+func validateModelsConfigShape(v basetypes.StringValue, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
+	root, ok := decodeJSONForShape(v)
+	if !ok {
+		return
+	}
+	obj, ok := root.(map[string]any)
+	if !ok {
+		addShapeError(req, resp, fmt.Sprintf("models_config must be a JSON object, got %s", jsonValueType(root)))
+		return
+	}
+	for key, val := range obj {
+		switch key {
+		case "mode":
+			// restgen.ModelsConfig.Mode is a string.
+			if val != nil && !jsonIsString(val) {
+				addShapeError(req, resp, fmt.Sprintf("models_config \"mode\" must be a string, got %s", jsonValueType(val)))
+			}
+		case "models":
+			// restgen.ModelsConfig.Models is a nullable array of ModelRef.
+			if val == nil {
+				continue
+			}
+			arr, ok := val.([]any)
+			if !ok {
+				addShapeError(req, resp, fmt.Sprintf("models_config \"models\" must be an array, got %s", jsonValueType(val)))
+				continue
+			}
+			for i, el := range arr {
+				m, ok := el.(map[string]any)
+				if !ok {
+					addShapeError(req, resp, fmt.Sprintf("models_config models[%d] must be a JSON object, got %s", i, jsonValueType(el)))
+					continue
+				}
+				validateModelRefShape(m, i, req, resp)
+			}
+		default:
+			addUnknownKeyError(req, resp, "models_config", key, "mode, models")
+		}
+	}
+}
+
+// validateModelRefShape enforces the restgen.ModelRef object shape for one entry
+// of models_config.models.
+func validateModelRefShape(m map[string]any, i int, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
+	for key, val := range m {
+		switch key {
+		case "display_name", "integration_id", "model":
+			if val != nil && !jsonIsString(val) {
+				addShapeError(req, resp, fmt.Sprintf("models_config models[%d] %q must be a string, got %s", i, key, jsonValueType(val)))
+			}
+		case "weight":
+			if val != nil && !jsonIsNumber(val) {
+				addShapeError(req, resp, fmt.Sprintf("models_config models[%d] \"weight\" must be a number, got %s", i, jsonValueType(val)))
+			}
+		default:
+			addUnknownKeyError(req, resp, fmt.Sprintf("models_config models[%d]", i), key, "display_name, integration_id, model, weight")
+		}
+	}
+}
+
+// validateRetryConfigShape enforces the restgen.PolicyRetryConfig object shape.
+func validateRetryConfigShape(v basetypes.StringValue, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
+	root, ok := decodeJSONForShape(v)
+	if !ok {
+		return
+	}
+	obj, ok := root.(map[string]any)
+	if !ok {
+		addShapeError(req, resp, fmt.Sprintf("retry_config must be a JSON object, got %s", jsonValueType(root)))
+		return
+	}
+	for key, val := range obj {
+		switch key {
+		case "count":
+			// restgen.PolicyRetryConfig.Count is an int64.
+			if val != nil && !jsonIsInteger(val) {
+				addShapeError(req, resp, fmt.Sprintf("retry_config \"count\" must be an integer, got %s", jsonValueType(val)))
+			}
+		case "on_codes":
+			// restgen.PolicyRetryConfig.OnCodes is a nullable array of int64.
+			if val == nil {
+				continue
+			}
+			arr, ok := val.([]any)
+			if !ok {
+				addShapeError(req, resp, fmt.Sprintf("retry_config \"on_codes\" must be an array, got %s", jsonValueType(val)))
+				continue
+			}
+			for i, el := range arr {
+				if el != nil && !jsonIsInteger(el) {
+					addShapeError(req, resp, fmt.Sprintf("retry_config on_codes[%d] must be an integer, got %s", i, jsonValueType(el)))
+				}
+			}
+		default:
+			addUnknownKeyError(req, resp, "retry_config", key, "count, on_codes")
+		}
+	}
+}
+
+// decodeJSONForShape decodes a known, non-null attribute value for shape checking
+// using the same number-preserving decoder as canonicalizeJSON. It returns ok ==
+// false for null/unknown (nothing to validate) or invalid JSON (validateJSONString
+// already reported it).
+func decodeJSONForShape(v basetypes.StringValue) (any, bool) {
+	if v.IsNull() || v.IsUnknown() {
+		return nil, false
+	}
+	dec := json.NewDecoder(strings.NewReader(v.ValueString()))
+	dec.UseNumber()
+	var out any
+	if err := dec.Decode(&out); err != nil {
+		return nil, false
+	}
+	return out, true
+}
+
+// jsonValueType names the JSON type of a decoded value (UseNumber decoder) for
+// diagnostics.
+func jsonValueType(v any) string {
+	switch v.(type) {
+	case map[string]any:
+		return "object"
+	case []any:
+		return "array"
+	case string:
+		return "string"
+	case json.Number:
+		return "number"
+	case bool:
+		return "boolean"
+	case nil:
+		return "null"
+	}
+	return "unknown"
+}
+
+func jsonIsString(v any) bool { _, ok := v.(string); return ok }
+func jsonIsNumber(v any) bool { _, ok := v.(json.Number); return ok }
+
+// jsonIsInteger reports whether v is a JSON number with no fractional part (the
+// client decodes count / on_codes into int64, which rejects a fractional number).
+func jsonIsInteger(v any) bool {
+	n, ok := v.(json.Number)
+	if !ok {
+		return false
+	}
+	_, err := n.Int64()
+	return err == nil
+}
+
+// addShapeError reports a shape violation on the attribute.
+func addShapeError(req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse, detail string) {
+	resp.Diagnostics.AddAttributeError(req.Path, "Invalid JSON Object Shape", detail)
+}
+
+// addUnknownKeyError reports a key the client's struct decode would silently drop.
+func addUnknownKeyError(req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse, where, key, allowed string) {
+	resp.Diagnostics.AddAttributeError(
+		req.Path,
+		"Unknown JSON Key",
+		fmt.Sprintf("unknown key %q in %s; allowed keys are: %s. The server silently drops unknown keys, "+
+			"which produces an inconsistent result after apply.", key, where, allowed),
+	)
 }
