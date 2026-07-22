@@ -184,3 +184,56 @@ func TestShapeValidationAcceptsCanonEquivalenceInputs(t *testing.T) {
 		}
 	}
 }
+
+// TestShapeValidationRejectsNullForNonNullableScalars is the Codex-review
+// follow-up: JSON null decodes to the Go zero value for the NON-pointer struct
+// fields (mode, model, count), which the server then rejects at apply — so the
+// plan-time shape check must reject those nulls too. Pointer (nullable) fields
+// keep accepting null as a spelling of "absent".
+func TestShapeValidationRejectsNullForNonNullableScalars(t *testing.T) {
+	t.Run("count null rejected", func(t *testing.T) {
+		diags := retryConfigValidate(`{"count":null}`)
+		if !diags.HasError() {
+			t.Fatal("count:null must be rejected at plan time")
+		}
+		if !diagsContain(diags, `"count" must be an integer, got null`) {
+			t.Errorf("diagnostic must name count/null: %v", diags)
+		}
+	})
+	t.Run("mode null rejected", func(t *testing.T) {
+		diags := modelsConfigValidate(`{"mode":null}`)
+		if !diags.HasError() {
+			t.Fatal("mode:null must be rejected at plan time")
+		}
+		if !diagsContain(diags, `"mode" must be a string, got null`) {
+			t.Errorf("diagnostic must name mode/null: %v", diags)
+		}
+	})
+	t.Run("model null rejected", func(t *testing.T) {
+		diags := modelsConfigValidate(`{"models":[{"model":null}]}`)
+		if !diags.HasError() {
+			t.Fatal("model:null must be rejected at plan time")
+		}
+		if !diagsContain(diags, `"model" must be a string, got null`) {
+			t.Errorf("diagnostic must name model/null: %v", diags)
+		}
+	})
+
+	// Nullable pointer fields: null stays accepted.
+	for _, tc := range []struct{ name, cfg string }{
+		{"weight null", `{"models":[{"model":"x","weight":null}]}`},
+		{"display_name null", `{"models":[{"model":"x","display_name":null}]}`},
+		{"integration_id null", `{"models":[{"model":"x","integration_id":null}]}`},
+	} {
+		t.Run(tc.name+" accepted", func(t *testing.T) {
+			if diags := modelsConfigValidate(tc.cfg); diags.HasError() {
+				t.Errorf("nullable-field null must stay accepted, got: %v", diags)
+			}
+		})
+	}
+	t.Run("on_codes null accepted", func(t *testing.T) {
+		if diags := retryConfigValidate(`{"count":3,"on_codes":null}`); diags.HasError() {
+			t.Errorf("on_codes:null must stay accepted, got: %v", diags)
+		}
+	})
+}

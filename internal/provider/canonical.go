@@ -395,8 +395,9 @@ func validateModelsConfigShape(v basetypes.StringValue, req xattr.ValidateAttrib
 	for key, val := range obj {
 		switch key {
 		case "mode":
-			// restgen.ModelsConfig.Mode is a string.
-			if val != nil && !jsonIsString(val) {
+			// restgen.ModelsConfig.Mode is a non-nullable string: a JSON null would
+			// decode to "" and fail only at apply, so reject it here too.
+			if !jsonIsString(val) {
 				addShapeError(req, resp, fmt.Sprintf("models_config \"mode\" must be a string, got %s", jsonValueType(val)))
 			}
 		case "models":
@@ -428,9 +429,17 @@ func validateModelsConfigShape(v basetypes.StringValue, req xattr.ValidateAttrib
 func validateModelRefShape(m map[string]any, i int, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
 	for key, val := range m {
 		switch key {
-		case "display_name", "integration_id", "model":
+		case "display_name", "integration_id":
+			// Nullable (*string) in restgen.ModelRef — null is a legitimate spelling
+			// of "absent".
 			if val != nil && !jsonIsString(val) {
 				addShapeError(req, resp, fmt.Sprintf("models_config models[%d] %q must be a string, got %s", i, key, jsonValueType(val)))
+			}
+		case "model":
+			// restgen.ModelRef.Model is a non-nullable string: a JSON null would
+			// decode to "" and fail only at apply, so reject it here too.
+			if !jsonIsString(val) {
+				addShapeError(req, resp, fmt.Sprintf("models_config models[%d] \"model\" must be a string, got %s", i, jsonValueType(val)))
 			}
 		case "weight":
 			if val != nil && !jsonIsNumber(val) {
@@ -456,8 +465,10 @@ func validateRetryConfigShape(v basetypes.StringValue, req xattr.ValidateAttribu
 	for key, val := range obj {
 		switch key {
 		case "count":
-			// restgen.PolicyRetryConfig.Count is an int64.
-			if val != nil && !jsonIsInteger(val) {
+			// restgen.PolicyRetryConfig.Count is a non-nullable int64: a JSON null
+			// would decode to 0 and fail only at apply (count must be >= 1), so
+			// reject it here too.
+			if !jsonIsInteger(val) {
 				addShapeError(req, resp, fmt.Sprintf("retry_config \"count\" must be an integer, got %s", jsonValueType(val)))
 			}
 		case "on_codes":
