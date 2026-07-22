@@ -24,9 +24,12 @@ var (
 )
 
 // modelTypeValues are the accepted model_type discriminators for a custom
-// openai-like model (POST /v2/models/openai-like).
+// openai-like model. The server's openai-like create AND update endpoints both
+// validate `oneof=chat completion embedding image` (apps/platform-api/models/
+// openai_like.go), so anything outside this set deterministically fails at apply
+// — the validator rejects it up front instead.
 var modelTypeValues = []string{
-	"chat", "embedding", "image", "rerank", "stt", "tts", "moderation", "realtime", "completion",
+	"chat", "completion", "embedding", "image",
 }
 
 // NewModelResource is the factory registered on the provider.
@@ -77,12 +80,16 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"**Import:** import recovers only the model id. `api_key` is required and unreadable, so after " +
 			"importing you must add it to config; the next apply then REPLACES (destroy + recreate) the " +
 			"model rather than adopting it in place.\n\n" +
-			"**Refreshed fields:** the cost fields (`input_cost`, `output_cost`, `cost_per_image`) and the " +
-			"`supports_*` capability booleans are read back from the server, so out-of-band changes surface " +
-			"as drift. The server only stores those it applies for the given `model_type`; a field it drops " +
-			"keeps its configured value (no false drift). `max_tokens`, `temperature` and `has_reasoning` " +
-			"are encoded into the server's parameter list and cannot be refreshed or cleared, so removing " +
-			"one from config keeps the last value in state (retain-on-null).",
+			"**Refreshed fields:** `input_cost` and `output_cost` are always serialized by the server (no " +
+			"`omitempty`), so they are refreshed unconditionally and an out-of-band change — including to " +
+			"`0` — surfaces as drift. `cost_per_image` and the `supports_*` capability booleans live under " +
+			"the server's `metadata` with `omitempty`: a `false`/`0` value is DROPPED on the wire and is " +
+			"indistinguishable from \"the server does not apply this for the given `model_type`\", so on " +
+			"absence the prior value is retained (retain-on-null) — a consequence is that an out-of-band " +
+			"flip of one of these to `false`/`0` is NOT visible as drift. `max_tokens`, `temperature` and " +
+			"`has_reasoning` are encoded into the server's parameter list and cannot be refreshed or " +
+			"cleared, so removing one from config keeps the last value in state (retain-on-null); the same " +
+			"retain-on-null applies to `description`.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -102,9 +109,9 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			},
 			"model_type": schema.StringAttribute{
 				Required: true,
-				MarkdownDescription: "Model modality: one of `chat`, `embedding`, `image`, `rerank`, `stt`, `tts`, " +
-					"`moderation`, `realtime`, `completion`. (The server contract is an open string; this enum " +
-					"reflects the currently known modalities.)",
+				MarkdownDescription: "Model modality. One of `chat`, `completion`, `embedding`, `image` — the only " +
+					"values the server's openai-like create and update endpoints accept; any other value is " +
+					"rejected before apply.",
 				Validators: []validator.String{stringvalidator.OneOf(modelTypeValues...)},
 			},
 			"region": schema.StringAttribute{
@@ -113,9 +120,13 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Validators:          []validator.String{stringvalidator.LengthAtLeast(1)},
 			},
 			"base_url": schema.StringAttribute{
-				Required:            true,
-				MarkdownDescription: "Base URL of the OpenAI-compatible endpoint (an absolute http(s) URL, e.g. `https://host/v1`).",
-				Validators:          []validator.String{absoluteHTTPURLValidator{}},
+				Required: true,
+				MarkdownDescription: "Base URL of the OpenAI-compatible endpoint (an absolute http(s) URL, e.g. " +
+					"`https://host/v1`). The server appends the endpoint path (e.g. `/chat/completions`) to it, " +
+					"so it must NOT embed userinfo credentials (`https://user:pass@host`) or a query string — " +
+					"both are rejected up front. base_url is not treated as a secret and is logged on a " +
+					"server-side validation failure, so put all credentials in `api_key`, never in the URL.",
+				Validators: []validator.String{absoluteHTTPURLValidator{}},
 			},
 			"api_key": schema.StringAttribute{
 				Required:  true,
@@ -130,25 +141,34 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"description": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Optional description. Round-trips as a top-level field; an omitted value reads back empty.",
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Optional description. Round-trips as a top-level field; an omitted value reads " +
+					"back empty. Optional+Computed, and the update endpoint only overwrites it when a value is " +
+					"sent, so REMOVING it from config keeps the last applied value in state (retain-on-null) " +
+					"rather than clearing it — set it to `\"\"` to blank it.",
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"input_cost": schema.Float64Attribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Optional input cost. Refreshed from the server; a value the server does not apply for this `model_type` keeps the configured value.",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Optional input cost. The server always serializes this (no `omitempty`), so it " +
+					"is refreshed unconditionally and an out-of-band change — including to `0` — surfaces as drift. " +
+					"Note: a `model_type` that does not use it (e.g. an image model) stores and reads back `0`.",
 			},
 			"output_cost": schema.Float64Attribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Optional output cost. Refreshed from the server; a value the server does not apply for this `model_type` keeps the configured value.",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Optional output cost. The server always serializes this (no `omitempty`), so it " +
+					"is refreshed unconditionally and an out-of-band change — including to `0` — surfaces as drift.",
 			},
 			"cost_per_image": schema.Float64Attribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Optional per-image cost (image models). Refreshed from the server metadata; kept as configured when the server does not apply it.",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Optional per-image cost (image models). Refreshed from the server `metadata`, " +
+					"which omits a `0` value (`omitempty`) indistinguishably from \"not applicable for this " +
+					"`model_type`\"; on absence the prior value is retained (retain-on-null), so an out-of-band " +
+					"change TO `0` is NOT surfaced as drift.",
 			},
 			"max_tokens": schema.Int64Attribute{
 				Optional:            true,
@@ -166,24 +186,32 @@ func (r *modelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				MarkdownDescription: "Whether the model exposes reasoning. Config-authoritative: encoded into the server parameter list, so it is neither refreshed nor clearable — removing it from config keeps the last value (retain-on-null).",
 			},
 			"supports_vision": schema.BoolAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Whether the model accepts image input. Refreshed from the server metadata.",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Whether the model accepts image input. Refreshed from the server `metadata`, " +
+					"which omits a `false` value (`omitempty`); on absence the prior value is retained " +
+					"(retain-on-null), so an out-of-band flip to `false` is NOT surfaced as drift.",
 			},
 			"supports_tool_calling": schema.BoolAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Whether the model supports tool calling. Refreshed from the server metadata.",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Whether the model supports tool calling. Refreshed from the server `metadata`, " +
+					"which omits a `false` value (`omitempty`); on absence the prior value is retained " +
+					"(retain-on-null), so an out-of-band flip to `false` is NOT surfaced as drift.",
 			},
 			"supports_strict_tool": schema.BoolAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Whether the model supports strict tool schemas. Refreshed from the server metadata.",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Whether the model supports strict tool schemas. Refreshed from the server " +
+					"`metadata`, which omits a `false` value (`omitempty`); on absence the prior value is retained " +
+					"(retain-on-null), so an out-of-band flip to `false` is NOT surfaced as drift.",
 			},
 			"supports_image_edit": schema.BoolAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Whether the model supports image editing (image models). Refreshed from the server metadata.",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Whether the model supports image editing (image models). Refreshed from the " +
+					"server `metadata`, which omits a `false` value (`omitempty`); on absence the prior value is " +
+					"retained (retain-on-null), so an out-of-band flip to `false` is NOT surfaced as drift.",
 			},
 			"created": schema.StringAttribute{
 				Computed:            true,
@@ -213,10 +241,11 @@ func (r *modelResource) Configure(_ context.Context, req resource.ConfigureReque
 
 // apply refreshes the server-echoed fields onto the model. The secret api_key is
 // never touched (the server never echoes it — `data` carries it from the plan on
-// create/update or prior state on read). The cost + supports_* fields ARE
-// refreshed (so drift is visible), keeping the configured value when the server
-// omits one for this model_type; max_tokens/temperature/has_reasoning stay
-// config-authoritative with retain-on-null.
+// create/update or prior state on read). input_cost/output_cost are always on the
+// wire (no omitempty) and refresh unconditionally; cost_per_image and the
+// supports_* bools are metadata `omitempty` fields whose false/0 is dropped on the
+// wire, so they retain the prior value on absence; max_tokens/temperature/
+// has_reasoning stay config-authoritative with retain-on-null.
 func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
 	data.ID = types.StringValue(m.ID)
 	data.DisplayName = types.StringValue(m.DisplayName)
@@ -225,8 +254,8 @@ func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
 	// description round-trips as a top-level field; Optional+Computed absorbs an
 	// omitted config (the server elides it, reading back as "").
 	data.Description = types.StringValue(m.Description)
-	// region and base_url live under the server's `configuration` sub-object and
-	// are Required, so `data` already holds the configured value. Refresh when the
+	// region (from metadata.region) and base_url (from configuration.base_url) are
+	// Required, so `data` already holds the configured value. Refresh when the
 	// server echoes a value; fall back to the configured value if it omits one.
 	if m.Region != "" {
 		data.Region = types.StringValue(m.Region)
@@ -237,10 +266,13 @@ func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
 	data.Created = types.StringValue(m.Created)
 	data.Updated = types.StringValue(m.Updated)
 
-	// Refreshed cost + capability fields: server value when present, else keep the
-	// operator's plan/prior value (a create-time unknown collapses to null).
-	data.InputCost = refreshFloat(data.InputCost, m.InputCost)
-	data.OutputCost = refreshFloat(data.OutputCost, m.OutputCost)
+	// input_cost/output_cost have no omitempty on the wire, so the server value —
+	// including 0 — always wins (an out-of-band change to 0 surfaces as drift).
+	data.InputCost = refreshFloatAuthoritative(m.InputCost)
+	data.OutputCost = refreshFloatAuthoritative(m.OutputCost)
+	// cost_per_image is a metadata `omitempty` field: a 0 is dropped on the wire and
+	// is indistinguishable from "not applied for this model_type", so keep the prior
+	// value on absence (a create-time unknown collapses to null).
 	data.CostPerImage = refreshFloat(data.CostPerImage, m.CostPerImage)
 	data.SupportsVision = refreshBool(data.SupportsVision, m.SupportsVision)
 	data.SupportsToolCalling = refreshBool(data.SupportsToolCalling, m.SupportsToolCalling)
@@ -256,8 +288,22 @@ func (r *modelResource) apply(m *client.Model, data *modelResourceModel) {
 	// api_key is deliberately NOT written — the server never echoes it.
 }
 
+// refreshFloatAuthoritative reflects a server field that is ALWAYS present on the
+// wire (no omitempty). The server value wins unconditionally — including 0 — so a
+// non-zero → 0 out-of-band change surfaces. A nil pointer would mean the server
+// sent an explicit null (not expected for a managed model); collapse it to null
+// rather than retaining a stale prior value, so state stays honest to the server.
+func refreshFloatAuthoritative(srv *float64) types.Float64 {
+	if srv != nil {
+		return types.Float64Value(*srv)
+	}
+	return types.Float64Null()
+}
+
 // refreshFloat takes the server value when present; otherwise keeps the current
-// (plan/prior) value, collapsing an unknown to null so post-apply state is concrete.
+// (plan/prior) value, collapsing an unknown to null so post-apply state is
+// concrete. Used for metadata `omitempty` fields where absence cannot be told
+// apart from a legitimate 0 (retain-on-null — see cost_per_image).
 func refreshFloat(cur types.Float64, srv *float64) types.Float64 {
 	if srv != nil {
 		return types.Float64Value(*srv)
@@ -265,7 +311,9 @@ func refreshFloat(cur types.Float64, srv *float64) types.Float64 {
 	return float64UnknownToNull(cur)
 }
 
-// refreshBool mirrors refreshFloat for the supports_* capability booleans.
+// refreshBool mirrors refreshFloat for the supports_* capability booleans: they
+// are metadata `omitempty` fields, so a false read-back arrives as nil and the
+// prior value is retained (an out-of-band flip to false is not surfaced).
 func refreshBool(cur types.Bool, srv *bool) types.Bool {
 	if srv != nil {
 		return types.BoolValue(*srv)
@@ -457,11 +505,16 @@ func modelNotCustom(m *client.Model) (summary, detail string, notCustom bool) {
 		true
 }
 
-// absoluteHTTPURLValidator rejects a base_url that is not an absolute http(s) URL.
+// absoluteHTTPURLValidator rejects a base_url that is not an absolute http(s)
+// URL, or that embeds credentials (userinfo or a query string). base_url is NOT
+// Sensitive and the platform logs the full URL on a validation failure, so any
+// credential smuggled into it would leak; rejecting these up front (client-side,
+// at `terraform validate`) keeps the credential-bearing URL off the wire and out
+// of the server logs entirely.
 type absoluteHTTPURLValidator struct{}
 
 func (absoluteHTTPURLValidator) Description(context.Context) string {
-	return "must be an absolute http(s) URL"
+	return "must be an absolute http(s) URL with no embedded credentials (no userinfo, no query string)"
 }
 
 func (v absoluteHTTPURLValidator) MarkdownDescription(ctx context.Context) string {
@@ -476,5 +529,26 @@ func (absoluteHTTPURLValidator) ValidateString(_ context.Context, req validator.
 	if err != nil || !u.IsAbs() || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		resp.Diagnostics.AddAttributeError(req.Path, "Invalid base URL",
 			"base_url must be an absolute http(s) URL (e.g. https://host/v1)")
+		return
+	}
+	// Reject embedded userinfo credentials (https://user:pass@host). base_url is
+	// not a secret and the platform logs it on a validation failure, so a password
+	// in the authority would leak. The diagnostic deliberately does not echo the
+	// URL. Put the secret in api_key.
+	if u.User != nil {
+		resp.Diagnostics.AddAttributeError(req.Path, "Credentials in base URL",
+			"base_url must not embed userinfo credentials (https://user:pass@host); "+
+				"pass the secret via api_key instead.")
+		return
+	}
+	// Reject ANY query string. The server only appends path segments to base_url
+	// (joinURL → /chat/completions, /embeddings, …) and never consumes a query, so
+	// one is at best inert and at worst a credential smuggled into the logs
+	// (e.g. ?api-key=…). Rule: no query at all — put auth in api_key.
+	if u.RawQuery != "" || u.ForceQuery {
+		resp.Diagnostics.AddAttributeError(req.Path, "Query string in base URL",
+			"base_url must not contain a query string; the server appends the endpoint "+
+				"path to it. Put credentials in api_key, not the URL.")
+		return
 	}
 }

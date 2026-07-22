@@ -15,10 +15,11 @@ import (
 )
 
 // TestModelApplyPreservesSecretAndMetadata proves apply() never clobbers the
-// secret api_key (never echoed by the server) and, when the server OMITS a
-// cost / capability field (nil — i.e. it does not apply it for this model_type),
-// keeps the operator's configured value (no false drift), while refreshing the
-// reliably round-tripped identity fields.
+// secret api_key (never echoed by the server); refreshes input_cost/output_cost
+// (always on the wire); and, when the server OMITS a metadata omitempty field
+// (nil — indistinguishable from "not applied for this model_type"), keeps the
+// operator's configured value (no false drift), while refreshing the reliably
+// round-tripped identity fields.
 func TestModelApplyPreservesSecretAndMetadata(t *testing.T) {
 	r := &modelResource{}
 	// `m` stands in for the plan (Create/Update) or prior state (Read): it carries
@@ -40,8 +41,9 @@ func TestModelApplyPreservesSecretAndMetadata(t *testing.T) {
 		BaseURL: types.StringValue("http://host.docker.internal:1234/v1"),
 	}
 
-	// Server projection: has the identity fields but NO api_key and NO metadata
-	// (exactly what the real API returns).
+	// Server projection: identity fields + the always-present input/output cost, but
+	// NO api_key and NO metadata omitempty fields (exactly what the real API returns
+	// when those capabilities are false/0).
 	r.apply(&client.Model{
 		ID:          "mdl_uuid_1",
 		DisplayName: "tf model",
@@ -50,6 +52,8 @@ func TestModelApplyPreservesSecretAndMetadata(t *testing.T) {
 		Region:      "europe",
 		BaseURL:     "http://host.docker.internal:1234/v1",
 		Description: "a custom model",
+		InputCost:   f64ptr(0.5),
+		OutputCost:  f64ptr(1.5),
 		Created:     "2020-01-01T00:00:00Z",
 		Updated:     "2020-01-02T00:00:00Z",
 	}, m)
@@ -58,9 +62,9 @@ func TestModelApplyPreservesSecretAndMetadata(t *testing.T) {
 	if m.APIKey.ValueString() != "sk-secret-xyz" {
 		t.Errorf("apply() must preserve api_key, got %q", m.APIKey.ValueString())
 	}
-	// Server omitted all cost/capability fields (nil) → keep the config values.
+	// input/output cost refreshed from the server (always serialized).
 	if m.InputCost.ValueFloat64() != 0.5 || m.OutputCost.ValueFloat64() != 1.5 {
-		t.Errorf("apply() clobbered cost metadata: in=%v out=%v", m.InputCost, m.OutputCost)
+		t.Errorf("apply() did not refresh input/output cost: in=%v out=%v", m.InputCost, m.OutputCost)
 	}
 	if m.MaxTokens.ValueInt64() != 8192 || m.Temperature.ValueFloat64() != 0.7 {
 		t.Errorf("apply() clobbered max_tokens/temperature: %v %v", m.MaxTokens, m.Temperature)
@@ -167,6 +171,115 @@ func TestModelApplyCollapsesUnknownToNull(t *testing.T) {
 	} {
 		if !isNull {
 			t.Errorf("%s must collapse unknown → null when the server omits it", name)
+		}
+	}
+}
+
+// TestModelApplyRefreshVsRetain locks in the FIX 3 decision table: input_cost /
+// output_cost are ALWAYS on the wire (no omitempty) so they refresh unconditionally
+// — a non-zero → 0 out-of-band change surfaces; cost_per_image and the supports_*
+// bools are metadata `omitempty` fields whose false/0 is DROPPED on the wire, so on
+// absence (nil) the prior value is retained (an out-of-band flip is not surfaced).
+func TestModelApplyRefreshVsRetain(t *testing.T) {
+	r := &modelResource{}
+	m := &modelResourceModel{
+		InputCost:           types.Float64Value(5),
+		OutputCost:          types.Float64Value(10),
+		CostPerImage:        types.Float64Value(0.02),
+		SupportsVision:      types.BoolValue(true),
+		SupportsToolCalling: types.BoolValue(true),
+		SupportsStrictTool:  types.BoolValue(true),
+		SupportsImageEdit:   types.BoolValue(true),
+	}
+	// Server: costs dropped to 0 (still present on the wire); every metadata
+	// omitempty field absent (nil) because it is now false/0.
+	r.apply(&client.Model{
+		ID:         "mdl_1",
+		Provider:   client.ModelProviderOpenAILike,
+		InputCost:  f64ptr(0),
+		OutputCost: f64ptr(0),
+		// CostPerImage / Supports* left nil (server omitted them).
+	}, m)
+
+	if m.InputCost.ValueFloat64() != 0 || m.OutputCost.ValueFloat64() != 0 {
+		t.Errorf("input/output cost must refresh to 0 (non-zero → 0 surfaces): in=%v out=%v", m.InputCost, m.OutputCost)
+	}
+	if m.InputCost.IsNull() || m.OutputCost.IsNull() {
+		t.Error("input/output cost 0 must be a concrete 0, not null")
+	}
+	if m.CostPerImage.ValueFloat64() != 0.02 {
+		t.Errorf("cost_per_image must be RETAINED on server absence, got %v", m.CostPerImage)
+	}
+	if !m.SupportsVision.ValueBool() || !m.SupportsToolCalling.ValueBool() ||
+		!m.SupportsStrictTool.ValueBool() || !m.SupportsImageEdit.ValueBool() {
+		t.Error("supports_* must be RETAINED on server absence (an out-of-band flip to false is not surfaced)")
+	}
+}
+
+// TestModelTypeEnum proves model_type accepts only the four values the server's
+// openai-like endpoints validate (chat/completion/embedding/image) and rejects the
+// previously-permitted extras (rerank/stt/tts/moderation/realtime), which would
+// deterministically fail at apply.
+func TestModelTypeEnum(t *testing.T) {
+	ctx := context.Background()
+	var sch resource.SchemaResponse
+	NewModelResource().Schema(ctx, resource.SchemaRequest{}, &sch)
+	attr, ok := sch.Schema.Attributes["model_type"].(schema.StringAttribute)
+	if !ok {
+		t.Fatal("model_type is not a StringAttribute")
+	}
+	rejected := func(v string) bool {
+		req := validator.StringRequest{Path: path.Root("model_type"), ConfigValue: types.StringValue(v)}
+		resp := &validator.StringResponse{}
+		for _, val := range attr.Validators {
+			val.ValidateString(ctx, req, resp)
+		}
+		return resp.Diagnostics.HasError()
+	}
+	for _, v := range []string{"chat", "completion", "embedding", "image"} {
+		if rejected(v) {
+			t.Errorf("%q must be an accepted model_type", v)
+		}
+	}
+	for _, v := range []string{"rerank", "stt", "tts", "moderation", "realtime", "video", "ocr", ""} {
+		if !rejected(v) {
+			t.Errorf("%q must be rejected (server accepts only chat/completion/embedding/image)", v)
+		}
+	}
+}
+
+// TestBaseURLRejectsEmbeddedCredentials proves the validator rejects userinfo and
+// any query string — both can smuggle a credential into the not-Sensitive,
+// server-logged base_url — while a clean absolute http(s) URL is accepted.
+func TestBaseURLRejectsEmbeddedCredentials(t *testing.T) {
+	ctx := context.Background()
+	check := func(s string) bool {
+		req := validator.StringRequest{Path: path.Root("base_url"), ConfigValue: types.StringValue(s)}
+		resp := &validator.StringResponse{}
+		absoluteHTTPURLValidator{}.ValidateString(ctx, req, resp)
+		return resp.Diagnostics.HasError()
+	}
+	reject := []string{
+		"https://user:pass@host/v1",      // userinfo with password
+		"https://token@host/v1",          // userinfo (username only)
+		"https://host/v1?api-key=secret", // credential-bearing query
+		"https://host/v1?foo=bar",        // any query at all
+		"https://host/v1?",               // ForceQuery (bare '?')
+	}
+	for _, s := range reject {
+		if !check(s) {
+			t.Errorf("%q must be rejected (embedded credentials / query string)", s)
+		}
+	}
+	accept := []string{
+		"https://host/v1",
+		"http://host:1234/v1",
+		"https://a.b.example.com/openai/v1",
+		"https://host/v1/", // trailing-slash path is fine
+	}
+	for _, s := range accept {
+		if check(s) {
+			t.Errorf("%q must be accepted", s)
 		}
 	}
 }

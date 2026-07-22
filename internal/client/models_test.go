@@ -10,9 +10,12 @@ import (
 )
 
 // modelDocJSON is the ModelDocument shape the server returns for a custom
-// openai-like model (create/update body and list item share it). base_url and
-// region live under `configuration`; api_key is deliberately absent (the server
-// never echoes the secret).
+// openai-like model (create/update body and list item share it). base_url lives
+// under `configuration`; region lives under `metadata` (an openai-like model does
+// NOT populate configuration.region — buildOpenAILikeMetadata stores it on
+// metadata.region). api_key is deliberately absent (the server never echoes the
+// secret). input_cost/output_cost are always present (no omitempty); the metadata
+// capability/cost fields are omitempty and drop when false/0.
 func modelDocJSON(id, displayName string) map[string]any {
 	return map[string]any{
 		"id":           id,
@@ -27,12 +30,13 @@ func modelDocJSON(id, displayName string) map[string]any {
 		"configuration": map[string]any{
 			"provider":             "openailike",
 			"base_url":             "http://host.docker.internal:1234/v1",
-			"region":               "europe",
 			"is_openai_compatible": true,
 			"api_key_env":          nil,
+			// NOTE: no "region" here — openai-like models leave configuration.region unset.
 		},
 		"metadata": map[string]any{
 			"is_private":            true,
+			"region":                "europe", // authoritative region location
 			"supports_vision":       true,
 			"supports_tool_calling": false,
 		},
@@ -56,7 +60,7 @@ func newModelServer(t *testing.T, handler http.HandlerFunc) *Client {
 
 // TestModels_CreateSendsAPIKey proves the create hits POST
 // /v2/models/openai-like, sends the secret api_key, and maps the (api-key-less)
-// response — including the nested configuration.base_url / region — back out.
+// response — including configuration.base_url + metadata.region — back out.
 func TestModels_CreateSendsAPIKey(t *testing.T) {
 	var gotBody map[string]any
 	var gotPath, gotMethod string
@@ -92,7 +96,7 @@ func TestModels_CreateSendsAPIKey(t *testing.T) {
 		t.Errorf("read-back wrong: %+v", m)
 	}
 	if m.BaseURL != "http://host.docker.internal:1234/v1" || m.Region != "europe" {
-		t.Errorf("configuration.base_url/region not mapped: base=%q region=%q", m.BaseURL, m.Region)
+		t.Errorf("base_url/region not mapped (base from configuration, region from metadata): base=%q region=%q", m.BaseURL, m.Region)
 	}
 	if m.Created == "" || m.Updated == "" {
 		t.Errorf("timestamps not mapped: created=%q updated=%q", m.Created, m.Updated)
@@ -123,20 +127,83 @@ func TestModels_GetFiltersByID(t *testing.T) {
 	}
 }
 
-// TestModels_GetNotFound proves an id absent from the list normalizes to
-// not_found without leaking the REST route.
-func TestModels_GetNotFound(t *testing.T) {
+// TestModels_GetListMissIsError proves an id ABSENT from the list is NOT treated
+// as deleted. There is no GET-by-id route (only the LIST endpoint) and the list
+// applies workspace/project scope + visibility filters, so a miss may mean the
+// model is invisible to this credential rather than gone. Get must therefore
+// return a NON-not_found error so Read surfaces it instead of dropping state
+// (which would make the next apply create a DUPLICATE); the message must guide the
+// operator and must not leak the REST route.
+func TestModels_GetListMissIsError(t *testing.T) {
 	c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode([]map[string]any{modelDocJSON("someone_else", "x")})
 	})
 	_, err := c.Models().Get(context.Background(), "missing")
-	if err == nil || CodeOf(err) != CodeNotFound {
-		t.Fatalf("expected not_found, got %v", err)
+	if err == nil {
+		t.Fatal("expected an error for a list-miss, got nil")
+	}
+	if CodeOf(err) == CodeNotFound {
+		t.Fatalf("a list-miss must NOT be not_found (Read would drop state → duplicate on apply), got %v", err)
 	}
 	if strings.Contains(err.Error(), "/v2/models") {
 		t.Errorf("error leaks REST route: %q", err.Error())
 	}
+	if !strings.Contains(err.Error(), "terraform state rm") {
+		t.Errorf("error should guide the operator on genuine deletion, got %q", err.Error())
+	}
+}
+
+// TestModels_GetAuthoritative404 proves that — in contrast to a list-miss — an
+// authoritative 404 from the endpoint IS normalized to not_found. That is the ONLY
+// signal treated as "genuinely gone" (so Read may drop the resource / Delete treats
+// it as done).
+func TestModels_GetAuthoritative404(t *testing.T) {
+	c := newModelServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+	_, err := c.Models().Get(context.Background(), "mdl_1")
+	if err == nil || CodeOf(err) != CodeNotFound {
+		t.Fatalf("an authoritative 404 must normalize to not_found, got %v", err)
+	}
+}
+
+// TestModels_RegionFromMetadata proves region is read from metadata.region — the
+// authoritative location for a custom openai-like model — with configuration.region
+// only as a fallback (openai-like leaves configuration.region unset).
+func TestModels_RegionFromMetadata(t *testing.T) {
+	t.Run("metadata.region wins over configuration.region", func(t *testing.T) {
+		doc := modelDocJSON("mdl_1", "m")
+		doc["metadata"].(map[string]any)["region"] = "us"
+		doc["configuration"].(map[string]any)["region"] = "should-be-ignored"
+		c := newModelServer(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode([]map[string]any{doc})
+		})
+		m, err := c.Models().Get(context.Background(), "mdl_1")
+		if err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+		if m.Region != "us" {
+			t.Errorf("region must come from metadata.region, got %q", m.Region)
+		}
+	})
+	t.Run("configuration.region fallback when metadata omits region", func(t *testing.T) {
+		doc := modelDocJSON("mdl_1", "m")
+		delete(doc["metadata"].(map[string]any), "region")
+		doc["configuration"].(map[string]any)["region"] = "apac"
+		c := newModelServer(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode([]map[string]any{doc})
+		})
+		m, err := c.Models().Get(context.Background(), "mdl_1")
+		if err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+		if m.Region != "apac" {
+			t.Errorf("region must fall back to configuration.region, got %q", m.Region)
+		}
+	})
 }
 
 // TestModels_UpdateOmitsAPIKey is the mutability proof: the update hits PATCH

@@ -28,14 +28,16 @@ const ModelProviderOpenAILike = "openailike"
 // drift; they are pointers so the resource can tell "server omitted this for
 // this model_type" (nil) from a real value. max_tokens / temperature /
 // has_reasoning are encoded into the server's `parameters` array (not clean
-// scalars) and stay config-authoritative. BaseURL and Region live under the
-// server's `configuration` sub-object; they are surfaced flat here.
+// scalars) and stay config-authoritative. BaseURL lives under the server's
+// `configuration` sub-object; Region lives under `metadata` — an openai-like
+// model does NOT populate configuration.region (buildOpenAILikeMetadata stores
+// it on metadata.region instead) — and both are surfaced flat here.
 type Model struct {
 	ID          string
 	DisplayName string
 	ModelID     string
 	ModelType   string
-	Region      string // from configuration.region
+	Region      string // from metadata.region (configuration.region fallback)
 	BaseURL     string // from configuration.base_url
 	Description string // "" when the server omits it
 	Provider    string // configuration/provider discriminator (e.g. "openailike")
@@ -105,8 +107,13 @@ type ModelUpdateInput struct {
 }
 
 // ModelsAPI is the per-resource seam for custom openai-like models (REST-backed).
-// There is no single-GET route, so Get lists /v2/models and filters by id; an
-// absent id normalizes to a not_found *Error so the resource drops it from state.
+// There is no single-GET route (only the LIST endpoint, apps/platform-api/models/
+// routes.go), so Get lists /v2/models and filters by id. A list-miss is NOT
+// normalized to not_found: the list applies workspace/project scope + visibility
+// filters, so an absent id may be invisible to this credential rather than deleted,
+// and dropping it from state would make the next apply create a DUPLICATE. Get
+// therefore returns a non-not_found error on a miss; only an authoritative 404
+// (e.g. from Delete's own /:id route) is treated as "gone".
 type ModelsAPI interface {
 	Get(ctx context.Context, id string) (*Model, error)
 	Create(ctx context.Context, in ModelCreateInput) (*Model, error)
@@ -139,6 +146,10 @@ type modelWire struct {
 		Region  *string `json:"region"`
 	} `json:"configuration"`
 	Metadata struct {
+		// region is the AUTHORITATIVE location for a custom openai-like model's
+		// region (buildOpenAILikeMetadata writes it here; configuration.region is
+		// left unset for this provider).
+		Region              *string  `json:"region"`
 		CostPerImage        *float64 `json:"cost_per_image"`
 		SupportsVision      *bool    `json:"supports_vision"`
 		SupportsToolCalling *bool    `json:"supports_tool_calling"`
@@ -173,10 +184,20 @@ func (w *modelWire) toModel() Model {
 	if w.Configuration.BaseURL != nil {
 		m.BaseURL = *w.Configuration.BaseURL
 	}
-	if w.Configuration.Region != nil {
-		m.Region = *w.Configuration.Region
-	}
+	// region: prefer metadata.region (where openai-like models store it); fall
+	// back to configuration.region for robustness against other shapes.
+	m.Region = firstNonEmpty(w.Metadata.Region, w.Configuration.Region)
 	return m
+}
+
+// firstNonEmpty returns the first non-nil, non-empty pointed-to string, or "".
+func firstNonEmpty(ps ...*string) string {
+	for _, p := range ps {
+		if p != nil && *p != "" {
+			return *p
+		}
+	}
+	return ""
 }
 
 // decodeModelBody parses a single-model JSON body (create/update response) into
@@ -216,9 +237,9 @@ func modelFromDocument(d *restgen.ModelDocument) Model {
 	if d.Configuration.BaseUrl != nil {
 		m.BaseURL = *d.Configuration.BaseUrl
 	}
-	if d.Configuration.Region != nil {
-		m.Region = *d.Configuration.Region
-	}
+	// region: prefer metadata.region (where openai-like models store it); fall
+	// back to configuration.region for robustness against other shapes.
+	m.Region = firstNonEmpty(d.Metadata.Region, d.Configuration.Region)
 	return m
 }
 
@@ -238,9 +259,22 @@ func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
 		m := modelFromDocument(d)
 		return &m, nil
 	}
-	// Not present in the catalog → gone server-side. Normalize to not_found so
-	// the resource Read removes it from state (and Delete treats it as done).
-	return nil, &Error{Code: CodeNotFound, Message: "the requested model was not found"}
+	// Not present in the list. There is NO GET-by-id route, and the list applies
+	// workspace/project scope + visibility filters (ListModels → filterModelsByScope),
+	// so an absent id may be genuinely deleted OR merely invisible to this credential.
+	// We cannot tell the two apart, and treating an invisible model as deleted would
+	// drop it from state and make the next apply create a DUPLICATE. Refuse to guess:
+	// return a NON-not_found error so Read surfaces it instead of silently removing the
+	// resource. A genuinely deleted model is removed with `terraform state rm` (or is
+	// reported gone by Delete's authoritative 404).
+	return nil, &Error{
+		Code: CodeInternal,
+		Message: "model " + id + " is not visible in the workspace model catalog; it may " +
+			"have been deleted, or hidden from this credential by workspace/project scoping. " +
+			"The list-only API cannot distinguish the two, so it will not be dropped from state " +
+			"automatically — if it was deleted, remove it with `terraform state rm`; otherwise " +
+			"ensure the credential can see it.",
+	}
 }
 
 func (r *restModels) Create(ctx context.Context, in ModelCreateInput) (*Model, error) {
