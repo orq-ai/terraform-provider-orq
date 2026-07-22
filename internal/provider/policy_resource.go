@@ -92,7 +92,7 @@ func (r *policyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"slug": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "URL-safe slug derived from the display name by orq.",
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				PlanModifiers:       []planmodifier.String{policySlugPlanModifier{}},
 			},
 			"timeout": schema.Int64Attribute{
 				Optional:            true,
@@ -462,4 +462,41 @@ func (r *policyResource) Delete(ctx context.Context, req resource.DeleteRequest,
 
 func (r *policyResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// policySlugPlanModifier keeps the prior slug while `display_name` is unchanged
+// and marks slug unknown ("known after apply") when `display_name` changes.
+// UseStateForUnknown is wrong here: the server RE-DERIVES slug from display_name
+// on update, so keeping the stale slug across a rename produces "inconsistent
+// result after apply: .slug" (mirrors projectKeyPlanModifier for orq_project.key).
+type policySlugPlanModifier struct{}
+
+func (policySlugPlanModifier) Description(context.Context) string {
+	return "keep the prior slug while display_name is unchanged; mark slug unknown when display_name changes"
+}
+func (m policySlugPlanModifier) MarkdownDescription(ctx context.Context) string {
+	return m.Description(ctx)
+}
+func (policySlugPlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	// Create: no prior state — the slug is known only after apply.
+	if req.State.Raw.IsNull() {
+		resp.PlanValue = types.StringUnknown()
+		return
+	}
+	var planName, stateName types.String
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("display_name"), &planName)...)
+	resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("display_name"), &stateName)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.PlanValue = policySlugPlanValue(planName, stateName, req.StateValue)
+}
+
+// policySlugPlanValue is the pure core: keep the prior slug while display_name is
+// unchanged, else mark it unknown (the server re-derives slug from display_name).
+func policySlugPlanValue(planName, stateName, priorSlug types.String) types.String {
+	if planName.Equal(stateName) {
+		return priorSlug
+	}
+	return types.StringUnknown()
 }
