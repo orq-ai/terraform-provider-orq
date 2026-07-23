@@ -149,7 +149,7 @@ func TestRedirectLeak_CrossOrigin(t *testing.T) {
 	defer foreign.Close()
 
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, foreign.URL+"/v2/policies", http.StatusFound)
+		http.Redirect(w, r, foreign.URL+"/v2/routing-rules", http.StatusFound)
 	}))
 	defer origin.Close()
 
@@ -158,7 +158,7 @@ func TestRedirectLeak_CrossOrigin(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	_, err = c.Policies().List(context.Background(), ListParams{})
+	_, err = c.RoutingRules().List(context.Background(), ListParams{})
 	if err == nil {
 		t.Fatal("expected redirect to be rejected, got nil error")
 	}

@@ -19,13 +19,6 @@ func modelsConfigValidate(s string) diag.Diagnostics {
 	return resp.Diagnostics
 }
 
-func retryConfigValidate(s string) diag.Diagnostics {
-	v := retryConfigFromRaw([]byte(s))
-	resp := &xattr.ValidateAttributeResponse{}
-	v.ValidateAttribute(context.Background(), xattr.ValidateAttributeRequest{Path: path.Root("retry_config")}, resp)
-	return resp.Diagnostics
-}
-
 // diagsContain reports whether any diagnostic's summary or detail contains sub.
 func diagsContain(diags diag.Diagnostics, sub string) bool {
 	for _, d := range diags {
@@ -103,56 +96,6 @@ func TestModelsConfigShapeValidation(t *testing.T) {
 	})
 }
 
-// TestRetryConfigShapeValidation proves retry_config shape validation mirrors
-// restgen.PolicyRetryConfig{count int64, on_codes []int64}.
-func TestRetryConfigShapeValidation(t *testing.T) {
-	valid := []string{
-		`{"count":3,"on_codes":[429,503]}`,
-		`{"count":3}`,
-		`{"count":3,"on_codes":[]}`,   // canon-equivalent to an absent on_codes
-		`{"count":3,"on_codes":null}`, // canon-equivalent to an absent on_codes
-		`{}`,
-	}
-	for _, s := range valid {
-		if diags := retryConfigValidate(s); diags.HasError() {
-			t.Errorf("valid retry_config %s rejected: %v", s, diags)
-		}
-	}
-
-	t.Run("array rejected", func(t *testing.T) {
-		if !retryConfigValidate(`[429,503]`).HasError() {
-			t.Error("top-level array must be rejected")
-		}
-	})
-	t.Run("scalar rejected", func(t *testing.T) {
-		if !retryConfigValidate(`3`).HasError() {
-			t.Error("scalar must be rejected")
-		}
-	})
-	t.Run("unknown key names the key", func(t *testing.T) {
-		diags := retryConfigValidate(`{"count":3,"bogus":1}`)
-		if !diags.HasError() {
-			t.Fatal("unknown key must be rejected")
-		}
-		if !diagsContain(diags, "bogus") {
-			t.Errorf("diagnostic must name the offending key %q: %v", "bogus", diags)
-		}
-	})
-	t.Run("wrong-typed and non-integer fields rejected", func(t *testing.T) {
-		for _, s := range []string{
-			`{"count":"3"}`,        // count must be a number
-			`{"count":3.5}`,        // count must be an integer
-			`{"on_codes":{}}`,      // on_codes must be an array
-			`{"on_codes":[429.5]}`, // elements must be integers
-			`{"on_codes":["429"]}`, // elements must be integers, not strings
-		} {
-			if !retryConfigValidate(s).HasError() {
-				t.Errorf("invalid retry_config %s must be rejected", s)
-			}
-		}
-	})
-}
-
 // TestShapeValidationAcceptsCanonEquivalenceInputs guards that adding shape
 // validation did NOT regress the canonicalization inputs: every config spelling
 // the semantic-equality tests treat as equivalent must still pass validation.
@@ -172,34 +115,14 @@ func TestShapeValidationAcceptsCanonEquivalenceInputs(t *testing.T) {
 			t.Errorf("canon-equivalence models_config input %s must pass shape validation: %v", s, diags)
 		}
 	}
-	retryInputs := []string{
-		`{"count":3,"on_codes":[]}`,
-		`{"count":3,"on_codes":null}`,
-		`{"count":3}`,
-		`{"count":3,"on_codes":[429,503]}`,
-	}
-	for _, s := range retryInputs {
-		if diags := retryConfigValidate(s); diags.HasError() {
-			t.Errorf("canon-equivalence retry_config input %s must pass shape validation: %v", s, diags)
-		}
-	}
 }
 
 // TestShapeValidationRejectsNullForNonNullableScalars is the Codex-review
 // follow-up: JSON null decodes to the Go zero value for the NON-pointer struct
-// fields (mode, model, count), which the server then rejects at apply — so the
+// fields (mode, model), which the server then rejects at apply — so the
 // plan-time shape check must reject those nulls too. Pointer (nullable) fields
 // keep accepting null as a spelling of "absent".
 func TestShapeValidationRejectsNullForNonNullableScalars(t *testing.T) {
-	t.Run("count null rejected", func(t *testing.T) {
-		diags := retryConfigValidate(`{"count":null}`)
-		if !diags.HasError() {
-			t.Fatal("count:null must be rejected at plan time")
-		}
-		if !diagsContain(diags, `"count" must be an integer, got null`) {
-			t.Errorf("diagnostic must name count/null: %v", diags)
-		}
-	})
 	t.Run("mode null rejected", func(t *testing.T) {
 		diags := modelsConfigValidate(`{"mode":null}`)
 		if !diags.HasError() {
@@ -231,9 +154,4 @@ func TestShapeValidationRejectsNullForNonNullableScalars(t *testing.T) {
 			}
 		})
 	}
-	t.Run("on_codes null accepted", func(t *testing.T) {
-		if diags := retryConfigValidate(`{"count":3,"on_codes":null}`); diags.HasError() {
-			t.Errorf("on_codes:null must stay accepted, got: %v", diags)
-		}
-	})
 }

@@ -13,9 +13,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
-// This file defines custom string types for the opaque JSON-object attributes
+// This file defines a custom string type for the opaque JSON-object attribute
 // whose textual config differs from the server's stored read-back
-// (models_config, retry_config). They mirror the proven rfc3339Instant pattern:
+// (models_config). It mirrors the proven rfc3339Instant pattern:
 // a custom type whose StringSemanticEquals CANONICALIZES BOTH operands before
 // comparing, so the operator's config and the server's read-back converge
 // without ever rewriting the config value at plan time.
@@ -27,11 +27,9 @@ import (
 // diff between plan/state and lets refresh keep the prior value, exactly like
 // jsontypes.Normalized (whitespace/key-order) and rfc3339Instant (instant).
 //
-// The server-side defaulting these types absorb:
+// The server-side defaulting this type absorbs:
 //   - models_config: a model entry with an omitted or zero weight is stored with
-//     weight 0.5 (routingrules/routes.go, policies/routes.go).
-//   - retry_config: an empty or absent on_codes is elided on read (omitempty), so
-//     `on_codes: []` and an absent on_codes are equivalent.
+//     weight 0.5 (routingrules/routes.go).
 //
 // The retain-on-null behavior (dropping the attribute from config keeps the
 // prior server value with no diff) is NOT provided here — it comes from marking
@@ -130,95 +128,6 @@ func modelsConfigFromRaw(raw json.RawMessage) modelsConfigValue {
 func (v modelsConfigValue) toRaw() json.RawMessage { return jsonStringToRaw(v.StringValue) }
 
 // ---------------------------------------------------------------------------
-// retry_config: empty-on_codes-eliding JSON string type
-// ---------------------------------------------------------------------------
-
-type retryConfigType struct {
-	basetypes.StringType
-}
-
-var (
-	_ basetypes.StringTypable                    = retryConfigType{}
-	_ basetypes.StringValuableWithSemanticEquals = retryConfigValue{}
-	_ xattr.ValidateableAttribute                = retryConfigValue{}
-)
-
-func (t retryConfigType) String() string { return "provider.retryConfigType" }
-
-func (t retryConfigType) ValueType(context.Context) attr.Value { return retryConfigValue{} }
-
-func (t retryConfigType) Equal(o attr.Type) bool {
-	other, ok := o.(retryConfigType)
-	if !ok {
-		return false
-	}
-	return t.StringType.Equal(other.StringType)
-}
-
-func (t retryConfigType) ValueFromString(_ context.Context, in basetypes.StringValue) (basetypes.StringValuable, diag.Diagnostics) {
-	return retryConfigValue{StringValue: in}, nil
-}
-
-func (t retryConfigType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
-	attrValue, err := t.StringType.ValueFromTerraform(ctx, in)
-	if err != nil {
-		return nil, err
-	}
-	sv, ok := attrValue.(basetypes.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("unexpected value type of %T", attrValue)
-	}
-	valuable, diags := t.ValueFromString(ctx, sv)
-	if diags.HasError() {
-		return nil, fmt.Errorf("unexpected error converting StringValue to StringValuable: %v", diags)
-	}
-	return valuable, nil
-}
-
-type retryConfigValue struct {
-	basetypes.StringValue
-}
-
-func (v retryConfigValue) Type(context.Context) attr.Type { return retryConfigType{} }
-
-func (v retryConfigValue) Equal(o attr.Value) bool {
-	other, ok := o.(retryConfigValue)
-	if !ok {
-		return false
-	}
-	return v.StringValue.Equal(other.StringValue)
-}
-
-// StringSemanticEquals treats two retry configs as equal when they are equal
-// after an empty or absent on_codes is elided on BOTH sides (`on_codes: []` and
-// an absent on_codes are the same, matching the server's omitempty read-back).
-func (v retryConfigValue) StringSemanticEquals(_ context.Context, newValuable basetypes.StringValuable) (bool, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	o, ok := newValuable.(retryConfigValue)
-	if !ok {
-		return false, diags
-	}
-	if v.IsNull() || v.IsUnknown() || o.IsNull() || o.IsUnknown() {
-		return v.StringValue.Equal(o.StringValue), diags
-	}
-	return canonicalJSONEqual(v.ValueString(), o.ValueString(), retryConfigCanon), diags
-}
-
-func (v retryConfigValue) ValidateAttribute(_ context.Context, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
-	validateJSONString(v.StringValue, req, resp)
-	validateRetryConfigShape(v.StringValue, req, resp)
-}
-
-func retryConfigFromRaw(raw json.RawMessage) retryConfigValue {
-	if len(raw) == 0 {
-		return retryConfigValue{StringValue: basetypes.NewStringNull()}
-	}
-	return retryConfigValue{StringValue: basetypes.NewStringValue(string(raw))}
-}
-
-func (v retryConfigValue) toRaw() json.RawMessage { return jsonStringToRaw(v.StringValue) }
-
-// ---------------------------------------------------------------------------
 // shared helpers
 // ---------------------------------------------------------------------------
 
@@ -272,9 +181,7 @@ func canonicalizeJSON(s string, canon func(map[string]any)) (string, bool) {
 //     decoder preserves the literal `0.50` and a `weight = 0.50` config drifts
 //     against the server's `0.5` read-back ("inconsistent result after apply").
 //
-// Only weight is float-normalized. Other numbers keep their exact text — notably
-// retry_config.on_codes are integer HTTP status codes (429, 503) that must stay
-// integers, and retryConfigCanon does not touch them.
+// Only weight is float-normalized; other numbers keep their exact text.
 func modelsConfigCanon(obj map[string]any) {
 	models, ok := obj["models"].([]any)
 	if !ok {
@@ -290,22 +197,6 @@ func modelsConfigCanon(obj map[string]any) {
 		} else if f, ok := jsonNumberAsFloat(w); ok {
 			m["weight"] = f
 		}
-	}
-}
-
-// retryConfigCanon drops an empty or null on_codes so `on_codes: []` matches the
-// server's elided (omitempty) read-back. Mutates obj in place.
-func retryConfigCanon(obj map[string]any) {
-	v, present := obj["on_codes"]
-	if !present {
-		return
-	}
-	if v == nil {
-		delete(obj, "on_codes")
-		return
-	}
-	if arr, ok := v.([]any); ok && len(arr) == 0 {
-		delete(obj, "on_codes")
 	}
 }
 
@@ -369,16 +260,16 @@ func validateJSONString(v basetypes.StringValue, req xattr.ValidateAttributeRequ
 // ---------------------------------------------------------------------------
 //
 // validateJSONString only proves a value is SOME valid JSON. The client, however,
-// decodes these attributes into fixed Go structs (routing_rules.go / policies.go):
-// models_config -> restgen.ModelsConfig, retry_config -> restgen.PolicyRetryConfig.
+// decodes this attribute into a fixed Go struct (routing_rules.go):
+// models_config -> restgen.ModelsConfig.
 // A struct decode SILENTLY DROPS unknown keys and FAILS on a non-object top level
 // or a wrong-typed known field — problems that otherwise surface only at apply (a
 // dropped key reappears missing in the read-back as "inconsistent result after
-// apply"; an array/scalar fails the decode). The validators below mirror those
-// struct shapes so the same problems are caught at plan time, with a diagnostic
+// apply"; an array/scalar fails the decode). The validator below mirrors that
+// struct shape so the same problems are caught at plan time, with a diagnostic
 // that names the offending key. The canonicalization/semantic-equality above is
-// untouched. The allowed key sets are DERIVED from the restgen structs
-// (mode + models{display_name,integration_id,model,weight}; count + on_codes), not
+// untouched. The allowed key set is DERIVED from the restgen struct
+// (mode + models{display_name,integration_id,model,weight}), not
 // invented here.
 
 // validateModelsConfigShape enforces the restgen.ModelsConfig object shape.
@@ -451,47 +342,6 @@ func validateModelRefShape(m map[string]any, i int, req xattr.ValidateAttributeR
 	}
 }
 
-// validateRetryConfigShape enforces the restgen.PolicyRetryConfig object shape.
-func validateRetryConfigShape(v basetypes.StringValue, req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse) {
-	root, ok := decodeJSONForShape(v)
-	if !ok {
-		return
-	}
-	obj, ok := root.(map[string]any)
-	if !ok {
-		addShapeError(req, resp, fmt.Sprintf("retry_config must be a JSON object, got %s", jsonValueType(root)))
-		return
-	}
-	for key, val := range obj {
-		switch key {
-		case "count":
-			// restgen.PolicyRetryConfig.Count is a non-nullable int64: a JSON null
-			// would decode to 0 and fail only at apply (count must be >= 1), so
-			// reject it here too.
-			if !jsonIsInteger(val) {
-				addShapeError(req, resp, fmt.Sprintf("retry_config \"count\" must be an integer, got %s", jsonValueType(val)))
-			}
-		case "on_codes":
-			// restgen.PolicyRetryConfig.OnCodes is a nullable array of int64.
-			if val == nil {
-				continue
-			}
-			arr, ok := val.([]any)
-			if !ok {
-				addShapeError(req, resp, fmt.Sprintf("retry_config \"on_codes\" must be an array, got %s", jsonValueType(val)))
-				continue
-			}
-			for i, el := range arr {
-				if el != nil && !jsonIsInteger(el) {
-					addShapeError(req, resp, fmt.Sprintf("retry_config on_codes[%d] must be an integer, got %s", i, jsonValueType(el)))
-				}
-			}
-		default:
-			addUnknownKeyError(req, resp, "retry_config", key, "count, on_codes")
-		}
-	}
-}
-
 // decodeJSONForShape decodes a known, non-null attribute value for shape checking
 // using the same number-preserving decoder as canonicalizeJSON. It returns ok ==
 // false for null/unknown (nothing to validate) or invalid JSON (validateJSONString
@@ -531,17 +381,6 @@ func jsonValueType(v any) string {
 
 func jsonIsString(v any) bool { _, ok := v.(string); return ok }
 func jsonIsNumber(v any) bool { _, ok := v.(json.Number); return ok }
-
-// jsonIsInteger reports whether v is a JSON number with no fractional part (the
-// client decodes count / on_codes into int64, which rejects a fractional number).
-func jsonIsInteger(v any) bool {
-	n, ok := v.(json.Number)
-	if !ok {
-		return false
-	}
-	_, err := n.Int64()
-	return err == nil
-}
 
 // addShapeError reports a shape violation on the attribute.
 func addShapeError(req xattr.ValidateAttributeRequest, resp *xattr.ValidateAttributeResponse, detail string) {

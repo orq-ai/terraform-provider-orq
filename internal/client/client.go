@@ -53,7 +53,6 @@ type Client struct {
 	notifiers       NotifiersAPI
 	guardrailRules  GuardrailRulesAPI
 	workspaceModels WorkspaceModelsAPI
-	policies        PoliciesAPI
 	routingRules    RoutingRulesAPI
 	apiKeys         APIKeysAPI
 	managementKeys  ManagementKeysAPI
@@ -168,7 +167,6 @@ func New(cfg Config) (*Client, error) {
 		notifiers:       &connectNotifiers{c: notifiersClient},
 		guardrailRules:  &restGuardrailRules{c: rest},
 		workspaceModels: &workspaceModels{rest: rest, sharing: modelSharingClient},
-		policies:        &restPolicies{c: rest},
 		routingRules:    &restRoutingRules{c: rest},
 		apiKeys:         &connectAPIKeys{c: apiKeysClient},
 		managementKeys:  &connectManagementKeys{c: managementKeysClient},
@@ -192,9 +190,6 @@ func (c *Client) GuardrailRules() GuardrailRulesAPI { return c.guardrailRules }
 // WorkspaceModels returns the transport-agnostic workspace-models API (REST
 // enable/disable + Connect sharing write + inline sharing read).
 func (c *Client) WorkspaceModels() WorkspaceModelsAPI { return c.workspaceModels }
-
-// Policies returns the transport-agnostic policies API (REST-backed).
-func (c *Client) Policies() PoliciesAPI { return c.policies }
 
 // RoutingRules returns the transport-agnostic routing-rules API (REST-backed).
 func (c *Client) RoutingRules() RoutingRulesAPI { return c.routingRules }

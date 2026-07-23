@@ -102,7 +102,7 @@ func TestRESTTransport_PathAndBearer(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"object": "list",
 			"data": []map[string]any{
-				{"_id": "pol_1", "display_name": "P1", "enabled": true, "project_id": "", "created_at": "2020-01-01T00:00:00Z", "updated_at": "2020-01-01T00:00:00Z", "created_by_id": "u", "updated_by_id": "u", "slug": "p1", "timeout": 0},
+				{"_id": "rrl_1", "display_name": "R1", "enabled": true, "project_id": "", "created_at": "2020-01-01T00:00:00Z", "updated_at": "2020-01-01T00:00:00Z", "created_by_id": "u", "updated_by_id": "u", "priority": 0},
 			},
 			"has_more": false,
 		})
@@ -113,18 +113,18 @@ func TestRESTTransport_PathAndBearer(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	page, err := c.Policies().List(context.Background(), ListParams{Limit: 200})
+	page, err := c.RoutingRules().List(context.Background(), ListParams{Limit: 200})
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if *gotPath != "/v2/policies" {
-		t.Errorf("REST path = %q, want /v2/policies", *gotPath)
+	if *gotPath != "/v2/routing-rules" {
+		t.Errorf("REST path = %q, want /v2/routing-rules", *gotPath)
 	}
 	if want := "Bearer " + sentinelToken; *gotAuth != want {
 		t.Errorf("REST Authorization = %q, want %q", *gotAuth, want)
 	}
-	if len(page.Policies) != 1 || page.Policies[0].ID != "pol_1" || !page.Policies[0].Enabled {
-		t.Errorf("unexpected policies: %+v", page.Policies)
+	if len(page.Rules) != 1 || page.Rules[0].ID != "rrl_1" || !page.Rules[0].Enabled {
+		t.Errorf("unexpected routing rules: %+v", page.Rules)
 	}
 }
 
@@ -153,7 +153,7 @@ func TestRESTTransport_ErrorNormalization(t *testing.T) {
 			if err != nil {
 				t.Fatalf("New: %v", err)
 			}
-			_, err = c.Policies().List(context.Background(), ListParams{})
+			_, err = c.RoutingRules().List(context.Background(), ListParams{})
 			if err == nil {
 				t.Fatalf("expected error for status %d", tc.status)
 			}
@@ -161,7 +161,7 @@ func TestRESTTransport_ErrorNormalization(t *testing.T) {
 				t.Errorf("status %d normalized to %q, want %q", tc.status, got, tc.want)
 			}
 			// The normalized message must not leak a transport route name.
-			if strings.Contains(err.Error(), "/v2/policies") {
+			if strings.Contains(err.Error(), "/v2/routing-rules") {
 				t.Errorf("error leaks REST route: %q", err.Error())
 			}
 		})

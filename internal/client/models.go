@@ -137,7 +137,7 @@ type restModels struct {
 
 // modelWire mirrors the JSON body every model read/write returns (the list
 // item, create and update responses all share the ModelDocument shape).
-// Decoding the raw body — as the policy/guardrail adapters do — avoids depending
+// Decoding the raw body — as the guardrail adapter does — avoids depending
 // on oapi-codegen's per-operation anonymous response struct types. Only the
 // reliably-echoed fields are pulled out; everything else on the wire is ignored.
 type modelWire struct {

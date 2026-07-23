@@ -149,7 +149,6 @@ func (p *orqProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewGuardrailRuleResource,
 		NewWorkspaceModelResource,
 		NewRoutingRuleResource,
-		NewPolicyResource,
 		NewAPIKeyResource,
 		NewManagementKeyResource,
 		NewModelResource,

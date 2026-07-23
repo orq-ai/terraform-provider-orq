@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/defaults"
@@ -144,57 +143,6 @@ func TestRoutingRuleApplyExpressionAndModels(t *testing.T) {
 	r.apply(&client.RoutingRule{ID: "rrl_2"}, &m2)
 	if m2.Expression != nil {
 		t.Errorf("empty expression must be nil, got %+v", m2.Expression)
-	}
-}
-
-// --- policy evaluators round-trip through the model -------------------------
-
-func TestPolicyEvaluatorsModelRoundTrip(t *testing.T) {
-	models := []policyEvaluatorModel{{
-		ID:        types.StringValue("ev_1"),
-		ExecuteOn: types.StringValue("input"),
-		Options:   jsontypes.NewNormalizedValue(`{"language":"en"}`),
-	}}
-	refs, diags := policyEvaluatorsFromModel(models)
-	if diags.HasError() {
-		t.Fatalf("policyEvaluatorsFromModel: %v", diags)
-	}
-	if len(refs) != 1 || refs[0].Options == nil || refs[0].Options["language"] != "en" {
-		t.Fatalf("options not decoded: %+v", refs)
-	}
-
-	var back policyResourceModel
-	res := &policyResource{}
-	res.apply(&client.Policy{ID: "pol_1", Evaluators: refs}, &back)
-	if len(back.Evaluators) != 1 || back.Evaluators[0].Options.IsNull() {
-		t.Fatalf("evaluators dropped on read-back: %+v", back.Evaluators)
-	}
-	eq, _ := models[0].Options.StringSemanticEquals(context.Background(), back.Evaluators[0].Options)
-	if !eq {
-		t.Errorf("options did not round-trip: in=%s out=%s",
-			models[0].Options.ValueString(), back.Evaluators[0].Options.ValueString())
-	}
-}
-
-// TestPolicyEvaluatorIsGuardrailFalseConverges proves a server read-back that
-// elides is_guardrail (a nil pointer, meaning the non-pointer server bool
-// defaulted to false) surfaces as an explicit `false`, so it converges with an
-// operator's `is_guardrail = false` config instead of reading back null.
-func TestPolicyEvaluatorIsGuardrailFalseConverges(t *testing.T) {
-	res := &policyResource{}
-	var m policyResourceModel
-	res.apply(&client.Policy{
-		ID:         "pol_1",
-		Evaluators: []client.EvaluatorRef{{ID: "ev_1", ExecuteOn: "input", IsGuardrail: nil}},
-	}, &m)
-	if len(m.Evaluators) != 1 {
-		t.Fatalf("expected 1 evaluator, got %d", len(m.Evaluators))
-	}
-	if m.Evaluators[0].IsGuardrail.IsNull() {
-		t.Error("elided is_guardrail must read back as an explicit false, not null")
-	}
-	if m.Evaluators[0].IsGuardrail.ValueBool() {
-		t.Error("elided is_guardrail must read back as false")
 	}
 }
 
