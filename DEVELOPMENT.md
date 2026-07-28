@@ -24,6 +24,15 @@ block below) in your IDE — completions for all `orq_*` resources and their att
 now work.
 
 Notes / gotchas:
+- **Spell the source host-explicitly: `source = "registry.opentofu.org/orq-ai/orq"`.**
+  terraform-ls (a HashiCorp tool) canonicalizes a bare `orq-ai/orq` to
+  `registry.terraform.io/...`, while `tofu init` keys the installed schema under
+  `registry.opentofu.org/...` — the LSP then can't join the module to its schema and
+  every resource attribute shows `unknown attribute` with no completions, even though
+  `terraform providers schema -json` works. The explicit host makes both agree.
+- **terraform-ls needs a binary literally named `terraform`.** With only OpenTofu
+  installed, symlink it: `ln -s $(command -v tofu) /opt/homebrew/bin/terraform`
+  (tofu is CLI-compatible for everything the LSP invokes).
 - **`dev_overrides` and completions are mutually exclusive in the same dir.** Use the
   mirror + `init` (above) for editing with completions; use `dev_overrides` for the
   fast test loop (below). Don't point `TF_CLI_CONFIG_FILE` at a dev_overrides config in
