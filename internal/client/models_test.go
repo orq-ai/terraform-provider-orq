@@ -9,13 +9,8 @@ import (
 	"testing"
 )
 
-// modelDocJSON is the ModelDocument shape the server returns for a custom
-// openai-like model (create/update body and list item share it). base_url lives
-// under `configuration`; region lives under `metadata` (an openai-like model does
-// NOT populate configuration.region — buildOpenAILikeMetadata stores it on
-// metadata.region). api_key is deliberately absent (the server never echoes the
-// secret). input_cost/output_cost are always present (no omitempty); the metadata
-// capability/cost fields are omitempty and drop when false/0.
+// modelDocJSON is the ModelDocument shape every model read/write returns. api_key
+// is absent because the server never echoes the secret.
 func modelDocJSON(id, displayName string) map[string]any {
 	return map[string]any{
 		"id":           id,
@@ -32,7 +27,7 @@ func modelDocJSON(id, displayName string) map[string]any {
 			"base_url":             "http://host.docker.internal:1234/v1",
 			"is_openai_compatible": true,
 			"api_key_env":          nil,
-			// NOTE: no "region" here — openai-like models leave configuration.region unset.
+			// No "region": openai-like models leave configuration.region unset.
 		},
 		"metadata": map[string]any{
 			"is_private":            true,
@@ -58,9 +53,6 @@ func newModelServer(t *testing.T, handler http.HandlerFunc) *Client {
 	return c
 }
 
-// TestModels_CreateSendsAPIKey proves the create hits POST
-// /v2/models/openai-like, sends the secret api_key, and maps the (api-key-less)
-// response — including configuration.base_url + metadata.region — back out.
 func TestModels_CreateSendsAPIKey(t *testing.T) {
 	var gotBody map[string]any
 	var gotPath, gotMethod string
@@ -103,8 +95,7 @@ func TestModels_CreateSendsAPIKey(t *testing.T) {
 	}
 }
 
-// TestModels_GetFiltersByID proves the read path lists /v2/models and returns
-// the matching id (there is no single-GET route).
+// There is no single-GET route, so the read path lists and filters.
 func TestModels_GetFiltersByID(t *testing.T) {
 	var gotPath, gotMethod string
 	c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -127,13 +118,9 @@ func TestModels_GetFiltersByID(t *testing.T) {
 	}
 }
 
-// TestModels_GetListMissIsError proves an id ABSENT from the list is NOT treated
-// as deleted. There is no GET-by-id route (only the LIST endpoint) and the list
-// applies workspace/project scope + visibility filters, so a miss may mean the
-// model is invisible to this credential rather than gone. Get must therefore
-// return a NON-not_found error so Read surfaces it instead of dropping state
-// (which would make the next apply create a DUPLICATE); the message must guide the
-// operator and must not leak the REST route.
+// The list applies scope + visibility filters, so a miss may mean the model is
+// invisible to this credential rather than gone. Dropping state on a miss would
+// make the next apply create a DUPLICATE.
 func TestModels_GetListMissIsError(t *testing.T) {
 	c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -154,12 +141,8 @@ func TestModels_GetListMissIsError(t *testing.T) {
 	}
 }
 
-// TestModels_GetList404NotAuthoritative proves a 404 from the LIST/collection
-// endpoint is NOT authoritative: there is no GET-by-id route, so a 404 there is a
-// routing / reverse-proxy / deployment anomaly, not a "this model is gone" statement.
-// It must NOT normalize to not_found (which would make Read drop the resource from
-// state and the next apply create a DUPLICATE); only Delete's own /:id route is
-// authoritative for not_found. The message must not leak the REST route.
+// A 404 from the COLLECTION endpoint cannot say one id is gone; only Delete's own
+// /:id route is authoritative for not_found.
 func TestModels_GetList404NotAuthoritative(t *testing.T) {
 	c := newModelServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -176,9 +159,6 @@ func TestModels_GetList404NotAuthoritative(t *testing.T) {
 	}
 }
 
-// TestModels_RegionFromMetadata proves region is read from metadata.region — the
-// authoritative location for a custom openai-like model — with configuration.region
-// only as a fallback (openai-like leaves configuration.region unset).
 func TestModels_RegionFromMetadata(t *testing.T) {
 	t.Run("metadata.region wins over configuration.region", func(t *testing.T) {
 		doc := modelDocJSON("mdl_1", "m")
@@ -214,9 +194,7 @@ func TestModels_RegionFromMetadata(t *testing.T) {
 	})
 }
 
-// TestModels_UpdateOmitsAPIKey is the mutability proof: the update hits PATCH
-// /v2/models/openai-like/{id}, carries the mutable fields (including model_id),
-// and NEVER sends api_key (the endpoint cannot rotate it).
+// The update endpoint cannot rotate the secret.
 func TestModels_UpdateOmitsAPIKey(t *testing.T) {
 	var gotBody map[string]any
 	var gotPath, gotMethod string
@@ -254,10 +232,6 @@ func TestModels_UpdateOmitsAPIKey(t *testing.T) {
 	}
 }
 
-// TestModels_DecodesMarkerAndRefreshFields proves the client projects the
-// custom-vs-system marker (provider/owner) and the refreshed list fields
-// (input/output cost + supports_*) so the resource can guard imports and detect
-// drift. A field the server omits stays nil (distinguishable from a real value).
 func TestModels_DecodesMarkerAndRefreshFields(t *testing.T) {
 	c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -282,14 +256,13 @@ func TestModels_DecodesMarkerAndRefreshFields(t *testing.T) {
 	if m.SupportsToolCalling == nil || *m.SupportsToolCalling {
 		t.Errorf("supports_tool_calling not decoded as false: %v", m.SupportsToolCalling)
 	}
-	// A field the server omits stays nil (kept config-authoritative by the resource).
+	// A field the server omits stays nil, and stays config-authoritative.
 	if m.CostPerImage != nil || m.SupportsImageEdit != nil {
 		t.Errorf("omitted fields must stay nil: cost_per_image=%v image_edit=%v", m.CostPerImage, m.SupportsImageEdit)
 	}
 }
 
-// modelDocRef is a minimal list item carrying just the id + refId (plus the
-// timestamps toModel requires), for exercising Resolve's id-vs-ref semantics.
+// modelDocRef is a minimal list item for exercising Resolve's id-vs-ref rules.
 func modelDocRef(id, refID string) map[string]any {
 	return map[string]any{
 		"id":           id,
@@ -313,10 +286,8 @@ func newModelListServer(t *testing.T, docs []map[string]any) *Client {
 	})
 }
 
-// TestModels_ResolveExactIDWins proves an EXACT document-id match is authoritative
-// and wins over a ref_id match — including the adversarial case where one document
-// has a slug-shaped id equal to ANOTHER document's ref_id. The id match must win,
-// so "contains a slash" is never used to discriminate a ref from an id.
+// The adversarial case: one document's slug-shaped id equals another's ref_id, so
+// "contains a slash" must never discriminate a ref from an id.
 func TestModels_ResolveExactIDWins(t *testing.T) {
 	// docA's id is slug-shaped and equals docB's ref_id.
 	c := newModelListServer(t, []map[string]any{
@@ -332,8 +303,6 @@ func TestModels_ResolveExactIDWins(t *testing.T) {
 	}
 }
 
-// TestModels_ResolveUniqueRef proves a single ref_id match resolves to that
-// document (and projects RefID). No document's id equals the ref.
 func TestModels_ResolveUniqueRef(t *testing.T) {
 	c := newModelListServer(t, []map[string]any{
 		modelDocRef("uuid-1", "anthropic/claude"),
@@ -351,9 +320,6 @@ func TestModels_ResolveUniqueRef(t *testing.T) {
 	}
 }
 
-// TestModels_ResolveAmbiguousRef proves a ref_id matching MORE THAN ONE document
-// (e.g. the same model_id under two providers) errors, names the candidate ids,
-// tells the caller to use the document id, and is NOT not_found.
 func TestModels_ResolveAmbiguousRef(t *testing.T) {
 	c := newModelListServer(t, []map[string]any{
 		modelDocRef("uuid-A", "openai/gpt-4o"),
@@ -374,9 +340,6 @@ func TestModels_ResolveAmbiguousRef(t *testing.T) {
 	}
 }
 
-// TestModels_ResolveZeroMatch proves a reference matching neither an id nor a
-// ref_id returns a not-found-style error that mentions BOTH interpretations were
-// tried and points at ref_id in GET /v2/models.
 func TestModels_ResolveZeroMatch(t *testing.T) {
 	c := newModelListServer(t, []map[string]any{
 		modelDocRef("uuid-1", "openai/gpt-4o"),
@@ -397,9 +360,6 @@ func TestModels_ResolveZeroMatch(t *testing.T) {
 	}
 }
 
-// TestModels_ResolveList404NotAuthoritative proves a 404 from the LIST endpoint
-// during Resolve stays a plain (non-not_found) error — a routing/deployment
-// anomaly, not an authoritative "the referenced model is gone".
 func TestModels_ResolveList404NotAuthoritative(t *testing.T) {
 	c := newModelServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -427,12 +387,8 @@ func TestModels_Delete(t *testing.T) {
 	}
 }
 
-// TestModels_DeleteRefusedByServer proves the delete client distinguishes a
-// genuine delete (200, empty body) from a REFUSED delete (200 with a JSON
-// `{"message": ...}` body — the model is left intact, see
-// apps/platform-api/models/delete.go:45,53-54,99-100). A refusal must surface as
-// a typed conflict so the resource keeps the still-live model in state rather
-// than silently orphaning it; a genuine (empty-body) delete must still succeed.
+// A genuine delete replies 200 with an EMPTY body; a REFUSED one replies 200 with
+// a JSON `{"message": ...}` body and leaves the model intact.
 func TestModels_DeleteRefusedByServer(t *testing.T) {
 	t.Run("200-with-message refusal returns a conflict error", func(t *testing.T) {
 		c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {

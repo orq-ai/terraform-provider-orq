@@ -10,8 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 )
 
-// modelsConfigValidate runs the models_config custom type's ValidateAttribute over
-// s and returns its diagnostics (the plan-time check Terraform runs on config).
+// modelsConfigValidate is the plan-time check Terraform runs on config.
 func modelsConfigValidate(s string) diag.Diagnostics {
 	v := modelsConfigFromRaw([]byte(s))
 	resp := &xattr.ValidateAttributeResponse{}
@@ -29,10 +28,6 @@ func diagsContain(diags diag.Diagnostics, sub string) bool {
 	return false
 }
 
-// TestModelsConfigShapeValidation proves models_config shape validation accepts
-// the object shapes the client decodes into restgen.ModelsConfig and rejects a
-// non-object, an unknown key (named in the diagnostic), or a wrong-typed field —
-// all at plan time rather than apply.
 func TestModelsConfigShapeValidation(t *testing.T) {
 	valid := []string{
 		`{"mode":"fallback","models":[{"model":"x","weight":0.5}]}`,
@@ -96,9 +91,8 @@ func TestModelsConfigShapeValidation(t *testing.T) {
 	})
 }
 
-// TestShapeValidationAcceptsCanonEquivalenceInputs guards that adding shape
-// validation did NOT regress the canonicalization inputs: every config spelling
-// the semantic-equality tests treat as equivalent must still pass validation.
+// Every config spelling the semantic-equality tests treat as equivalent must
+// still pass shape validation.
 func TestShapeValidationAcceptsCanonEquivalenceInputs(t *testing.T) {
 	modelsInputs := []string{
 		`{"mode":"fallback","models":[{"model":"x"},{"model":"y","weight":0.25}]}`,
@@ -117,11 +111,8 @@ func TestShapeValidationAcceptsCanonEquivalenceInputs(t *testing.T) {
 	}
 }
 
-// TestShapeValidationRejectsNullForNonNullableScalars is the Codex-review
-// follow-up: JSON null decodes to the Go zero value for the NON-pointer struct
-// fields (mode, model), which the server then rejects at apply — so the
-// plan-time shape check must reject those nulls too. Pointer (nullable) fields
-// keep accepting null as a spelling of "absent".
+// JSON null decodes to the Go zero value for the NON-pointer restgen fields,
+// which the server then rejects at apply.
 func TestShapeValidationRejectsNullForNonNullableScalars(t *testing.T) {
 	t.Run("mode null rejected", func(t *testing.T) {
 		diags := modelsConfigValidate(`{"mode":null}`)

@@ -40,11 +40,6 @@ func wsPiiAttrs(t *testing.T) (schema.SingleNestedAttribute, map[string]schema.A
 	return pii, cfg.Attributes
 }
 
-// TestWorkspaceSettingsSchemaDecisions locks the singleton shape: no id
-// attribute, a read-only key, Optional+Computed scalars that can be left
-// unmanaged, and — the load-bearing one — a pii_redaction that is Optional but
-// NOT Computed, which is what keeps "omitted" from ever collapsing into a
-// server-sourced value in state.
 func TestWorkspaceSettingsSchemaDecisions(t *testing.T) {
 	sch := wsSchema(t)
 
@@ -83,8 +78,6 @@ func TestWorkspaceSettingsSchemaDecisions(t *testing.T) {
 	if !pii.Optional {
 		t.Error("pii_redaction must be Optional")
 	}
-	// E-05: Computed here would make an omitted block resolve to the server
-	// value, conflating "not managed" with "managed as whatever is stored".
 	if pii.Computed {
 		t.Error("pii_redaction must NOT be Computed — omitted must mean UNMANAGED, never a server-sourced value")
 	}
@@ -97,7 +90,6 @@ func TestWorkspaceSettingsSchemaDecisions(t *testing.T) {
 			t.Errorf("pii_redaction.config.%s is missing", name)
 		}
 	}
-	// E-09: plan-time parity for the closed enums and the bounded float.
 	if lang := cfgAttrs["language"].(schema.StringAttribute); !lang.Optional || len(lang.Validators) == 0 {
 		t.Error("language must be Optional with a OneOf validator")
 	}
@@ -109,9 +101,6 @@ func TestWorkspaceSettingsSchemaDecisions(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettingsEnumValidators proves the language / on_failure /
-// threshold validators actually reject the out-of-range values the server would
-// otherwise 400 on at apply time.
 func TestWorkspaceSettingsEnumValidators(t *testing.T) {
 	ctx := context.Background()
 	_, cfgAttrs := wsPiiAttrs(t)
@@ -168,18 +157,8 @@ func TestWorkspaceSettingsEnumValidators(t *testing.T) {
 	checkFloat(-0.1, true)
 }
 
-// TestWorkspaceSettingsDisplayNameWhitespaceRejected is the perpetual-diff
-// guard: the server TRIMS display_name with strings.TrimSpace, so a padded
-// config value would read back different from the plan. It is rejected at plan
-// time instead of being silently rewritten (rewriting a non-null config value is
-// what AssertPlanValid forbids for an Optional+Computed attribute).
-//
-// The Unicode cases are the regression this test exists for: the validator used
-// to be the regexp `(?s)^\S(.*\S)?$`, and Go's `\S` is ASCII-only — so a name
-// padded with U+00A0 / U+2003 sailed through the plan, got trimmed server-side,
-// and produced the exact perpetual diff the check is meant to stop. Only
-// SURROUNDING whitespace is rejected; interior Unicode spacing is a legitimate
-// name and must pass.
+// Only SURROUNDING whitespace is rejected; interior Unicode spacing is a
+// legitimate name and must pass.
 func TestWorkspaceSettingsDisplayNameWhitespaceRejected(t *testing.T) {
 	ctx := context.Background()
 	name := wsSchema(t).Attributes["display_name"].(schema.StringAttribute)
@@ -195,9 +174,6 @@ func TestWorkspaceSettingsDisplayNameWhitespaceRejected(t *testing.T) {
 		{"interior nbsp", "Acme\u00a0Inc", false},
 		{"interior em space", "Acme\u2003Inc", false},
 		{"non-ascii letters", "Ünïcodé Wörkspace", false},
-		// The length bound counts code points like the server's protovalidate
-		// max_len, not UTF-8 bytes: 128 two-byte runes must pass (256 bytes),
-		// 129 must fail.
 		{"128 two-byte runes", strings.Repeat("é", 128), false},
 		{"129 two-byte runes", strings.Repeat("é", 129), true},
 		{"leading ascii space", " orq-test", true},
@@ -229,8 +205,7 @@ func TestWorkspaceSettingsDisplayNameWhitespaceRejected(t *testing.T) {
 		}
 	}
 
-	// The diagnostic must name the canonical spelling, so the operator can fix
-	// the config without guessing which end carries the invisible padding.
+	// The diagnostic must name the canonical spelling: the padding is invisible.
 	var resp validator.StringResponse
 	displayNameWhitespaceValidator{}.ValidateString(ctx, validator.StringRequest{
 		Path:        path.Root("display_name"),
@@ -243,8 +218,7 @@ func TestWorkspaceSettingsDisplayNameWhitespaceRejected(t *testing.T) {
 		t.Errorf("diagnostic must suggest the trimmed value, got %q", detail)
 	}
 
-	// Null/unknown must be skipped: display_name is Optional+Computed, so both
-	// are ordinary plan states, not configuration errors.
+	// Null/unknown are ordinary plan states for an Optional+Computed attribute.
 	for _, v := range []types.String{types.StringNull(), types.StringUnknown()} {
 		var resp validator.StringResponse
 		displayNameWhitespaceValidator{}.ValidateString(ctx, validator.StringRequest{
@@ -257,15 +231,10 @@ func TestWorkspaceSettingsDisplayNameWhitespaceRejected(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettingsUpdateInputOmitsUnmanagedFields is E-05 on the write
-// side: an attribute this resource does not set produces no field in the
-// request, so the server leaves it unchanged. In particular an OMITTED
-// pii_redaction sends NOTHING — it must never be sent as enabled=false.
 func TestWorkspaceSettingsUpdateInputOmitsUnmanagedFields(t *testing.T) {
 	ctx := context.Background()
 
-	// A create-time plan for a config that sets nothing: Optional+Computed
-	// scalars are unknown, the nested block is null.
+	// A create-time plan for a config that sets nothing.
 	plan := workspaceSettingsResourceModel{
 		DisplayName:          types.StringUnknown(),
 		EnforceEnabledModels: types.BoolUnknown(),
@@ -298,10 +267,8 @@ func TestWorkspaceSettingsUpdateInputOmitsUnmanagedFields(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettingsUpdateInputFullReplace is E-06: inside a managed
-// pii_redaction block the config is authoritative, so a field the operator
-// removed is sent as ABSENT (a removal) rather than retained from the last
-// apply. The server replaces the whole stored object with this payload.
+// The server replaces the whole stored pii_redaction object with the payload, so
+// a field the operator removed must be sent as ABSENT rather than retained.
 func TestWorkspaceSettingsUpdateInputFullReplace(t *testing.T) {
 	ctx := context.Background()
 	plan := workspaceSettingsResourceModel{
@@ -343,10 +310,6 @@ func TestWorkspaceSettingsUpdateInputFullReplace(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettingsApplyRetainsUnmanagedPii is E-05 on the read side: with
-// no pii_redaction in state the server's value is NOT imported, so a workspace
-// that has PII redaction configured out of band produces no perpetual diff
-// against a config that does not manage it.
 func TestWorkspaceSettingsApplyRetainsUnmanagedPii(t *testing.T) {
 	srv := &client.WorkspaceSettings{
 		Key:                  "acme",
@@ -359,9 +322,7 @@ func TestWorkspaceSettingsApplyRetainsUnmanagedPii(t *testing.T) {
 	}
 	state := workspaceSettingsResourceModel{} // pii_redaction absent = unmanaged
 
-	if diags := applySettings(srv, &state, false); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
-	}
+	applyReadSettings(srv, &state)
 	if state.PiiRedaction != nil {
 		t.Fatal("an unmanaged pii_redaction must stay null in state (retain-on-null)")
 	}
@@ -370,10 +331,8 @@ func TestWorkspaceSettingsApplyRetainsUnmanagedPii(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettingsApplyEmptyEntities is E-08: `entities = []` means "redact
-// everything" and the server stores NO entities key for it, so the read-back
-// carries none. The planned/prior value disambiguates — [] stays [], an omitted
-// attribute stays null — and neither drifts.
+// The server stores NO entities key for an empty list, so the planned/prior value
+// is what tells `entities = []` apart from an omitted attribute.
 func TestWorkspaceSettingsApplyEmptyEntities(t *testing.T) {
 	srvEmpty := &client.WorkspaceSettings{
 		Key: "acme",
@@ -388,8 +347,8 @@ func TestWorkspaceSettingsApplyEmptyEntities(t *testing.T) {
 		Enabled: types.BoolValue(true),
 		Config:  &workspaceSettingsPiiConfigModel{Entities: stringListValue(nil)},
 	}}
-	if diags := applySettings(srvEmpty, &planned, true); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
+	if diags := applyWrittenSettings(srvEmpty, &planned); diags.HasError() {
+		t.Fatalf("applyWrittenSettings: %v", diags)
 	}
 	got := planned.PiiRedaction.Config.Entities
 	if got.IsNull() {
@@ -404,8 +363,8 @@ func TestWorkspaceSettingsApplyEmptyEntities(t *testing.T) {
 		Enabled: types.BoolValue(true),
 		Config:  &workspaceSettingsPiiConfigModel{Entities: types.ListNull(types.StringType)},
 	}}
-	if diags := applySettings(srvEmpty, &omitted, true); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
+	if diags := applyWrittenSettings(srvEmpty, &omitted); diags.HasError() {
+		t.Fatalf("applyWrittenSettings: %v", diags)
 	}
 	if !omitted.PiiRedaction.Config.Entities.IsNull() {
 		t.Error("an omitted entities attribute must stay null (never become [])")
@@ -416,24 +375,14 @@ func TestWorkspaceSettingsApplyEmptyEntities(t *testing.T) {
 		Enabled: true,
 		Config:  &client.PiiRedactionConfig{Entities: []string{"PERSON"}},
 	}}
-	if diags := applySettings(srvList, &omitted, false); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
-	}
+	applyReadSettings(srvList, &omitted)
 	if len(omitted.PiiRedaction.Config.Entities.Elements()) != 1 {
 		t.Errorf("a server entities list must win on read, got %v", omitted.PiiRedaction.Config.Entities)
 	}
 }
 
-// TestWorkspaceSettingsApplyPiiFields pins the WRITE-path authority: the PLAN
-// wins for every known value inside pii_redaction and the read-back may not
-// overwrite it.
-//
-// This is a regression test. The first cut projected the response onto the block
-// on create/update too, which is exactly the "Provider produced inconsistent
-// result after apply" trap: any difference between what was sent and what came
-// back — a normalized language, a re-ordered or re-cased `entities` list, a
-// server-supplied default — aborts the apply. Real drift is not lost, it simply
-// surfaces on the next Read (see TestWorkspaceSettingsApplyPiiFieldsReadPath).
+// Overwriting a known planned nested value with the read-back is what Terraform
+// aborts as "Provider produced inconsistent result after apply".
 func TestWorkspaceSettingsApplyPiiFields(t *testing.T) {
 	// The response deliberately DISAGREES with the plan on every field, and
 	// carries an extra one the plan does not have.
@@ -455,8 +404,8 @@ func TestWorkspaceSettingsApplyPiiFields(t *testing.T) {
 			// which must stay null rather than adopt the server's value.
 		},
 	}}
-	if diags := applySettings(srv, &m, true); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
+	if diags := applyWrittenSettings(srv, &m); diags.HasError() {
+		t.Fatalf("applyWrittenSettings: %v", diags)
 	}
 	if !m.PiiRedaction.Enabled.ValueBool() {
 		t.Error("enabled: the planned value must win on the write path")
@@ -476,18 +425,15 @@ func TestWorkspaceSettingsApplyPiiFields(t *testing.T) {
 		t.Errorf("threshold = %v: a planned null must not be filled from the read-back", cfg.Threshold)
 	}
 
-	// A config sub-block the plan does not carry is never invented from the
-	// response either — `config` presence is itself a planned value.
 	noCfg := workspaceSettingsResourceModel{PiiRedaction: &workspaceSettingsPiiModel{Enabled: types.BoolValue(false)}}
-	if diags := applySettings(srv, &noCfg, true); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
+	if diags := applyWrittenSettings(srv, &noCfg); diags.HasError() {
+		t.Fatalf("applyWrittenSettings: %v", diags)
 	}
 	if noCfg.PiiRedaction.Config != nil {
 		t.Error("the write path must not invent a config sub-block the plan does not have")
 	}
 
-	// Only a genuinely UNKNOWN planned value may be filled from the response —
-	// which inside pii_redaction requires an unresolved reference in config.
+	// Only a genuinely UNKNOWN planned value may be filled from the response.
 	unknown := workspaceSettingsResourceModel{PiiRedaction: &workspaceSettingsPiiModel{
 		Enabled: types.BoolValue(true),
 		Config: &workspaceSettingsPiiConfigModel{
@@ -497,8 +443,8 @@ func TestWorkspaceSettingsApplyPiiFields(t *testing.T) {
 			Threshold: types.Float64Unknown(),
 		},
 	}}
-	if diags := applySettings(srv, &unknown, true); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
+	if diags := applyWrittenSettings(srv, &unknown); diags.HasError() {
+		t.Fatalf("applyWrittenSettings: %v", diags)
 	}
 	ucfg := unknown.PiiRedaction.Config
 	if ucfg.Language.ValueString() != "nl" || ucfg.OnFailure.ValueString() != "passthrough" {
@@ -514,9 +460,7 @@ func TestWorkspaceSettingsApplyPiiFields(t *testing.T) {
 		t.Errorf("unknown entities must be filled from the read-back verbatim, got %v", got)
 	}
 
-	// A KNOWN list carrying an UNKNOWN element is not fully known either: it
-	// cannot be written to state as-is and must resolve from the read-back. A
-	// listFullyKnown that only checked List.IsUnknown() would miss this.
+	// A KNOWN list carrying an UNKNOWN element is not fully known either.
 	partial := workspaceSettingsResourceModel{PiiRedaction: &workspaceSettingsPiiModel{
 		Enabled: types.BoolValue(true),
 		Config: &workspaceSettingsPiiConfigModel{
@@ -525,8 +469,8 @@ func TestWorkspaceSettingsApplyPiiFields(t *testing.T) {
 			}),
 		},
 	}}
-	if diags := applySettings(srv, &partial, true); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
+	if diags := applyWrittenSettings(srv, &partial); diags.HasError() {
+		t.Fatalf("applyWrittenSettings: %v", diags)
 	}
 	pents := partial.PiiRedaction.Config.Entities
 	if pents.IsUnknown() {
@@ -542,9 +486,6 @@ func TestWorkspaceSettingsApplyPiiFields(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettingsApplyPiiFieldsReadPath is the other half of the
-// asymmetry: on READ the server wins unconditionally, so an out-of-band change
-// to any nested field shows up as drift instead of being masked by state.
 func TestWorkspaceSettingsApplyPiiFieldsReadPath(t *testing.T) {
 	srv := &client.WorkspaceSettings{Key: "acme", PiiRedaction: &client.PiiRedaction{
 		Enabled: false,
@@ -562,9 +503,7 @@ func TestWorkspaceSettingsApplyPiiFieldsReadPath(t *testing.T) {
 			Entities: stringListValue([]string{"EMAIL_ADDRESS"}),
 		},
 	}}
-	if diags := applySettings(srv, &state, false); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
-	}
+	applyReadSettings(srv, &state)
 	if state.PiiRedaction.Enabled.ValueBool() {
 		t.Error("enabled: the server must win on read")
 	}
@@ -584,9 +523,7 @@ func TestWorkspaceSettingsApplyPiiFieldsReadPath(t *testing.T) {
 		Enabled: true,
 		Config:  &client.PiiRedactionConfig{Language: ptr("en")},
 	}}
-	if diags := applySettings(srvSparse, &state, false); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
-	}
+	applyReadSettings(srvSparse, &state)
 	cfg = state.PiiRedaction.Config
 	if !cfg.OnFailure.IsNull() || !cfg.Threshold.IsNull() {
 		t.Errorf("absent optional fields must read back null, got on_failure=%v threshold=%v", cfg.OnFailure, cfg.Threshold)
@@ -594,9 +531,7 @@ func TestWorkspaceSettingsApplyPiiFieldsReadPath(t *testing.T) {
 
 	// An enable flag stored without a config object reads back with no config.
 	srvNoCfg := &client.WorkspaceSettings{Key: "acme", PiiRedaction: &client.PiiRedaction{Enabled: false}}
-	if diags := applySettings(srvNoCfg, &state, false); diags.HasError() {
-		t.Fatalf("applySettings: %v", diags)
-	}
+	applyReadSettings(srvNoCfg, &state)
 	if state.PiiRedaction.Config != nil {
 		t.Error("a stored block with no config must read back with a null config")
 	}
@@ -605,8 +540,7 @@ func TestWorkspaceSettingsApplyPiiFieldsReadPath(t *testing.T) {
 	}
 }
 
-// listStrings flattens a types.List of strings for comparison, failing the test
-// if any element is unknown (post-apply state must be wholly known).
+// listStrings flattens a types.List of strings, failing on an unknown element.
 func listStrings(t *testing.T, l types.List) []string {
 	t.Helper()
 	if l.IsNull() || l.IsUnknown() {
@@ -626,27 +560,19 @@ func listStrings(t *testing.T, l types.List) []string {
 	return out
 }
 
-// TestWorkspaceSettingsApplyPiiMissingFromReadBack pins the asymmetry between
-// the two paths. On READ a managed block that vanished server-side is dropped so
-// the next plan re-creates it (real drift). On the WRITE path the planned block
-// is kept — nulling it would break plan consistency and abort the apply — and a
-// warning is raised instead.
 func TestWorkspaceSettingsApplyPiiMissingFromReadBack(t *testing.T) {
 	srv := &client.WorkspaceSettings{Key: "acme"} // no pii_redaction at all
 
 	readState := workspaceSettingsResourceModel{PiiRedaction: &workspaceSettingsPiiModel{Enabled: types.BoolValue(true)}}
-	diags := applySettings(srv, &readState, false)
-	if diags.HasError() {
-		t.Fatalf("applySettings(read): %v", diags)
-	}
+	applyReadSettings(srv, &readState)
 	if readState.PiiRedaction != nil {
 		t.Error("read must drop a managed block the server no longer has (drift)")
 	}
 
 	writeState := workspaceSettingsResourceModel{PiiRedaction: &workspaceSettingsPiiModel{Enabled: types.BoolValue(true)}}
-	diags = applySettings(srv, &writeState, true)
+	diags := applyWrittenSettings(srv, &writeState)
 	if diags.HasError() {
-		t.Fatalf("applySettings(write): %v", diags)
+		t.Fatalf("applyWrittenSettings: %v", diags)
 	}
 	if writeState.PiiRedaction == nil {
 		t.Error("write must keep the planned block (post-apply state must equal the plan)")
@@ -701,10 +627,6 @@ func wsData(t *testing.T, m workspaceSettingsResourceModel) (tfsdk.Plan, tfsdk.C
 	return plan, cfg, state
 }
 
-// TestWorkspaceSettingsCreateAdopts drives Create end to end: there is no create
-// RPC, so it must write ONLY the configured attribute, read the rest back, and —
-// E-05 — leave an unconfigured pii_redaction null in state even though the
-// workspace has one configured.
 func TestWorkspaceSettingsCreateAdopts(t *testing.T) {
 	ctx := context.Background()
 	api := &fakeWorkspaceSettingsAPI{settings: &client.WorkspaceSettings{
@@ -715,7 +637,7 @@ func TestWorkspaceSettingsCreateAdopts(t *testing.T) {
 	}}
 	r := &workspaceSettingsResource{settings: api}
 
-	// Config sets display_name only; the other attributes are unknown on create.
+	// Config sets display_name only; the rest are unknown on create.
 	plan, cfg, state := wsData(t, workspaceSettingsResourceModel{
 		Key:                  types.StringUnknown(),
 		DisplayName:          types.StringValue("orq-test"),
@@ -759,8 +681,7 @@ func TestWorkspaceSettingsCreateAdopts(t *testing.T) {
 }
 
 // wsRaw renders a model into a tfsdk raw value so a test can hand Update a PLAN
-// and a CONFIG that legitimately differ (wsData builds all three from one model,
-// which cannot express that).
+// and a CONFIG that differ (wsData builds all three from one model).
 func wsRaw(t *testing.T, m workspaceSettingsResourceModel) tftypes.Value {
 	t.Helper()
 	p := tfsdk.Plan{Schema: wsSchema(t)}
@@ -770,19 +691,10 @@ func wsRaw(t *testing.T, m workspaceSettingsResourceModel) tftypes.Value {
 	return p.Raw
 }
 
-// TestWorkspaceSettingsUpdateWritesConfigNotPlan is the config-vs-plan
-// regression guard, and the ONLY test where the two actually differ.
-//
 // display_name is Optional+Computed with UseStateForUnknown, so a config that
-// omits it plans as the PRIOR STATE ("Old") rather than as null. Deriving the
-// payload from the plan would therefore re-send "Old" for an attribute the
-// operator never asked this resource to manage — silently renaming a workspace
-// somebody renamed to "New" in the dashboard, and firing a workspace KV
-// propagation on every apply. The payload must come from the CONFIG, where the
-// attribute is null and is omitted from the request.
-//
-// The plan still decides what lands in STATE ("Old"), which is what keeps the
-// apply consistent; the next refresh reconciles it with the server.
+// omits it plans as the PRIOR STATE, not as null: a plan-derived payload would
+// re-send it and silently rename a workspace renamed out of band. The payload
+// comes from the CONFIG; the plan still decides what lands in state.
 func TestWorkspaceSettingsUpdateWritesConfigNotPlan(t *testing.T) {
 	ctx := context.Background()
 	api := &fakeWorkspaceSettingsAPI{settings: &client.WorkspaceSettings{
@@ -847,9 +759,7 @@ func TestWorkspaceSettingsUpdateWritesConfigNotPlan(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettingsCreateWithNoManagedAttributesReads covers the adopt-only
-// configuration: nothing to write means a plain read, so a read-only use never
-// needs the workspace.update verb and never fires a KV propagation.
+// A read-only use of this resource must never need the workspace.update verb.
 func TestWorkspaceSettingsCreateWithNoManagedAttributesReads(t *testing.T) {
 	ctx := context.Background()
 	api := &fakeWorkspaceSettingsAPI{settings: &client.WorkspaceSettings{Key: "acme", DisplayName: "Acme"}}
@@ -870,9 +780,6 @@ func TestWorkspaceSettingsCreateWithNoManagedAttributesReads(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettingsDeleteIsStateOnly is the destroy contract: no server call
-// at all (the singleton cannot be deleted), and the operator is warned that the
-// settings keep their last applied values.
 func TestWorkspaceSettingsDeleteIsStateOnly(t *testing.T) {
 	ctx := context.Background()
 	api := &fakeWorkspaceSettingsAPI{settings: &client.WorkspaceSettings{Key: "acme"}}
@@ -896,14 +803,10 @@ func TestWorkspaceSettingsDeleteIsStateOnly(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettingsImportSeedsKey documents the sentinel import id: any id is
-// accepted, it is only used to satisfy the framework's "import must populate
-// something" rule, and the Read that follows overwrites it with the real slug.
 func TestWorkspaceSettingsImportSeedsKey(t *testing.T) {
 	ctx := context.Background()
 	r := &workspaceSettingsResource{settings: &fakeWorkspaceSettingsAPI{}}
-	// The framework hands ImportState a state whose Raw is an explicit null of
-	// the schema type (see fwserver.ImportResourceState); reproduce that here.
+	// The framework hands ImportState a state whose Raw is an explicit null.
 	sch := wsSchema(t)
 	resp := resource.ImportStateResponse{State: tfsdk.State{
 		Schema: sch,

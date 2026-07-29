@@ -19,9 +19,8 @@ func newEvaluatorServer(t *testing.T, handler http.HandlerFunc) *Client {
 	return c
 }
 
-// externalPythonJSON is the body POST/PATCH /v2/evaluators answer with for a
-// python_eval: EvaluatorApiResponseSchema. Note what is ABSENT — output_type,
-// enabled, domain_id, display_name.
+// externalPythonJSON is what POST/PATCH answer with. Note what is ABSENT:
+// output_type, enabled, domain_id, display_name.
 func externalPythonJSON() map[string]any {
 	return map[string]any{
 		"_id":         "01JMDPA3QW5C1V0NJ1PW34T4E5",
@@ -34,9 +33,8 @@ func externalPythonJSON() map[string]any {
 	}
 }
 
-// internalPythonJSON is the body GET /v2/evaluators/{id} answers with for the
-// SAME evaluator: the stored record. Note `display_name` instead of `key`, plus
-// owner/domain_id/metadata/enabled/output_type.
+// internalPythonJSON is the stored record of the SAME evaluator: `display_name`
+// instead of `key`, plus owner/domain_id/metadata/enabled/output_type.
 func internalPythonJSON() map[string]any {
 	return map[string]any{
 		"_id":          "01JMDPA3QW5C1V0NJ1PW34T4E5",
@@ -54,8 +52,7 @@ func internalPythonJSON() map[string]any {
 	}
 }
 
-// internalLLMJSON is the stored record of a mode="single" llm_eval. `model` is
-// an OBJECT holding a model DOCUMENT ID — never the provider/model string.
+// internalLLMJSON's `model` is an OBJECT holding a model DOCUMENT ID.
 func internalLLMJSON() map[string]any {
 	return map[string]any{
 		"_id":          "01JMDPA3QW5C1V0NJ1PW34T4E5",
@@ -86,9 +83,6 @@ func internalLLMJSON() map[string]any {
 	}
 }
 
-// TestEvaluators_GetDecodesStoredRecord proves the by-id GET is decoded as the
-// INTERNAL shape: display_name lands in Key, the model OBJECT's id lands in
-// ModelID (and never in Model), and output_type/enabled/domain_id survive.
 func TestEvaluators_GetDecodesStoredRecord(t *testing.T) {
 	var gotPath, gotMethod string
 	c := newEvaluatorServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -131,9 +125,6 @@ func TestEvaluators_GetDecodesStoredRecord(t *testing.T) {
 	}
 }
 
-// TestEvaluators_GetDefaultsEnabledToTrue proves a stored record without the
-// `enabled` key reads as enabled (normalizeEvalToInternalEvaluator's default),
-// not as disabled.
 func TestEvaluators_GetDefaultsEnabledToTrue(t *testing.T) {
 	body := internalPythonJSON()
 	delete(body, "enabled")
@@ -150,9 +141,6 @@ func TestEvaluators_GetDefaultsEnabledToTrue(t *testing.T) {
 	}
 }
 
-// TestEvaluators_CreateDecodesExternalShape proves POST is decoded as EXTERNAL:
-// `key` lands in Key, `model` is read as a STRING, and the internal-only fields
-// stay zero rather than being invented.
 func TestEvaluators_CreateDecodesExternalShape(t *testing.T) {
 	var gotBody map[string]any
 	var gotPath, gotMethod string
@@ -195,9 +183,8 @@ func TestEvaluators_CreateDecodesExternalShape(t *testing.T) {
 	}
 }
 
-// TestEvaluators_CreateLLMJuryPayload proves the jury mapping: judge fallbacks
-// are written as the API's `[{model: …}]` objects even though the resource
-// models them as a plain list of refs, and min_successful_judges rides along.
+// Judge fallbacks are written as the API's `[{model: …}]` objects even though the
+// resource models them as a plain list of refs.
 func TestEvaluators_CreateLLMJuryPayload(t *testing.T) {
 	var gotBody map[string]any
 	c := newEvaluatorServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -258,10 +245,8 @@ func TestEvaluators_CreateLLMJuryPayload(t *testing.T) {
 	}
 }
 
-// TestEvaluators_UpdateClearsLabelsWithExplicitNull proves the $set-merge
-// workaround: dropping categorical_labels from config sends an explicit JSON
-// null (which removes them) rather than omitting the key (which would leave the
-// stored labels in place forever).
+// Omitting the key would leave the stored labels in place forever, because the
+// update is a $set merge.
 func TestEvaluators_UpdateClearsLabelsWithExplicitNull(t *testing.T) {
 	var raw map[string]json.RawMessage
 	var gotPath, gotMethod string
@@ -293,8 +278,6 @@ func TestEvaluators_UpdateClearsLabelsWithExplicitNull(t *testing.T) {
 	}
 }
 
-// TestEvaluators_UpdateOmitsLabelsKeyWhenUnmanaged proves the opposite branch:
-// with labels configured, the key carries them (never null).
 func TestEvaluators_UpdateSendsLabels(t *testing.T) {
 	var gotBody map[string]any
 	c := newEvaluatorServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -321,8 +304,6 @@ func TestEvaluators_UpdateSendsLabels(t *testing.T) {
 	}
 }
 
-// TestEvaluators_GetNotFound proves a 404 normalizes to CodeNotFound so the
-// resource can drop an out-of-band-deleted evaluator from state.
 func TestEvaluators_GetNotFound(t *testing.T) {
 	c := newEvaluatorServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -338,7 +319,6 @@ func TestEvaluators_GetNotFound(t *testing.T) {
 	}
 }
 
-// TestEvaluators_DeleteAcceptsNoContent proves the documented 204 is a success.
 func TestEvaluators_DeleteAcceptsNoContent(t *testing.T) {
 	var gotMethod, gotPath string
 	c := newEvaluatorServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -353,9 +333,6 @@ func TestEvaluators_DeleteAcceptsNoContent(t *testing.T) {
 	}
 }
 
-// TestEvaluators_DecodeExternalModelString proves an EXTERNAL body's `model`
-// (a JSON string) decodes into Model and leaves ModelID empty — the mirror of
-// TestEvaluators_GetDecodesStoredRecord.
 func TestEvaluators_DecodeExternalModelString(t *testing.T) {
 	body, err := json.Marshal(map[string]any{
 		"_id":         "01JMDPA3QW5C1V0NJ1PW34T4E5",

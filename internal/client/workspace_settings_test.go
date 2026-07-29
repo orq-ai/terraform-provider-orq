@@ -90,8 +90,6 @@ func TestWorkspaceSettings_GetProjection(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettings_GetOmitsAbsentPii locks the "never configured" shape:
-// the server omits pii_redaction entirely and the seam must not invent one.
 func TestWorkspaceSettings_GetOmitsAbsentPii(t *testing.T) {
 	h := &fakeWorkspaceSettingsHandler{settings: &platformv1.WorkspaceSettings{Key: "acme", DisplayName: "Acme"}}
 	c := newWorkspaceSettingsClient(t, h)
@@ -105,8 +103,6 @@ func TestWorkspaceSettings_GetOmitsAbsentPii(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettings_UpdateOmitsUnsetFields is the partial-update contract: a
-// nil input field must not appear on the wire, so the server leaves it alone.
 func TestWorkspaceSettings_UpdateOmitsUnsetFields(t *testing.T) {
 	h := &fakeWorkspaceSettingsHandler{settings: &platformv1.WorkspaceSettings{Key: "acme", DisplayName: "Acme"}}
 	c := newWorkspaceSettingsClient(t, h)
@@ -128,8 +124,6 @@ func TestWorkspaceSettings_UpdateOmitsUnsetFields(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettings_UpdateSendsFalseEnforce guards the classic pointer bug:
-// an explicit false must reach the wire, not be dropped as a zero value.
 func TestWorkspaceSettings_UpdateSendsFalseEnforce(t *testing.T) {
 	h := &fakeWorkspaceSettingsHandler{settings: &platformv1.WorkspaceSettings{Key: "acme"}}
 	c := newWorkspaceSettingsClient(t, h)
@@ -148,8 +142,6 @@ func TestWorkspaceSettings_UpdateSendsFalseEnforce(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettings_UpdateSendsFullPii checks the full-replace payload: only
-// the fields set on the input are carried, and a dropped field stays absent.
 func TestWorkspaceSettings_UpdateSendsFullPii(t *testing.T) {
 	h := &fakeWorkspaceSettingsHandler{settings: &platformv1.WorkspaceSettings{Key: "acme"}}
 	c := newWorkspaceSettingsClient(t, h)
@@ -160,8 +152,7 @@ func TestWorkspaceSettings_UpdateSendsFullPii(t *testing.T) {
 			Config: &PiiRedactionConfig{
 				Language: strp("en"),
 				Entities: []string{"PERSON"},
-				// on_failure / threshold deliberately dropped: a full replace must
-				// send them as absent, not carry a previous value.
+				// on_failure / threshold deliberately dropped.
 			},
 		},
 	}); err != nil {
@@ -180,9 +171,8 @@ func TestWorkspaceSettings_UpdateSendsFullPii(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettings_UpdateEmptyEntities pins the lossy encoding this seam
-// does NOT paper over: an empty entities list is sent as an empty list (the
-// server then stores no entities key at all — "redact everything").
+// The seam does not paper over the lossy encoding: an empty list is sent as an
+// empty list, and the server then stores no entities key at all.
 func TestWorkspaceSettings_UpdateEmptyEntities(t *testing.T) {
 	h := &fakeWorkspaceSettingsHandler{settings: &platformv1.WorkspaceSettings{Key: "acme"}}
 	c := newWorkspaceSettingsClient(t, h)
@@ -201,13 +191,9 @@ func TestWorkspaceSettings_UpdateEmptyEntities(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettings_UpdateSendsDisabledPii is the pointer-vs-zero-value bug
-// one level down: `enabled` is a plain proto3 bool, so `false` is its zero value
-// and carries no field presence of its own. What must survive the wire is the
-// enclosing pii_redaction MESSAGE — an omitted block means "leave PII redaction
-// alone", while `{enabled: false}` means "turn the workspace default off". If the
-// serialization collapsed the all-default message to nothing, disabling PII
-// redaction would silently become a no-op.
+// `enabled` is a plain proto3 bool with no field presence, so what must survive
+// the wire is the enclosing pii_redaction MESSAGE: an omitted block means "leave
+// PII redaction alone", `{enabled: false}` means "turn the default off".
 func TestWorkspaceSettings_UpdateSendsDisabledPii(t *testing.T) {
 	h := &fakeWorkspaceSettingsHandler{settings: &platformv1.WorkspaceSettings{Key: "acme"}}
 	c := newWorkspaceSettingsClient(t, h)
@@ -228,11 +214,8 @@ func TestWorkspaceSettings_UpdateSendsDisabledPii(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettings_UpdateSendsZeroThreshold is the same class of bug on an
-// optional double: threshold 0 is a MEANINGFUL value ("redact at any confidence")
-// and a legal one (the range is [0,1]), so a pointer to 0 must serialize as an
-// explicit 0 rather than be dropped as a zero value — dropping it would silently
-// fall back to the gateway's own default.
+// threshold 0 is a MEANINGFUL, legal value ("redact at any confidence"), so a
+// pointer to 0 must serialize as an explicit 0.
 func TestWorkspaceSettings_UpdateSendsZeroThreshold(t *testing.T) {
 	h := &fakeWorkspaceSettingsHandler{settings: &platformv1.WorkspaceSettings{Key: "acme"}}
 	c := newWorkspaceSettingsClient(t, h)
@@ -254,8 +237,6 @@ func TestWorkspaceSettings_UpdateSendsZeroThreshold(t *testing.T) {
 	}
 }
 
-// TestWorkspaceSettings_ErrorNormalized checks the domain rides the shared error
-// mapping (a server InvalidArgument becomes CodeInvalid, message preserved).
 func TestWorkspaceSettings_ErrorNormalized(t *testing.T) {
 	h := &fakeWorkspaceSettingsHandler{
 		settings:  &platformv1.WorkspaceSettings{Key: "acme"},
@@ -278,8 +259,6 @@ type staticError struct{ msg string }
 
 func (e *staticError) Error() string { return e.msg }
 
-// TestWorkspaceSettings_InputIsEmpty documents the "manages nothing" signal the
-// resource uses to answer an adopt-only config with a read instead of a write.
 func TestWorkspaceSettings_InputIsEmpty(t *testing.T) {
 	if !(WorkspaceSettingsUpdateInput{}).IsEmpty() {
 		t.Error("zero input must be empty")

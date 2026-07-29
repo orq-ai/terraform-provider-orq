@@ -51,13 +51,8 @@ func TestSameOrigin(t *testing.T) {
 	})
 }
 
-// TestSameOrigin_IPv6NoCollision proves the origin comparison treats (scheme, host,
-// port) as a field-by-field tuple rather than reassembling a "host:port" string: an
-// IPv6 literal whose brackets url.URL.Hostname() strips must never collide with a
-// different destination. https://[2001:db8::1]:8443 (host 2001:db8::1, port 8443) is
-// NOT the same origin as https://[2001:db8::1:8443] (host 2001:db8::1:8443, default
-// port), even though a naive host+":"+port renders both as "2001:db8::1:8443" —
-// attaching the bearer to the latter would leak it cross-origin.
+// A naive host+":"+port renders both of these as "2001:db8::1:8443", which would
+// attach the bearer to a different destination.
 func TestSameOrigin_IPv6NoCollision(t *testing.T) {
 	withPort := mustURL(t, "https://[2001:db8::1]:8443")
 	embedded := mustURL(t, "https://[2001:db8::1:8443]")
@@ -76,9 +71,6 @@ func TestSameOrigin_IPv6NoCollision(t *testing.T) {
 	}
 }
 
-// TestSameOrigin_HostCaseInsensitive proves DNS host comparison is case-insensitive
-// (DNS is case-insensitive), so a redirect to https://MY.ORQ.AI from origin
-// https://my.orq.ai is same-origin and not spuriously rejected.
 func TestSameOrigin_HostCaseInsensitive(t *testing.T) {
 	origin := mustURL(t, "https://my.orq.ai")
 	if !sameOrigin(mustURL(t, "https://MY.ORQ.AI/v2/x"), origin) {
@@ -102,8 +94,6 @@ func TestRejectCrossOriginRedirect(t *testing.T) {
 	}
 }
 
-// TestBearerRoundTripper_OriginScoped verifies the token is attached only to
-// requests on the configured origin, never to a foreign origin.
 func TestBearerRoundTripper_OriginScoped(t *testing.T) {
 	origin := mustURL(t, "https://my.orq.ai")
 	var gotAuth string
@@ -134,9 +124,8 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-// TestRedirectLeak_CrossOrigin is the end-to-end guard: the origin server 302s
-// to a foreign origin; the client must refuse to follow, so the foreign server
-// never receives the request (and thus never the bearer token).
+// The origin server 302s to a foreign origin; the client must refuse to follow,
+// so the foreign server never receives the request — nor the bearer token.
 func TestRedirectLeak_CrossOrigin(t *testing.T) {
 	var foreignHits, foreignSawToken int32
 	foreign := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

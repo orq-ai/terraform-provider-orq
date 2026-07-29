@@ -10,28 +10,17 @@ import (
 	"github.com/orq-ai/terraform-provider-orq/internal/restgen"
 )
 
-// ModelProviderOpenAILike is the `provider` discriminator the server stamps on
-// a CUSTOM OpenAI-compatible model (apps/platform-api/models/openai_like.go).
-// System models carry owner "system" and a real provider ("openai", ...); other
-// custom models carry a different provider. The orq_model resource manages ONLY
-// openai-like models, so Read/Import verify this marker before touching a model
-// (a mismatched id would otherwise be PATCHed / DELETEd destructively).
+// ModelProviderOpenAILike is the `provider` discriminator the server stamps on a
+// CUSTOM OpenAI-compatible model. orq_model manages ONLY those, so Read/Import
+// verify this marker before PATCHing or DELETEing anything.
 const ModelProviderOpenAILike = "openailike"
 
-// Model is the transport-agnostic projection of a CUSTOM OpenAI-compatible
-// ("openai-like") model, REST-backed via /v2/models/openai-like.
+// Model is the projection of a custom openai-like model.
 //
-// The secret api_key is never round-tripped (only its env-var NAME appears, as
-// configuration.api_key_env), so the resource keeps it config-authoritative.
-// The cost + capability fields below ARE exposed in the list/read response
-// (ModelDocument / metadata), so they are refreshed to surface out-of-band
-// drift; they are pointers so the resource can tell "server omitted this for
-// this model_type" (nil) from a real value. max_tokens / temperature /
-// has_reasoning are encoded into the server's `parameters` array (not clean
-// scalars) and stay config-authoritative. BaseURL lives under the server's
-// `configuration` sub-object; Region lives under `metadata` — an openai-like
-// model does NOT populate configuration.region (buildOpenAILikeMetadata stores
-// it on metadata.region instead) — and both are surfaced flat here.
+// The secret api_key is never round-tripped, so the resource keeps it
+// config-authoritative; so are max_tokens / temperature / has_reasoning, which
+// the server encodes into a `parameters` array rather than clean scalars. The
+// cost and capability fields ARE echoed, so they are refreshed to surface drift.
 type Model struct {
 	ID          string
 	RefID       string // human-readable ref: provider/model_id (workspaceKey@provider/model_id for private models)
@@ -46,7 +35,7 @@ type Model struct {
 	Created     string // RFC 3339 (UTC)
 	Updated     string // RFC 3339 (UTC)
 
-	// Refreshed cost + capability fields (nil => server omitted it for this model).
+	// Nil distinguishes "the server omitted this for this model_type" from a value.
 	InputCost           *float64
 	OutputCost          *float64
 	CostPerImage        *float64
@@ -56,9 +45,8 @@ type Model struct {
 	SupportsImageEdit   *bool
 }
 
-// ModelCreateInput carries the fields for a create. The six leading fields are
-// required by POST /v2/models/openai-like; the rest are optional (nil => omitted
-// from the sparse write).
+// ModelCreateInput's six leading fields are required by the API; the rest are
+// omitted from the write when nil.
 type ModelCreateInput struct {
 	APIKey      string
 	BaseURL     string
@@ -80,12 +68,9 @@ type ModelCreateInput struct {
 	SupportsImageEdit   *bool
 }
 
-// ModelUpdateInput is the update patch. There is no APIKey: the update endpoint
-// (PATCH /v2/models/openai-like/{id}) does not accept it — the server re-probes
-// the target API with the stored encrypted key — so the secret is immutable in
-// place and the resource marks api_key RequiresReplace. DisplayName, ModelType
-// and Region are required by the update body; BaseURL and ModelID are always
-// sent (they are Required resource attributes).
+// ModelUpdateInput has no APIKey: the update endpoint does not accept one, so
+// the secret is immutable in place and the resource marks api_key
+// RequiresReplace.
 type ModelUpdateInput struct {
 	ID          string
 	BaseURL     string
@@ -107,39 +92,24 @@ type ModelUpdateInput struct {
 	SupportsImageEdit   *bool
 }
 
-// ModelsAPI is the per-resource seam for custom openai-like models (REST-backed).
-// There is no single-GET route (only the LIST endpoint, apps/platform-api/models/
-// routes.go), so Get lists /v2/models and filters by id. A list-miss is NOT
-// normalized to not_found: the list applies workspace/project scope + visibility
-// filters, so an absent id may be invisible to this credential rather than deleted,
-// and dropping it from state would make the next apply create a DUPLICATE. Get
-// therefore returns a non-not_found error on a miss. A 404/410 from the LIST endpoint
-// itself is likewise NOT authoritative — the collection route cannot state that one
-// id is gone, so such a status (a routing / reverse-proxy / deployment anomaly) is
-// demoted to a non-not_found error too. Only Delete's own /:id route is authoritative
-// for not_found ("gone").
+// ModelsAPI has no single-GET route, so Get and Resolve both list /v2/models and
+// filter. Only Delete's own /:id route is authoritative for not_found.
 type ModelsAPI interface {
 	Get(ctx context.Context, id string) (*Model, error)
-	// Resolve maps a user-supplied model reference — a human-readable ref_id
-	// (provider/model_id, or workspaceKey@provider/model_id for a private model)
-	// or a model document id — to its catalog document. See the method for the
-	// exact id-wins / unique-ref / ambiguity / not-found semantics.
+	// Resolve maps a ref_id (provider/model_id, or workspaceKey@provider/model_id
+	// for a private model) or a document id to its catalog document.
 	Resolve(ctx context.Context, ref string) (*Model, error)
 	Create(ctx context.Context, in ModelCreateInput) (*Model, error)
 	Update(ctx context.Context, in ModelUpdateInput) (*Model, error)
 	Delete(ctx context.Context, id string) error
 }
 
-// restModels implements ModelsAPI over the REST /v2/models/openai-like endpoints.
 type restModels struct {
 	c *restgen.ClientWithResponses
 }
 
-// modelWire mirrors the JSON body every model read/write returns (the list
-// item, create and update responses all share the ModelDocument shape).
-// Decoding the raw body — as the guardrail adapter does — avoids depending
-// on oapi-codegen's per-operation anonymous response struct types. Only the
-// reliably-echoed fields are pulled out; everything else on the wire is ignored.
+// modelWire mirrors the ModelDocument body every model read/write returns. Only
+// the reliably-echoed fields are pulled out.
 type modelWire struct {
 	ID            string   `json:"id"`
 	RefID         string   `json:"refId"`
@@ -156,9 +126,8 @@ type modelWire struct {
 		Region  *string `json:"region"`
 	} `json:"configuration"`
 	Metadata struct {
-		// region is the AUTHORITATIVE location for a custom openai-like model's
-		// region (buildOpenAILikeMetadata writes it here; configuration.region is
-		// left unset for this provider).
+		// metadata.region is where an openai-like model's region actually lives;
+		// configuration.region is left unset for this provider.
 		Region              *string  `json:"region"`
 		CostPerImage        *float64 `json:"cost_per_image"`
 		SupportsVision      *bool    `json:"supports_vision"`
@@ -195,8 +164,6 @@ func (w *modelWire) toModel() Model {
 	if w.Configuration.BaseURL != nil {
 		m.BaseURL = *w.Configuration.BaseURL
 	}
-	// region: prefer metadata.region (where openai-like models store it); fall
-	// back to configuration.region for robustness against other shapes.
 	m.Region = firstNonEmpty(w.Metadata.Region, w.Configuration.Region)
 	return m
 }
@@ -211,8 +178,6 @@ func firstNonEmpty(ps ...*string) string {
 	return ""
 }
 
-// decodeModelBody parses a single-model JSON body (create/update response) into
-// the transport-neutral type.
 func decodeModelBody(body []byte) (*Model, error) {
 	var w modelWire
 	if err := json.Unmarshal(body, &w); err != nil {
@@ -222,8 +187,6 @@ func decodeModelBody(body []byte) (*Model, error) {
 	return &m, nil
 }
 
-// modelFromDocument projects the generated ModelDocument (list item) onto the
-// transport-neutral Model.
 func modelFromDocument(d *restgen.ModelDocument) Model {
 	m := Model{
 		ID:                  d.Id,
@@ -249,8 +212,6 @@ func modelFromDocument(d *restgen.ModelDocument) Model {
 	if d.Configuration.BaseUrl != nil {
 		m.BaseURL = *d.Configuration.BaseUrl
 	}
-	// region: prefer metadata.region (where openai-like models store it); fall
-	// back to configuration.region for robustness against other shapes.
 	m.Region = firstNonEmpty(d.Metadata.Region, d.Configuration.Region)
 	return m
 }
@@ -262,13 +223,9 @@ func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
 	}
 	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		mapped := mapRESTStatus(resp.StatusCode(), resp.Body)
-		// Get hits the COLLECTION endpoint — there is NO GET-by-id route. A 404/410
-		// here is a routing / reverse-proxy / deployment anomaly (the list route is
-		// missing), NOT an authoritative "this model is gone": the collection cannot
-		// make that statement about a single id. Normalizing it to not_found would make
-		// Read drop the resource from state and the next apply create a DUPLICATE, so
-		// demote a not_found status to a non-not_found error (only Delete's own /:id
-		// route is authoritative for not_found). Every other status passes through.
+		// The COLLECTION endpoint cannot say a single id is gone, so a 404/410 here
+		// is demoted rather than passed on as not_found — which would make Read drop
+		// the resource and the next apply create a DUPLICATE.
 		if CodeOf(mapped) == CodeNotFound {
 			return nil, &Error{
 				Code: CodeUnavailable,
@@ -289,14 +246,9 @@ func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
 		m := modelFromDocument(d)
 		return &m, nil
 	}
-	// Not present in the list. There is NO GET-by-id route, and the list applies
-	// workspace/project scope + visibility filters (ListModels → filterModelsByScope),
-	// so an absent id may be genuinely deleted OR merely invisible to this credential.
-	// We cannot tell the two apart, and treating an invisible model as deleted would
-	// drop it from state and make the next apply create a DUPLICATE. Refuse to guess:
-	// return a NON-not_found error so Read surfaces it instead of silently removing the
-	// resource. A genuinely deleted model is removed with `terraform state rm` (or is
-	// reported gone by Delete's authoritative 404).
+	// The list applies workspace/project scope and visibility filters, so an
+	// absent id may be deleted OR merely invisible to this credential. Refuse to
+	// guess: a NON-not_found error keeps it in state.
 	return nil, &Error{
 		Code: CodeInternal,
 		Message: "model " + id + " is not visible in the workspace model catalog; it may " +
@@ -307,24 +259,10 @@ func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
 	}
 }
 
-// Resolve maps a user-supplied model reference to its catalog document, listing
-// /v2/models (the same list plumbing Get uses) and applying these EXACT rules:
-//
-//  1. If ref EXACTLY equals a document's `id`, that document wins outright — an id
-//     match is authoritative. Some backends use slug-shaped document ids that
-//     contain slashes, so the id-vs-ref decision is made purely by equality, never
-//     by a "looks like a ref" (contains-slash) heuristic that would misroute a
-//     slug-shaped id to the ref branch.
-//  2. Otherwise, collect the documents whose `ref_id` (provider/model_id, or
-//     workspaceKey@provider/model_id for a private model) EXACTLY equals ref.
-//     Exactly one match → that document. More than one → an ambiguity error that
-//     names the candidate document ids and tells the caller to use the id. Zero →
-//     a not-found-style error noting BOTH interpretations were tried, pointing at
-//     `ref_id` in GET /v2/models.
-//
-// A 404/410 from the LIST/collection endpoint is NOT authoritative deletion (there
-// is no lookup-by-id route), so — like Get — such a status is demoted to a plain,
-// NON-not_found error rather than being reported as a resolved-away model.
+// Resolve maps a model reference to its catalog document: an exact `id` match
+// wins outright, otherwise the unique exact `ref_id` match does. The id-vs-ref
+// decision is made purely by equality, never by a "looks like a ref"
+// contains-slash heuristic, because some backends use slug-shaped document ids.
 func (r *restModels) Resolve(ctx context.Context, ref string) (*Model, error) {
 	resp, err := r.c.ModelListWithResponse(ctx)
 	if err != nil {
@@ -332,10 +270,6 @@ func (r *restModels) Resolve(ctx context.Context, ref string) (*Model, error) {
 	}
 	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		mapped := mapRESTStatus(resp.StatusCode(), resp.Body)
-		// A not_found status from the collection endpoint is a routing / reverse-proxy
-		// / deployment anomaly, not an authoritative "the referenced model is gone".
-		// Demote it to a NON-not_found error so a caller never treats a resolve-time
-		// list glitch as a deleted model.
 		if CodeOf(mapped) == CodeNotFound {
 			return nil, &Error{
 				Code: CodeUnavailable,
@@ -350,7 +284,7 @@ func (r *restModels) Resolve(ctx context.Context, ref string) (*Model, error) {
 
 	docs := *resp.JSON200
 
-	// 1. Exact id match wins outright (authoritative), decided by equality only.
+	// 1. Exact id match wins outright.
 	for i := range docs {
 		if docs[i].Id == ref {
 			m := modelFromDocument(&docs[i])
@@ -457,10 +391,6 @@ func (r *restModels) Delete(ctx context.Context, id string) error {
 	}
 	switch resp.StatusCode() {
 	case http.StatusOK, http.StatusNoContent, http.StatusAccepted:
-		// A genuine delete replies 200 with an EMPTY body; a REFUSED delete replies
-		// 200 with a JSON `{"message": ...}` body and leaves the model intact. Treat
-		// the refusal as a conflict so the resource keeps the still-live model in
-		// state instead of silently orphaning it — see modelDeleteRefusalMessage.
 		if msg := modelDeleteRefusalMessage(resp.Body); msg != "" {
 			return &Error{
 				Code: CodeConflict,
@@ -475,16 +405,10 @@ func (r *restModels) Delete(ctx context.Context, id string) error {
 	}
 }
 
-// modelDeleteRefusalMessage returns the server's refusal message when a 2xx
-// delete body signals a REFUSED (not performed) delete, or "" for a genuine
-// delete. The server replies 200 with an empty body on success and 200 with a
-// JSON `{"message": ...}` body when it declines and leaves the model intact —
-// e.g. the model is still referenced by experiments ("The model is being used
-// in N experiments and cannot be deleted. Try disabling it instead.") or is a
-// system model ("This model is a system model and cannot be deleted.")
-// (apps/platform-api/models/delete.go:45,53-54,99-100). Presence of a non-empty
-// message is the structural signal — no string matching required; an empty body
-// fails to unmarshal and reads as a genuine delete.
+// modelDeleteRefusalMessage detects a REFUSED delete hidden behind a 2xx: the
+// server replies 200 with an EMPTY body on success and 200 with a JSON
+// `{"message": ...}` body when it declines and leaves the model intact. The
+// presence of a message is the structural signal; no string matching needed.
 func modelDeleteRefusalMessage(body []byte) string {
 	var refusal struct {
 		Message string `json:"message"`

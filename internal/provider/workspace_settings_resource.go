@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
@@ -27,60 +28,11 @@ var (
 	_ resource.ResourceWithImportState = &workspaceSettingsResource{}
 )
 
-// piiLanguages / piiFailureModes are the closed enums the server validates
-// (libs/go/models plugins.go). They are small and stable, so mirroring them
-// client-side turns an apply-time 400 into a `terraform validate` error.
-//
-// The ENTITY catalog is deliberately NOT mirrored: it is per-language, long, and
-// grows with every detector release — a client-side copy would reject values the
-// server accepts. Entities are validated server-side only.
 var (
 	piiLanguages    = []string{"en", "nl"}
 	piiFailureModes = []string{"block", "passthrough"}
 )
 
-// displayNameWhitespaceValidator rejects a display_name that is not already
-// trimmed (or that is whitespace-only). See the schema description for why this
-// is a plan-time error rather than a silent normalization.
-//
-// It deliberately uses strings.TrimSpace — byte-for-byte the same call the
-// server makes in normalizeDisplayName (apps/platform-api/workspacesettings
-// connect_routes.go) — rather than a regexp. Go's `\S` is ASCII-only, so a
-// pattern like `^\S(.*\S)?$` accepts a name padded with U+00A0 (NBSP) or U+2003
-// (EM SPACE) that the server's Unicode-aware TrimSpace strips, which is exactly
-// the perpetual diff this validator exists to prevent.
-type displayNameWhitespaceValidator struct{}
-
-func (displayNameWhitespaceValidator) Description(context.Context) string {
-	return "must not begin or end with whitespace and must not be whitespace-only (the server trims it, which would cause a perpetual diff)"
-}
-
-func (v displayNameWhitespaceValidator) MarkdownDescription(ctx context.Context) string {
-	return v.Description(ctx)
-}
-
-func (displayNameWhitespaceValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
-	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
-		return
-	}
-	value := req.ConfigValue.ValueString()
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		resp.Diagnostics.AddAttributeError(req.Path, "Empty workspace display name",
-			"display_name must contain at least one non-whitespace character: the server rejects a name that is "+
-				"empty or only whitespace.")
-		return
-	}
-	if trimmed != value {
-		resp.Diagnostics.AddAttributeError(req.Path, "Leading or trailing whitespace in display name",
-			fmt.Sprintf("display_name must not begin or end with whitespace (this includes non-ASCII whitespace such "+
-				"as U+00A0). The server trims it and would store %q, so the configured value would never match state — "+
-				"either a perpetual diff or an \"inconsistent result after apply\" error. Write it as %q.",
-				trimmed, trimmed))
-	}
-}
-
-// NewWorkspaceSettingsResource is the factory registered on the provider.
 func NewWorkspaceSettingsResource() resource.Resource { return &workspaceSettingsResource{} }
 
 type workspaceSettingsResource struct {
@@ -145,9 +97,6 @@ func (r *workspaceSettingsResource) Schema(_ context.Context, _ resource.SchemaR
 					"plan-time error names the problem instead of hiding it. The check mirrors the server's " +
 					"Unicode-aware trim, so padding with a non-breaking space (U+00A0) is rejected too.",
 				Validators: []validator.String{
-					// UTF8LengthBetween counts code points, matching the server's
-					// protovalidate min_len/max_len; plain LengthBetween counts UTF-8
-					// bytes and would reject e.g. 65 two-byte characters as 130.
 					stringvalidator.UTF8LengthBetween(1, 128),
 					displayNameWhitespaceValidator{},
 				},
@@ -161,6 +110,9 @@ func (r *workspaceSettingsResource) Schema(_ context.Context, _ resource.SchemaR
 				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"pii_redaction": schema.SingleNestedAttribute{
+				// Optional but deliberately NOT Computed: Computed would resolve an
+				// omitted block to the server value, conflating "unmanaged" with
+				// "managed as whatever is stored".
 				Optional: true,
 				MarkdownDescription: "Workspace-default PII redaction plugin configuration, applied as a floor " +
 					"to gateway requests that send no plugins of their own.\n\n" +
@@ -231,6 +183,40 @@ func (r *workspaceSettingsResource) Schema(_ context.Context, _ resource.SchemaR
 	}
 }
 
+// displayNameWhitespaceValidator uses strings.TrimSpace rather than a regexp
+// because Go's `\S` is ASCII-only: it would accept a name padded with U+00A0 or
+// U+2003 that the server's Unicode-aware trim strips.
+type displayNameWhitespaceValidator struct{}
+
+func (displayNameWhitespaceValidator) Description(context.Context) string {
+	return "must not begin or end with whitespace and must not be whitespace-only (the server trims it, which would cause a perpetual diff)"
+}
+
+func (v displayNameWhitespaceValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (displayNameWhitespaceValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	value := req.ConfigValue.ValueString()
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		resp.Diagnostics.AddAttributeError(req.Path, "Empty workspace display name",
+			"display_name must contain at least one non-whitespace character: the server rejects a name that is "+
+				"empty or only whitespace.")
+		return
+	}
+	if trimmed != value {
+		resp.Diagnostics.AddAttributeError(req.Path, "Leading or trailing whitespace in display name",
+			fmt.Sprintf("display_name must not begin or end with whitespace (this includes non-ASCII whitespace such "+
+				"as U+00A0). The server trims it and would store %q, so the configured value would never match state — "+
+				"either a perpetual diff or an \"inconsistent result after apply\" error. Write it as %q.",
+				trimmed, trimmed))
+	}
+}
+
 func (r *workspaceSettingsResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
@@ -244,19 +230,88 @@ func (r *workspaceSettingsResource) Configure(_ context.Context, req resource.Co
 	r.settings = c.WorkspaceSettings()
 }
 
-// updateInput builds the partial-update payload. A null/unknown attribute yields
-// a nil pointer, which the client omits from the request — so an attribute this
-// resource does not set is never written and keeps its server value.
-// pii_redaction is all-or-nothing: absent means "not managed", present means
-// "replace the stored object with exactly this".
-//
-// Callers pass the CONFIG, never the plan. For an Optional+Computed attribute a
-// null config plans as the PRIOR STATE, so a plan-derived payload would re-send
-// values the operator never asked this resource to manage: it would fire a
-// workspace KV propagation on every apply for unchanged values, and — because
-// the server TRIMS display_name — it would silently rename a workspace whose
-// stored name happens to carry stray whitespace. pii_redaction is not Computed,
-// so its config and plan are identical either way.
+// --- CRUD --------------------------------------------------------------------
+
+// Create ADOPTS the settings singleton: there is no create RPC, so it writes the
+// managed attributes and reads the rest back.
+func (r *workspaceSettingsResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	resp.Diagnostics.Append(r.adoptOrUpdate(ctx, req.Plan, req.Config, &resp.State, "Unable to adopt workspace settings")...)
+}
+
+func (r *workspaceSettingsResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	resp.Diagnostics.Append(r.adoptOrUpdate(ctx, req.Plan, req.Config, &resp.State, "Unable to update workspace settings")...)
+}
+
+func (r *workspaceSettingsResource) adoptOrUpdate(ctx context.Context, plan tfsdk.Plan, config tfsdk.Config, state *tfsdk.State, errSummary string) diag.Diagnostics {
+	var diags diag.Diagnostics
+	var planned, cfg workspaceSettingsResourceModel
+	diags.Append(plan.Get(ctx, &planned)...)
+	// The CONFIG decides what is written; the plan carries what lands in state.
+	diags.Append(config.Get(ctx, &cfg)...)
+	if diags.HasError() {
+		return diags
+	}
+	in, inDiags := cfg.updateInput(ctx)
+	diags.Append(inDiags...)
+	if diags.HasError() {
+		return diags
+	}
+	s, err := r.writeSettings(ctx, in)
+	if err != nil {
+		diags.AddError(errSummary, errDetail(err))
+		return diags
+	}
+	diags.Append(applyWrittenSettings(s, &planned)...)
+	diags.Append(state.Set(ctx, &planned)...)
+	return diags
+}
+
+func (r *workspaceSettingsResource) writeSettings(ctx context.Context, in client.WorkspaceSettingsUpdateInput) (*client.WorkspaceSettings, error) {
+	if in.IsEmpty() {
+		return r.settings.Get(ctx)
+	}
+	return r.settings.Update(ctx, in)
+}
+
+func (r *workspaceSettingsResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state workspaceSettingsResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	s, err := r.settings.Get(ctx)
+	if err != nil {
+		if isNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Unable to read workspace settings", errDetail(err))
+		return
+	}
+	applyReadSettings(s, &state)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+// Delete removes the resource from Terraform state ONLY: the singleton has no
+// delete RPC and reverting to an invented default would be a destructive guess.
+func (r *workspaceSettingsResource) Delete(_ context.Context, _ resource.DeleteRequest, resp *resource.DeleteResponse) {
+	resp.Diagnostics.AddWarning("Workspace settings left unchanged",
+		"orq_workspace_settings was removed from Terraform state, but NOTHING was changed in the workspace: "+
+			"the settings singleton cannot be deleted and its values keep whatever was last applied "+
+			"(display name, enforce_enabled_models, PII redaction). Change them explicitly if that is not what you want.")
+}
+
+// ImportState accepts any id (the documented sentinel is `workspace`): the
+// management key already selects the workspace. The id only seeds `key`, which
+// the framework requires import to populate and the following Read overwrites.
+func (r *workspaceSettingsResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("key"), req.ID)...)
+}
+
+// --- config -> request -------------------------------------------------------
+
+// updateInput builds the partial-update payload from the CONFIG. A null/unknown
+// attribute yields a nil pointer, which the client omits from the request.
 func (m *workspaceSettingsResourceModel) updateInput(ctx context.Context) (client.WorkspaceSettingsUpdateInput, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	in := client.WorkspaceSettingsUpdateInput{
@@ -282,172 +337,51 @@ func (m *workspaceSettingsResourceModel) updateInput(ctx context.Context) (clien
 	return in, diags
 }
 
-// applySettings writes the server state onto m.
-//
-// writePath distinguishes create/update from read, and the two paths have
-// OPPOSITE authorities:
-//
-//   - WRITE (create/update): the PLAN wins for every known value, top-level
-//     scalars and the whole pii_redaction subtree alike (preservePlannedPii).
-//     The read-back may only fill values the plan left unknown. Anything else
-//     risks "Provider produced inconsistent result after apply" — including a
-//     managed pii_redaction the response omits entirely, which is kept as
-//     planned with a warning rather than nulled.
-//   - READ: the SERVER wins, so real out-of-band drift surfaces — including the
-//     disappearance of a managed block, which is dropped so the next plan
-//     re-creates it.
-func applySettings(s *client.WorkspaceSettings, m *workspaceSettingsResourceModel, writePath bool) diag.Diagnostics {
-	var diags diag.Diagnostics
-	// key is Computed-only, so it always takes the server value.
-	m.Key = types.StringValue(s.Key)
-	if writePath {
-		// Post-apply state must equal the plan for every KNOWN planned value, so a
-		// planned display_name / enforce_enabled_models wins over the read-back
-		// (mirrors preservePlannedFloat on orq_model). This matters because the
-		// write is CONFIG-derived: for an attribute the config leaves out, the plan
-		// carries the prior state and the server value is not written — taking the
-		// read-back here would break plan consistency whenever the two disagree.
-		// The next refresh reconciles state with the server.
-		m.DisplayName = preservePlannedString(m.DisplayName, s.DisplayName)
-		m.EnforceEnabledModels = preservePlannedBool(m.EnforceEnabledModels, s.EnforceEnabledModels)
-	} else {
-		// Read: the server is authoritative, so drift surfaces.
-		m.DisplayName = types.StringValue(s.DisplayName)
-		m.EnforceEnabledModels = types.BoolValue(s.EnforceEnabledModels)
-	}
+// --- server -> state ---------------------------------------------------------
 
-	// Retain-on-null: an UNMANAGED pii_redaction (null in plan/state) is never
-	// populated from the server. Importing the server value would both invent a
-	// block the operator never wrote and produce a perpetual diff against a
-	// config that has none.
+// applyWrittenSettings assembles post-apply state: the PLAN wins for every known
+// value and the read-back may only fill what the plan left unknown.
+func applyWrittenSettings(s *client.WorkspaceSettings, m *workspaceSettingsResourceModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+	m.Key = types.StringValue(s.Key)
+	m.DisplayName = preservePlannedString(m.DisplayName, s.DisplayName)
+	m.EnforceEnabledModels = preservePlannedBool(m.EnforceEnabledModels, s.EnforceEnabledModels)
+
 	if m.PiiRedaction == nil {
 		return diags
 	}
 	if s.PiiRedaction == nil {
-		if writePath {
-			diags.AddWarning("PII redaction missing from the read-back",
-				"The workspace settings update succeeded but the read-back carried no pii_redaction object. "+
-					"The configured block was kept in state; the next refresh will surface the real server value.")
-			m.PiiRedaction = preservePlannedPii(m.PiiRedaction, nil)
-			return diags
-		}
-		// Read path: the workspace default was removed out of band. Drop it so
-		// the next plan re-creates it from config.
-		m.PiiRedaction = nil
-		return diags
+		diags.AddWarning("PII redaction missing from the read-back",
+			"The workspace settings update succeeded but the read-back carried no pii_redaction object. "+
+				"The configured block was kept in state; the next refresh will surface the real server value.")
 	}
-	if writePath {
-		m.PiiRedaction = preservePlannedPii(m.PiiRedaction, s.PiiRedaction)
-		return diags
-	}
-	m.PiiRedaction = applyPii(s.PiiRedaction, m.PiiRedaction)
+	m.PiiRedaction = preservePlannedPii(m.PiiRedaction, s.PiiRedaction)
 	return diags
 }
 
-// preservePlannedPii is the pii_redaction counterpart of preservePlannedString /
-// preservePlannedBool: on the WRITE path every KNOWN planned value wins and the
-// read-back may only fill values the plan left UNKNOWN.
-//
-// Overwriting a known planned nested value with the response is what Terraform
-// rejects as "Provider produced inconsistent result after apply", and `entities`
-// makes that a live hazard rather than a theoretical one: it is an ordered,
-// case-sensitive list, so any difference in order or casing between the request
-// and the response would abort the apply. (The server as of orquesta-web
-// 4c21d6f4f4 echoes entities verbatim — see the `entities` schema description —
-// so in practice there is nothing to differ, but the provider must not depend on
-// that to stay correct.)
-//
-// Unlike the Optional+Computed scalars, the nested attributes here are Optional
-// ONLY: a null is a real, deliberate planned value ("this field is not in the
-// block") and must be preserved, never refilled from the server. Only an unknown
-// — which requires an unresolved reference in the operator's config — falls back
-// to the read-back.
-func preservePlannedPii(planned *workspaceSettingsPiiModel, srv *client.PiiRedaction) *workspaceSettingsPiiModel {
-	if planned == nil {
-		return nil
-	}
-	var srvEnabled bool
-	var srvCfg *client.PiiRedactionConfig
-	if srv != nil {
-		srvEnabled = srv.Enabled
-		srvCfg = srv.Config
-	}
-	out := &workspaceSettingsPiiModel{Enabled: preservePlannedBool(planned.Enabled, srvEnabled)}
-	// A config sub-block the plan does not have is never invented from the
-	// response, and one the plan does have is never dropped: `config` presence is
-	// itself a planned value.
-	if planned.Config == nil {
-		return out
-	}
-	if srvCfg == nil {
-		srvCfg = &client.PiiRedactionConfig{}
-	}
-	out.Config = &workspaceSettingsPiiConfigModel{
-		Language:  preservePlannedOptString(planned.Config.Language, srvCfg.Language),
-		Entities:  preservePlannedEntities(planned.Config.Entities, srvCfg.Entities),
-		OnFailure: preservePlannedOptString(planned.Config.OnFailure, srvCfg.OnFailure),
-		Threshold: preservePlannedOptFloat(planned.Config.Threshold, srvCfg.Threshold),
-	}
-	return out
-}
+// applyReadSettings refreshes state from the server, which wins outright so that
+// out-of-band drift surfaces. An UNMANAGED pii_redaction (null in state) is never
+// populated: importing it would invent a block the operator never wrote.
+func applyReadSettings(s *client.WorkspaceSettings, m *workspaceSettingsResourceModel) {
+	m.Key = types.StringValue(s.Key)
+	m.DisplayName = types.StringValue(s.DisplayName)
+	m.EnforceEnabledModels = types.BoolValue(s.EnforceEnabledModels)
 
-// preservePlannedOptString / preservePlannedOptFloat keep ANY known planned
-// value — including an explicit null, which for an Optional-only attribute means
-// "absent from the block" — and consult the server only for an unknown.
-func preservePlannedOptString(planned types.String, srv *string) types.String {
-	if !planned.IsUnknown() {
-		return planned
+	if m.PiiRedaction == nil {
+		return
 	}
-	return optStringPtr(srv)
-}
-
-func preservePlannedOptFloat(planned types.Float64, srv *float64) types.Float64 {
-	if !planned.IsUnknown() {
-		return planned
+	if s.PiiRedaction == nil {
+		m.PiiRedaction = nil
+		return
 	}
-	return optFloat64Ptr(srv)
-}
-
-// preservePlannedEntities keeps the planned list verbatim — order and casing
-// included — whenever it is fully known. A list that is unknown, or that carries
-// an unknown element, cannot be written to state as-is (post-apply state must be
-// wholly known), so it is resolved from the read-back through applyEntities.
-func preservePlannedEntities(planned types.List, srv []string) types.List {
-	if listFullyKnown(planned) {
-		return planned
-	}
-	return applyEntities(planned, srv)
-}
-
-// listFullyKnown reports whether l can be written to state unchanged: a null
-// list qualifies, an unknown list or one holding any unknown element does not.
-func listFullyKnown(l types.List) bool {
-	if l.IsUnknown() {
-		return false
-	}
-	if l.IsNull() {
-		return true
-	}
-	for _, e := range l.Elements() {
-		if e.IsUnknown() {
-			return false
-		}
-	}
-	return true
+	m.PiiRedaction = applyPii(s.PiiRedaction, m.PiiRedaction)
 }
 
 // applyPii projects the server's pii_redaction onto the managed block. cur (the
-// prior state) is consulted only to resolve the empty-entities encoding — see
-// applyEntities.
-//
-// READ PATH ONLY. On create/update the plan is authoritative and
-// preservePlannedPii is used instead; calling this there would overwrite known
-// planned values with the response and break plan consistency.
+// prior state) is consulted only to resolve the empty-entities encoding.
 func applyPii(srv *client.PiiRedaction, cur *workspaceSettingsPiiModel) *workspaceSettingsPiiModel {
 	out := &workspaceSettingsPiiModel{Enabled: types.BoolValue(srv.Enabled)}
 	if srv.Config == nil {
-		// The stored document has no `config` key: the block was written with an
-		// enable flag alone (or the config was dropped out of band).
 		return out
 	}
 	curEntities := types.ListNull(types.StringType)
@@ -463,12 +397,79 @@ func applyPii(srv *client.PiiRedaction, cur *workspaceSettingsPiiModel) *workspa
 	return out
 }
 
-// applyEntities resolves the one lossy field in the round trip: the server
-// stores NO `entities` key for an empty list (both spellings mean "redact
-// everything"), so a read can never tell `entities = []` from an omitted
-// attribute. cur — the planned/prior value, which IS authoritative for that
-// distinction — decides: a non-null empty config stays `[]`, an absent one stays
-// null. A server list always wins outright, so an out-of-band change surfaces.
+func preservePlannedPii(planned *workspaceSettingsPiiModel, srv *client.PiiRedaction) *workspaceSettingsPiiModel {
+	if planned == nil {
+		return nil
+	}
+	var srvEnabled bool
+	var srvCfg *client.PiiRedactionConfig
+	if srv != nil {
+		srvEnabled = srv.Enabled
+		srvCfg = srv.Config
+	}
+	out := &workspaceSettingsPiiModel{Enabled: preservePlannedBool(planned.Enabled, srvEnabled)}
+	// `config` presence is itself a planned value: never invented, never dropped.
+	if planned.Config == nil {
+		return out
+	}
+	if srvCfg == nil {
+		srvCfg = &client.PiiRedactionConfig{}
+	}
+	out.Config = &workspaceSettingsPiiConfigModel{
+		Language:  preservePlannedOptString(planned.Config.Language, srvCfg.Language),
+		Entities:  preservePlannedEntities(planned.Config.Entities, srvCfg.Entities),
+		OnFailure: preservePlannedOptString(planned.Config.OnFailure, srvCfg.OnFailure),
+		Threshold: preservePlannedOptFloat(planned.Config.Threshold, srvCfg.Threshold),
+	}
+	return out
+}
+
+// preservePlannedOptString / preservePlannedOptFloat differ from their top-level
+// counterparts on purpose: the nested pii attributes are Optional but NOT
+// Computed, so a planned null is a real value ("absent from the block") and must
+// be preserved rather than refilled from the server.
+func preservePlannedOptString(planned types.String, srv *string) types.String {
+	if !planned.IsUnknown() {
+		return planned
+	}
+	return optStringPtr(srv)
+}
+
+func preservePlannedOptFloat(planned types.Float64, srv *float64) types.Float64 {
+	if !planned.IsUnknown() {
+		return planned
+	}
+	return optFloat64Ptr(srv)
+}
+
+func preservePlannedEntities(planned types.List, srv []string) types.List {
+	if listFullyKnown(planned) {
+		return planned
+	}
+	return applyEntities(planned, srv)
+}
+
+// listFullyKnown reports whether l can be written to post-apply state unchanged:
+// a null list qualifies, an unknown list or one holding an unknown element does
+// not.
+func listFullyKnown(l types.List) bool {
+	if l.IsUnknown() {
+		return false
+	}
+	if l.IsNull() {
+		return true
+	}
+	for _, e := range l.Elements() {
+		if e.IsUnknown() {
+			return false
+		}
+	}
+	return true
+}
+
+// applyEntities resolves the one lossy field in the round trip: the server stores
+// NO `entities` key for an empty list, so a read cannot tell `entities = []` from
+// an omitted attribute. cur — the planned/prior value — decides.
 func applyEntities(cur types.List, srv []string) types.List {
 	if len(srv) > 0 {
 		return stringListValue(srv)
@@ -479,14 +480,9 @@ func applyEntities(cur types.List, srv []string) types.List {
 	if cur.IsNull() {
 		return cur
 	}
-	return stringListValue(nil) // known and empty => [] (non-null)
+	return stringListValue(nil)
 }
 
-// preservePlannedString / preservePlannedBool keep a KNOWN planned value and
-// fall back to the server value only when the plan left the attribute unknown
-// (a create with no config value). They exist for the same reason as
-// preservePlannedFloat on orq_model: the Create/Update contract requires the
-// post-apply state to equal the plan for every known value.
 func preservePlannedString(planned types.String, srv string) types.String {
 	if !planned.IsNull() && !planned.IsUnknown() {
 		return planned
@@ -499,109 +495,4 @@ func preservePlannedBool(planned types.Bool, srv bool) types.Bool {
 		return planned
 	}
 	return types.BoolValue(srv)
-}
-
-// writeSettings performs the adopt/update round trip: it PATCHes the fields this
-// resource manages and returns the fresh settings. A configuration that manages
-// nothing writes nothing — it reads instead, so a read-only use of this resource
-// never needs the workspace.update verb and never fires a settings-propagation
-// command.
-func (r *workspaceSettingsResource) writeSettings(ctx context.Context, in client.WorkspaceSettingsUpdateInput) (*client.WorkspaceSettings, error) {
-	if in.IsEmpty() {
-		return r.settings.Get(ctx)
-	}
-	return r.settings.Update(ctx, in)
-}
-
-// Create ADOPTS the workspace settings singleton. There is no create RPC (the
-// object always exists), so this writes the managed attributes and reads the
-// rest back.
-func (r *workspaceSettingsResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan, cfg workspaceSettingsResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	// The CONFIG decides what is written; the plan carries what lands in state.
-	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	in, diags := cfg.updateInput(ctx)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	s, err := r.writeSettings(ctx, in)
-	if err != nil {
-		resp.Diagnostics.AddError("Unable to adopt workspace settings", errDetail(err))
-		return
-	}
-	resp.Diagnostics.Append(applySettings(s, &plan, true)...)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-}
-
-func (r *workspaceSettingsResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state workspaceSettingsResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	s, err := r.settings.Get(ctx)
-	if err != nil {
-		if isNotFound(err) {
-			// The workspace behind the credential is gone; there is no settings
-			// object left to manage.
-			resp.State.RemoveResource(ctx)
-			return
-		}
-		resp.Diagnostics.AddError("Unable to read workspace settings", errDetail(err))
-		return
-	}
-	resp.Diagnostics.Append(applySettings(s, &state, false)...)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-}
-
-func (r *workspaceSettingsResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan, cfg workspaceSettingsResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	// The CONFIG decides what is written; the plan carries what lands in state.
-	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	in, diags := cfg.updateInput(ctx)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	s, err := r.writeSettings(ctx, in)
-	if err != nil {
-		resp.Diagnostics.AddError("Unable to update workspace settings", errDetail(err))
-		return
-	}
-	resp.Diagnostics.Append(applySettings(s, &plan, true)...)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-}
-
-// Delete removes the resource from Terraform state ONLY. The workspace settings
-// singleton cannot be deleted (the API has no delete RPC — a workspace always
-// has settings), and reverting the managed attributes to some invented
-// "default" would be a destructive guess. Every value stays exactly as last
-// applied; the framework drops the resource from state when this returns.
-func (r *workspaceSettingsResource) Delete(_ context.Context, _ resource.DeleteRequest, resp *resource.DeleteResponse) {
-	resp.Diagnostics.AddWarning("Workspace settings left unchanged",
-		"orq_workspace_settings was removed from Terraform state, but NOTHING was changed in the workspace: "+
-			"the settings singleton cannot be deleted and its values keep whatever was last applied "+
-			"(display name, enforce_enabled_models, PII redaction). Change them explicitly if that is not what you want.")
-}
-
-// ImportState adopts the singleton. There is no id to parse — the management key
-// already selects the workspace — so any import id is accepted and only used to
-// seed `key`, which the immediately following Read overwrites with the real
-// slug. The documented sentinel is `workspace`:
-//
-//	terraform import orq_workspace_settings.this workspace
-//
-// The framework requires import to populate at least one attribute, which is why
-// the sentinel is written to state at all.
-func (r *workspaceSettingsResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("key"), req.ID)...)
 }

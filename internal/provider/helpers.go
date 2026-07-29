@@ -11,8 +11,7 @@ import (
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
 )
 
-// stringSlice converts a types.List of strings into a []string. A null/unknown
-// list yields nil.
+// stringSlice converts a types.List of strings into a []string; null/unknown yields nil.
 func stringSlice(ctx context.Context, l types.List) ([]string, diag.Diagnostics) {
 	if l.IsNull() || l.IsUnknown() {
 		return nil, nil
@@ -33,21 +32,19 @@ func stringListValue(ss []string) types.List {
 	return l
 }
 
-// errDetail renders a normalized client error into a diagnostic detail. It
-// surfaces the transport-neutral code and message and never leaks a Connect
-// service/method or REST route (the client seam guarantees that).
+// errDetail renders a normalized client error into a diagnostic detail.
 func errDetail(err error) string {
 	return "error [" + string(client.CodeOf(err)) + "]: " + err.Error()
 }
 
-// isNotFound reports whether err normalized to a not-found code, i.e. the
-// resource is gone server-side and should be dropped from state.
+// isNotFound reports whether the resource is gone server-side.
 func isNotFound(err error) bool {
 	return client.CodeOf(err) == client.CodeNotFound
 }
 
-// strPtr returns a pointer to the attribute's value, or nil when the attribute
-// is null or unknown (so the field is omitted from a sparse write).
+// strPtr / boolPtr / int64Ptr / float64Ptr return a pointer to the attribute's
+// value, or nil when it is null or unknown so the field is omitted from a
+// sparse write.
 func strPtr(v types.String) *string {
 	if v.IsNull() || v.IsUnknown() {
 		return nil
@@ -56,7 +53,6 @@ func strPtr(v types.String) *string {
 	return &s
 }
 
-// boolPtr returns a pointer to the attribute's value, or nil when null/unknown.
 func boolPtr(v types.Bool) *bool {
 	if v.IsNull() || v.IsUnknown() {
 		return nil
@@ -65,7 +61,6 @@ func boolPtr(v types.Bool) *bool {
 	return &b
 }
 
-// int64Ptr returns a pointer to the attribute's value, or nil when null/unknown.
 func int64Ptr(v types.Int64) *int64 {
 	if v.IsNull() || v.IsUnknown() {
 		return nil
@@ -74,7 +69,6 @@ func int64Ptr(v types.Int64) *int64 {
 	return &i
 }
 
-// float64Ptr returns a pointer to the attribute's value, or nil when null/unknown.
 func float64Ptr(v types.Float64) *float64 {
 	if v.IsNull() || v.IsUnknown() {
 		return nil
@@ -83,10 +77,8 @@ func float64Ptr(v types.Float64) *float64 {
 	return &f
 }
 
-// concreteBool collapses a null or unknown bool to a known false, leaving a
-// known true/false untouched. Used when persisting a partial (taint) state:
-// the framework rejects unknown values in post-apply state, so every attribute
-// must be concrete.
+// concreteBool collapses a null or unknown bool to false, for persisting a
+// partial state (the framework rejects unknown values in post-apply state).
 func concreteBool(b types.Bool) types.Bool {
 	if b.IsNull() || b.IsUnknown() {
 		return types.BoolValue(false)
@@ -104,8 +96,7 @@ func optString(s string) types.String {
 }
 
 // normalizedToRaw converts a jsontypes.Normalized attribute into raw JSON bytes,
-// or nil when the attribute is null/unknown (so the field is omitted from a
-// sparse write).
+// or nil when null/unknown.
 func normalizedToRaw(v jsontypes.Normalized) json.RawMessage {
 	if v.IsNull() || v.IsUnknown() {
 		return nil
@@ -113,9 +104,8 @@ func normalizedToRaw(v jsontypes.Normalized) json.RawMessage {
 	return json.RawMessage(v.ValueString())
 }
 
-// rawToNormalized wraps raw JSON bytes into a jsontypes.Normalized value, or a
-// null when empty. jsontypes compares semantically, so key order / whitespace
-// never produce a diff against the operator's config.
+// rawToNormalized wraps raw JSON bytes into a jsontypes.Normalized value, whose
+// semantic comparison keeps key order / whitespace from producing a diff.
 func rawToNormalized(raw json.RawMessage) jsontypes.Normalized {
 	if len(raw) == 0 {
 		return jsontypes.NewNormalizedNull()
@@ -123,8 +113,7 @@ func rawToNormalized(raw json.RawMessage) jsontypes.Normalized {
 	return jsontypes.NewNormalizedValue(string(raw))
 }
 
-// stringMap converts a types.Map of strings into a map[string]string. A
-// null/unknown map yields nil.
+// stringMap converts a types.Map of strings into a map[string]string; null/unknown yields nil.
 func stringMap(ctx context.Context, m types.Map) (map[string]string, diag.Diagnostics) {
 	if m.IsNull() || m.IsUnknown() {
 		return nil, nil
@@ -149,10 +138,9 @@ func stringMapValue(m map[string]string) types.Map {
 	return out
 }
 
-// optStringPtr maps an optional server string onto an attribute: a nil pointer
-// (the field is absent from the response) yields null, a present pointer yields
-// its value verbatim — including "" , which is a value the server chose to
-// store, not an absence.
+// optStringPtr / optFloat64Ptr map an optional server field onto an attribute: a
+// nil pointer is an absence (null), a present one is a value the server chose to
+// store — including "" and 0.
 func optStringPtr(v *string) types.String {
 	if v == nil {
 		return types.StringNull()
@@ -160,8 +148,6 @@ func optStringPtr(v *string) types.String {
 	return types.StringValue(*v)
 }
 
-// optFloat64Ptr mirrors optStringPtr for an optional server float (a nil pointer
-// is an absent field, not a 0).
 func optFloat64Ptr(v *float64) types.Float64 {
 	if v == nil {
 		return types.Float64Null()

@@ -11,50 +11,33 @@ import (
 
 // EvaluatorShape records WHICH of the two incompatible representations an
 // *Evaluator was decoded from. The /v2/evaluators endpoints do NOT share a
-// response body, and the difference is not cosmetic:
+// response body:
 //
-//	POST /v2/evaluators           -> EXTERNAL  (EvaluatorApiResponseSchema)
-//	PATCH /v2/evaluators/{id}     -> EXTERNAL
-//	GET  /v2/evaluators           -> EXTERNAL (list; not generated here)
-//	GET  /v2/evaluators/{id}      -> INTERNAL  (EvaluatorSchema — the stored record)
+//	POST /v2/evaluators       -> EXTERNAL: `model` is a "provider/model" STRING
+//	PATCH /v2/evaluators/{id} -> EXTERNAL
+//	GET  /v2/evaluators/{id}  -> INTERNAL: the stored record; `model` is an
+//	                             OBJECT holding a model DOCUMENT ID, and it is
+//	                             the only shape carrying output_type, enabled
+//	                             and domain_id
 //
-// EXTERNAL carries: _id, key, description, created, updated, updated_by_id,
-// guardrail_config, type, and the type-specific fields — with `model` as a
-// provider-qualified STRING ("openai/gpt-4o") and jury judge models likewise as
-// strings.
-//
-// INTERNAL carries: _id, display_name (the same value `key` holds), description,
-// owner, domain_id, metadata, enabled, output_type, created, updated,
-// created_by_id, updated_by_id, guardrail_config, type, and the type-specific
-// fields — with `model` as an OBJECT {id, integration_id, model_parameters}
-// whose `id` is a MODEL DOCUMENT ID, not a provider/model string.
-//
-// So EXTERNAL alone can never tell you `output_type`, `enabled` or the owning
-// project, and INTERNAL alone can never tell you the `provider/model` string the
-// operator wrote. Neither shape carries `path` at all — see EvaluatorCreateInput.
-//
-// Every field below documents which shape populates it; a field the decoded
-// shape does not carry is left at its zero value, and callers MUST NOT treat
-// that zero as a server value. The resource layer merges one of each.
+// A field the decoded shape does not carry is left at its ZERO value, which
+// callers must not read as a server value. Neither shape carries `path`.
 type EvaluatorShape string
 
 const (
-	// ShapeExternal is the create/update (and list) response representation.
 	ShapeExternal EvaluatorShape = "external"
-	// ShapeInternal is the by-id GET representation: the stored record.
 	ShapeInternal EvaluatorShape = "internal"
 )
 
-// Evaluator types this provider manages. The API has eight; the other six
-// (function_eval, ragas, json_schema, http_eval, typescript_eval, bedrock_eval)
-// are deliberately out of scope and are neither created nor adopted here.
+// The API serves eight evaluator types; the other six (function_eval, ragas,
+// json_schema, http_eval, typescript_eval, bedrock_eval) are out of scope.
 const (
 	EvaluatorTypePython = "python_eval"
 	EvaluatorTypeLLM    = "llm_eval"
 )
 
-// Evaluator is the transport-agnostic projection of an evaluator. It is a UNION
-// of what the two response shapes can express; Shape says which half is real.
+// Evaluator is the UNION of what the two response shapes can express; Shape says
+// which half is real.
 type Evaluator struct {
 	Shape EvaluatorShape
 
@@ -89,39 +72,32 @@ type CategoricalLabel struct {
 	Description *string
 }
 
-// JuryRetry is a per-judge retry policy. Nil fields are omitted from the write
-// so the server default applies.
+// JuryRetry is a per-judge retry policy. Nil fields fall back to the server default.
 type JuryRetry struct {
 	Count   *int64
 	OnCodes []int64
 }
 
 // JuryJudge is one judge of an llm_eval jury. Model and Fallbacks are
-// provider-qualified model refs (the EXTERNAL spelling — the server resolves
-// them to document ids before storing).
+// provider-qualified refs; the server resolves them to document ids before storing.
 type JuryJudge struct {
 	Model     string
 	Retry     *JuryRetry
 	Fallbacks []string
 }
 
-// Jury is the mode="jury" configuration. It is WRITE-ONLY as far as this client
-// is concerned: the by-id GET returns judge models as document-id objects, so
-// decoding it back would require a catalog lookup per judge. The resource keeps
-// the configured jury authoritative instead — see the resource documentation.
+// Jury is WRITE-ONLY here: the by-id GET returns judge models as document-id
+// objects, so decoding it back would cost a catalog lookup per judge.
 type Jury struct {
 	Judges              []JuryJudge
 	ReplacementJudges   []JuryJudge
 	MinSuccessfulJudges *int64
 }
 
-// EvaluatorCreateInput carries the fields for POST /v2/evaluators.
-//
-// Path is REQUIRED by the API and is write-only in the strongest sense: no
-// endpoint ever returns it. The server uses it (pathValidationMiddleware +
-// validateFinderPath) to resolve the owning project/folder, stamps the result on
-// the record as `domain_id`, and then DROPS the path itself
-// (create-eval.handler.ts commonLogic destructures it away).
+// EvaluatorCreateInput carries the fields for POST /v2/evaluators. Path is
+// REQUIRED but write-only in the strongest sense: the server resolves it to the
+// owning project, stores that as `domain_id`, drops the path, and no endpoint
+// ever returns it.
 type EvaluatorCreateInput struct {
 	Key  string
 	Type string
@@ -144,9 +120,6 @@ type EvaluatorCreateInput struct {
 
 // EvaluatorUpdateInput is the PATCH body. The endpoint applies a mongo `$set`
 // FIELD MERGE, not a replace: a key absent from the body keeps its stored value.
-// That is why ClearCategoricalLabels exists — dropping the labels from config
-// has to be spelled as an explicit JSON null, or the stored ones would survive
-// and every subsequent refresh would re-report them.
 type EvaluatorUpdateInput struct {
 	ID   string
 	Key  string
@@ -164,16 +137,13 @@ type EvaluatorUpdateInput struct {
 	Repetitions       *int64
 	Jury              *Jury
 	CategoricalLabels []CategoricalLabel
-	// ClearCategoricalLabels sends `"categorical_labels": null` so the $set merge
-	// removes them. Ignored when CategoricalLabels is non-empty.
+	// ClearCategoricalLabels sends `"categorical_labels": null`, the only way the
+	// $set merge can remove them. Ignored when CategoricalLabels is non-empty.
 	ClearCategoricalLabels bool
 }
 
-// EvaluatorsAPI is the per-resource seam for the evaluators domain (REST-backed).
-//
-// Create and Update return the EXTERNAL shape, Get returns the INTERNAL one —
-// the methods are 1:1 with the endpoints and do NOT paper over the asymmetry.
-// Composing them (write, then read back by id) is the resource's job, because
+// EvaluatorsAPI is 1:1 with the endpoints and does NOT paper over the shape
+// asymmetry: composing a write with a read-back is the resource's job, because
 // only the resource can decide what to persist when the read-back half fails.
 type EvaluatorsAPI interface {
 	Get(ctx context.Context, id string) (*Evaluator, error)
@@ -186,43 +156,32 @@ type restEvaluators struct {
 	c *restgen.ClientWithResponses
 }
 
-// evaluatorWire mirrors the fields this provider reads out of EITHER response
-// shape. The two shapes are disjoint in places, so every shape-specific field is
-// a pointer or is guarded by the Shape the decoder was called for:
-//
-//   - Key comes from `key` (external) or `display_name` (internal),
-//   - Model is a string (external) or an object (internal) — hence RawModel,
-//   - OutputType / Enabled / DomainID exist only internally.
-//
-// Decoding the raw body (rather than oapi-codegen's per-operation anonymous
-// union structs) follows the guardrail-rules adapter and keeps this readable.
+// evaluatorWire mirrors the fields read out of EITHER response shape, so every
+// shape-specific field is a pointer or is guarded by the Shape the decoder was
+// called for. RawModel stays raw because `model` is a string in one shape and an
+// object in the other.
 type evaluatorWire struct {
-	ID          string  `json:"_id"`
-	Key         string  `json:"key"`
-	DisplayName string  `json:"display_name"`
-	Type        string  `json:"type"`
-	Description string  `json:"description"`
-	Created     string  `json:"created"`
-	Updated     string  `json:"updated"`
-	OutputType  string  `json:"output_type"`
-	Enabled     *bool   `json:"enabled"`
-	DomainID    string  `json:"domain_id"`
-	Code        string  `json:"code"`
-	Prompt      string  `json:"prompt"`
-	Mode        string  `json:"mode"`
-	Repetitions *int64  `json:"repetitions"`
-	RawModel    rawJSON `json:"model"`
+	ID          string          `json:"_id"`
+	Key         string          `json:"key"`
+	DisplayName string          `json:"display_name"`
+	Type        string          `json:"type"`
+	Description string          `json:"description"`
+	Created     string          `json:"created"`
+	Updated     string          `json:"updated"`
+	OutputType  string          `json:"output_type"`
+	Enabled     *bool           `json:"enabled"`
+	DomainID    string          `json:"domain_id"`
+	Code        string          `json:"code"`
+	Prompt      string          `json:"prompt"`
+	Mode        string          `json:"mode"`
+	Repetitions *int64          `json:"repetitions"`
+	RawModel    json.RawMessage `json:"model"`
 
 	CategoricalLabels []struct {
 		Value       string  `json:"value"`
 		Description *string `json:"description"`
 	} `json:"categorical_labels"`
 }
-
-// rawJSON is json.RawMessage under another name so the `model` field can hold
-// either a JSON string (external) or a JSON object (internal) without the
-// decoder failing on the shape it did not expect.
-type rawJSON = json.RawMessage
 
 func (w *evaluatorWire) toEvaluator(shape EvaluatorShape) Evaluator {
 	e := Evaluator{
@@ -237,8 +196,7 @@ func (w *evaluatorWire) toEvaluator(shape EvaluatorShape) Evaluator {
 		Mode:        w.Mode,
 		Repetitions: w.Repetitions,
 	}
-	// `key` (external) and `display_name` (internal) are the SAME stored string;
-	// prefer whichever the body actually carried.
+	// `key` (external) and `display_name` (internal) are the SAME stored string.
 	e.Key = w.Key
 	if e.Key == "" {
 		e.Key = w.DisplayName
@@ -251,8 +209,7 @@ func (w *evaluatorWire) toEvaluator(shape EvaluatorShape) Evaluator {
 	case ShapeInternal:
 		e.OutputType = w.OutputType
 		e.ProjectID = w.DomainID
-		// The stored record defaults `enabled` to true when absent
-		// (normalizeEvalToInternalEvaluator), so a missing key is true, not false.
+		// The stored record defaults `enabled` to true when absent.
 		e.Enabled = w.Enabled == nil || *w.Enabled
 		var m struct {
 			ID string `json:"id"`
@@ -269,7 +226,6 @@ func (w *evaluatorWire) toEvaluator(shape EvaluatorShape) Evaluator {
 	return e
 }
 
-// decodeEvaluatorBody parses a single-evaluator JSON body in the given shape.
 func decodeEvaluatorBody(body []byte, shape EvaluatorShape) (*Evaluator, error) {
 	var w evaluatorWire
 	if err := json.Unmarshal(body, &w); err != nil {
@@ -281,14 +237,10 @@ func decodeEvaluatorBody(body []byte, shape EvaluatorShape) (*Evaluator, error) 
 
 // --- request bodies ---------------------------------------------------------
 //
-// The generated CreateEval body is a nested anonymous union
-// (CreateEvalJSONBody{union json.RawMessage} wrapping two more union levels),
-// which no caller can build readably, and the generated UpdateEval body is a
-// flat struct with deeply anonymous nested jury structs. Both operations are
-// therefore issued through the generated *WithBody* entry points with an
-// explicit payload marshalled from the structs below — the generated request
-// builder, base URL and bearer transport are still used, only the body type is
-// bypassed.
+// The generated request bodies are nested anonymous unions no caller can build
+// readably, so both writes go through the generated *WithBody* entry points with
+// a payload marshalled from the structs below. Only the body type is bypassed;
+// the generated request builder, base URL and bearer transport still apply.
 
 type juryJudgePayload struct {
 	Model     string             `json:"model"`
@@ -355,8 +307,7 @@ func labelsToPayload(in []CategoricalLabel) []categoricalLabelPayload {
 	return out
 }
 
-// createPayload is the POST body. Fields the input leaves nil are omitted, so a
-// python_eval never sends llm keys and vice versa.
+// createPayload omits every nil field, so a python_eval never sends llm keys.
 type createPayload struct {
 	Key         string  `json:"key"`
 	Type        string  `json:"type"`
@@ -374,9 +325,8 @@ type createPayload struct {
 	CategoricalLabels []categoricalLabelPayload `json:"categorical_labels,omitempty"`
 }
 
-// updatePayload is the PATCH body. CategoricalLabels is a *[]… so the resource
-// can distinguish "leave alone" (nil) from "clear" (a non-nil pointer to nil,
-// marshalled as `null`) — the $set merge has no other way to remove them.
+// updatePayload's CategoricalLabels is a *[]… so "leave alone" (nil) is distinct
+// from "clear" (a non-nil pointer to nil, marshalled as `null`).
 type updatePayload struct {
 	Key         string  `json:"key"`
 	Type        string  `json:"type"`
@@ -407,7 +357,6 @@ func (r *restEvaluators) Get(ctx context.Context, id string) (*Evaluator, error)
 	if resp.StatusCode() != http.StatusOK {
 		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
 	}
-	// GET /v2/evaluators/{id} serializes the STORED record — see EvaluatorShape.
 	return decodeEvaluatorBody(resp.Body, ShapeInternal)
 }
 
@@ -437,7 +386,6 @@ func (r *restEvaluators) Create(ctx context.Context, in EvaluatorCreateInput) (*
 	if resp.StatusCode() != http.StatusOK && resp.StatusCode() != http.StatusCreated {
 		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
 	}
-	// POST answers with the EXTERNAL representation, NOT the stored record.
 	return decodeEvaluatorBody(resp.Body, ShapeExternal)
 }
 
@@ -460,8 +408,6 @@ func (r *restEvaluators) Update(ctx context.Context, in EvaluatorUpdateInput) (*
 		labels := labelsToPayload(in.CategoricalLabels)
 		payload.CategoricalLabels = &labels
 	case in.ClearCategoricalLabels:
-		// Explicit JSON null: the update is a `$set` merge, so omitting the key
-		// would leave previously stored labels in place forever.
 		var null []categoricalLabelPayload
 		payload.CategoricalLabels = &null
 	}
@@ -476,7 +422,6 @@ func (r *restEvaluators) Update(ctx context.Context, in EvaluatorUpdateInput) (*
 	if resp.StatusCode() != http.StatusOK {
 		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
 	}
-	// PATCH answers with the EXTERNAL representation, like POST.
 	return decodeEvaluatorBody(resp.Body, ShapeExternal)
 }
 

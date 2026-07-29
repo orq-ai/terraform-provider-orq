@@ -9,10 +9,6 @@ import (
 	connect "connectrpc.com/connect"
 )
 
-// TestSanitizeMessage locks in the shared server-message sanitizer (used by BOTH the
-// REST envelope and the Connect wire message): whitespace controls collapse to a
-// single space, other C0/C1 controls (incl. ESC) are dropped, the message is trimmed,
-// inert markup is left alone, and truncation is by RUNE count (never mid-rune).
 func TestSanitizeMessage(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"newline and tab collapse to single space", "line1\nline2\tline3", "line1 line2 line3"},
@@ -49,10 +45,8 @@ func TestSanitizeMessage(t *testing.T) {
 	})
 }
 
-// TestMapConnectError_WireMessageSanitized proves FINDING 5: a wire message (which
-// connect-go flags on protocol SHAPE, not authenticated provenance — a hostile proxy
-// can supply it) is run through the sanitizer, so control characters (e.g. an ANSI
-// escape) never reach the diagnostic.
+// connect-go flags a wire message on protocol SHAPE, so a hostile proxy can
+// supply one: an ANSI escape must never reach the diagnostic.
 func TestMapConnectError_WireMessageSanitized(t *testing.T) {
 	ce := connect.NewWireError(connect.CodeInvalidArgument, errors.New("bad\x1b[2Jinput\nvalue"))
 	e := mapConnectError("budget", ce)
@@ -65,10 +59,7 @@ func TestMapConnectError_WireMessageSanitized(t *testing.T) {
 	}
 }
 
-// TestMapRESTTransportError_NoRouteLeak proves a Go *url.Error (which renders as
-// `Delete "https://host/v2/…": …`) is not folded into the diagnostic message,
-// so the REST route/protocol never crosses the seam — while the raw error stays
-// reachable via errors.Is/As.
+// A Go *url.Error renders as `Delete "https://host/v2/…": …`.
 func TestMapRESTTransportError_NoRouteLeak(t *testing.T) {
 	raw := &url.Error{
 		Op:  "Delete",
@@ -94,9 +85,6 @@ func TestMapRESTTransportError_NoRouteLeak(t *testing.T) {
 	}
 }
 
-// TestMapConnectError_TransportPathNoLeak proves a non-connect (transport-level)
-// error on the Connect path is not rendered verbatim (which would embed the RPC
-// URL) but replaced with a static per-domain message.
 func TestMapConnectError_TransportPathNoLeak(t *testing.T) {
 	raw := &url.Error{
 		Op:  "Post",
@@ -119,10 +107,6 @@ func TestMapConnectError_TransportPathNoLeak(t *testing.T) {
 	}
 }
 
-// TestMapRESTStatus_NoTransportLeak proves a non-2xx REST status renders a
-// transport-neutral message: it never embeds "HTTP", the numeric status, or the
-// raw response body/HTML, while the status+body stay reachable via errors.As on
-// the wrapped error for callers that want the detail.
 func TestMapRESTStatus_NoTransportLeak(t *testing.T) {
 	body := []byte(`<html><body>500 Internal Server Error: upstream boom</body></html>`)
 	e := mapRESTStatus(500, body)
@@ -142,8 +126,6 @@ func TestMapRESTStatus_NoTransportLeak(t *testing.T) {
 	}
 }
 
-// TestMapRESTStatus_NeutralPhrasePerCode proves the neutral phrase reflects the
-// normalized code without naming the transport.
 func TestMapRESTStatus_NeutralPhrasePerCode(t *testing.T) {
 	e := mapRESTStatus(404, nil)
 	if CodeOf(e) != CodeNotFound {
@@ -154,10 +136,7 @@ func TestMapRESTStatus_NeutralPhrasePerCode(t *testing.T) {
 	}
 }
 
-// TestMapConnectError_ServerErrorKeepsMessage proves a genuine server error still
-// surfaces the server-supplied message and mapped code. A real server error
-// arrives as a WIRE error (connect-go parses it from the Connect JSON envelope
-// and flags it via IsWireError), so it is built with NewWireError here.
+// A real server error arrives as a WIRE error, hence NewWireError here.
 func TestMapConnectError_ServerErrorKeepsMessage(t *testing.T) {
 	ce := connect.NewWireError(connect.CodeNotFound, errors.New("budget not found"))
 	e := mapConnectError("budget", ce)
@@ -170,13 +149,9 @@ func TestMapConnectError_ServerErrorKeepsMessage(t *testing.T) {
 	}
 }
 
-// TestMapConnectError_NonWireHTTPStatusNeutralized proves a client-SYNTHESIZED
-// (non-wire) *connect.Error — how connect-go wraps a NON-Connect HTTP response
-// such as a proxy error, embedding the raw HTTP status line in Message() — is
-// normalized to a transport-neutral phrase, not surfaced verbatim.
 func TestMapConnectError_NonWireHTTPStatusNeutralized(t *testing.T) {
 	// connect-go builds exactly this for an unwrapped HTTP response: NewError (not
-	// NewWireError) with the status line as the message.
+	// NewWireError), with the raw status line as the message.
 	ce := connect.NewError(connect.CodeUnavailable, errors.New("HTTP status 505 HTTP Version Not Supported"))
 	e := mapConnectError("budget", ce)
 
@@ -194,10 +169,6 @@ func TestMapConnectError_NonWireHTTPStatusNeutralized(t *testing.T) {
 	}
 }
 
-// TestMapRESTStatus_SurfacesServerMessage proves the REST seam surfaces the
-// platform's operator-actionable message from its JSON error envelope
-// ({"error": "..."}) — symmetric with the Connect wire-message path — while a
-// non-envelope body (an HTML proxy page) still falls back to the neutral phrase.
 func TestMapRESTStatus_SurfacesServerMessage(t *testing.T) {
 	t.Run("json envelope surfaced", func(t *testing.T) {
 		e := mapRESTStatus(400, []byte(`{"error":"Model validation failed. Please check your configuration."}`))

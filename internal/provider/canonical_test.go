@@ -10,8 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// modelsConfigEqual reports whether two model-config strings are semantically
-// equal under the custom type (the comparison Terraform uses for the attribute).
+// modelsConfigEqual is the comparison Terraform runs for the attribute.
 func modelsConfigEqual(t *testing.T, a, b string) bool {
 	t.Helper()
 	eq, diags := modelsConfigFromRaw([]byte(a)).StringSemanticEquals(context.Background(), modelsConfigFromRaw([]byte(b)))
@@ -21,9 +20,6 @@ func modelsConfigEqual(t *testing.T, a, b string) bool {
 	return eq
 }
 
-// TestModelsConfigSemanticEquals proves the weight-0.5 canonicalization holds in
-// BOTH directions and tolerates formatting differences, while still catching a
-// genuine value difference.
 func TestModelsConfigSemanticEquals(t *testing.T) {
 	weightless := `{"mode":"fallback","models":[{"model":"x"},{"model":"y","weight":0.25}]}`
 	serverForm := `{"mode":"fallback","models":[{"model":"x","weight":0.5},{"model":"y","weight":0.25}]}`
@@ -52,10 +48,6 @@ func TestModelsConfigSemanticEquals(t *testing.T) {
 	}
 }
 
-// TestModelsConfigWeightSpelling proves the weight is normalized to canonical
-// float64 spelling so an operator's `0.50` / `1` / `5e-1` converges with the
-// server's float64 read-back (`0.5` / `1`), while genuine value differences stay
-// unequal.
 func TestModelsConfigWeightSpelling(t *testing.T) {
 	// Differing textual spellings of the same numeric weight are equal.
 	for _, tc := range []struct{ a, b string }{
@@ -83,8 +75,6 @@ func TestModelsConfigWeightSpelling(t *testing.T) {
 	}
 }
 
-// TestNullAndUnknownSemanticEquals proves null/unknown fall back to exact
-// equality (semantic equality is never meant to bridge null vs non-null).
 func TestNullAndUnknownSemanticEquals(t *testing.T) {
 	nullV := modelsConfigFromRaw(nil)
 	if !nullV.IsNull() {
@@ -95,21 +85,15 @@ func TestNullAndUnknownSemanticEquals(t *testing.T) {
 	if !eq {
 		t.Error("null vs null must be equal")
 	}
-	// null vs a value -> NOT equal (retain-on-null is handled by Computed, not here).
+	// null vs a value -> NOT equal; retain-on-null comes from Computed, not here.
 	eq, _ = nullV.StringSemanticEquals(context.Background(), modelsConfigFromRaw([]byte(`{"models":[]}`)))
 	if eq {
 		t.Error("null vs non-null must NOT be semantically equal")
 	}
 }
 
-// TestCanonAttributesPlanModifiersDoNotRewriteConfig is the regression guard for
-// the redesign: the broken approach used a plan modifier (jsonCanonPlanModifier)
-// that rewrote a NON-NULL config value at plan time, which Terraform's
-// AssertPlanValid rejects for a from-scratch weight-less create. The canon now
-// lives entirely in the custom type's semantic equality. models_config
-// additionally carries UseStateForUnknown (a churn-reduction that only
-// touches an UNKNOWN plan), so the guard is no longer "zero plan modifiers": it
-// asserts that no plan modifier present rewrites a non-null config value.
+// Rewriting a NON-NULL config value at plan time is what AssertPlanValid rejects;
+// UseStateForUnknown is fine because it only touches an unknown plan.
 func TestCanonAttributesPlanModifiersDoNotRewriteConfig(t *testing.T) {
 	ctx := context.Background()
 
@@ -121,12 +105,6 @@ func TestCanonAttributesPlanModifiersDoNotRewriteConfig(t *testing.T) {
 	}
 }
 
-// assertNoPlanModifierRewritesNonNullConfig runs every plan modifier on the named
-// string attribute against a non-null configured value (plan == config, a
-// different prior state) and asserts none of them changes the planned value. This
-// is the property that matters: the OLD jsonCanonPlanModifier rewrote a non-null
-// config (tripping AssertPlanValid), whereas UseStateForUnknown leaves a known
-// plan untouched and only fills an unknown.
 func assertNoPlanModifierRewritesNonNullConfig(t *testing.T, attrs map[string]schema.Attribute, name string) {
 	t.Helper()
 	attr, ok := attrs[name].(schema.StringAttribute)
@@ -134,8 +112,8 @@ func assertNoPlanModifierRewritesNonNullConfig(t *testing.T, attrs map[string]sc
 		t.Fatalf("%s is not a StringAttribute", name)
 	}
 	ctx := context.Background()
-	// A non-null configured value; the prior state differs (and is spelled
-	// differently) so a canonicalizing rewrite would be observable.
+	// The prior state differs, and is spelled differently, so a canonicalizing
+	// rewrite would be observable.
 	config := types.StringValue(`{"models":[{"model":"x","weight":0.50}]}`)
 	state := types.StringValue(`{"models":[{"model":"x","weight":0.5}]}`)
 	for i, pm := range attr.PlanModifiers {

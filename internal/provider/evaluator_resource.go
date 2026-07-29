@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
@@ -17,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
@@ -30,39 +28,13 @@ var (
 	_ resource.ResourceWithValidateConfig = &evaluatorResource{}
 )
 
-// evaluatorKeyPattern mirrors EvaluatorKeySchema in the platform monorepo
-// (libs/models/evaluators/src/schemas/evaluator.schemas.ts): letters, digits,
-// dashes and underscores, never leading or trailing with a dash/underscore.
-var evaluatorKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?$`)
-
-// ulidPattern is Crockford base32 (I, L, O and U excluded), 26 characters. Used
-// to refuse an import id that cannot be an evaluator record id.
-var ulidPattern = regexp.MustCompile(`^[0-9ABCDEFGHJKMNPQRSTVWXYZabcdefghjkmnpqrstvwxyz]{26}$`)
-
-// reservedEvaluatorKeys are rejected by createEvalHandler with a 400. They are
-// checked at PLAN time so the failure names the attribute instead of surfacing
-// as an opaque apply-time error.
-var reservedEvaluatorKeys = []string{"orq_pii_detection", "orq_secret_detection"}
-
-// Evaluator output types, per evaluator type. python_eval accepts only a subset
-// (PythonEvaluatorBaseSchema), llm_eval accepts all four.
-var (
-	evaluatorTypes = []string{client.EvaluatorTypePython, client.EvaluatorTypeLLM}
-	// llmOutputTypes is also the schema-level enum: the attribute validator has to
-	// accept the union of both types' values, and ValidateConfig then narrows it
-	// to pythonOutputTypes for a python_eval.
-	llmOutputTypes    = []string{"boolean", "number", "categorical", "string"}
-	pythonOutputTypes = []string{"boolean", "number"}
-)
-
-// NewEvaluatorResource is the factory registered on the provider.
 func NewEvaluatorResource() resource.Resource { return &evaluatorResource{} }
 
 type evaluatorResource struct {
 	evaluators client.EvaluatorsAPI
 	// models resolves a stored model DOCUMENT ID back to its provider-qualified
-	// ref. Needed because the by-id GET returns `model` as {id: …} while the
-	// operator writes (and every write response echoes) "provider/model".
+	// ref: the by-id GET returns `model` as {id: …} while the operator writes
+	// (and every write response echoes) "provider/model".
 	models client.ModelsAPI
 }
 
@@ -342,35 +314,6 @@ func (r *evaluatorResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 	}
 }
 
-// reservedEvaluatorKeyValidator rejects the two system-owned keys at plan time.
-// The server answers a create carrying one with a bare 400 ("The key is reserved
-// for the system."), which is a poor apply-time surprise for a value that is
-// knowable from config alone.
-type reservedEvaluatorKeyValidator struct{}
-
-func (reservedEvaluatorKeyValidator) Description(context.Context) string {
-	return "must not be one of the reserved system evaluator keys (" + strings.Join(reservedEvaluatorKeys, ", ") + ")"
-}
-
-func (v reservedEvaluatorKeyValidator) MarkdownDescription(ctx context.Context) string {
-	return v.Description(ctx)
-}
-
-func (reservedEvaluatorKeyValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
-	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
-		return
-	}
-	value := req.ConfigValue.ValueString()
-	for _, reserved := range reservedEvaluatorKeys {
-		if value == reserved {
-			resp.Diagnostics.AddAttributeError(req.Path, "Reserved evaluator key",
-				fmt.Sprintf("%q is reserved for orq's built-in evaluators and cannot be used for a managed one. "+
-					"Pick a different key.", value))
-			return
-		}
-	}
-}
-
 func (r *evaluatorResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
@@ -385,254 +328,143 @@ func (r *evaluatorResource) Configure(_ context.Context, req resource.ConfigureR
 	r.models = c.Models()
 }
 
-// --- plan-time validation ----------------------------------------------------
+// --- CRUD --------------------------------------------------------------------
 
-// ValidateConfig mirrors the cross-field invariants that
-// libs/models/evaluators/src/schemas/evaluator.schemas.ts enforces with zod
-// refinements, so a violation is a `terraform validate` error naming the
-// attribute rather than an opaque 400 halfway through an apply.
-//
-// It reads the config attribute-by-attribute instead of decoding the whole
-// model: a config value may still be UNKNOWN at validate time (it references
-// another resource), and unknown collection values cannot be reflected into the
-// Go slice fields of evaluatorResourceModel. Every check below is skipped when
-// the values it needs are unknown; Create/Update re-run the same checks once
-// everything is resolved (the framework never re-runs ValidateConfig), and the
-// server remains the final backstop.
-func (r *evaluatorResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+func (r *evaluatorResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan, cfg evaluatorResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	// The CONFIG decides what is written; the plan carries what lands in state.
+	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
+	// ValidateConfig may have deferred checks on an unknown value, and the
+	// framework never re-runs it at apply.
 	resp.Diagnostics.Append(validateEvaluatorConfig(ctx, req.Config)...)
-}
-
-// validateEvaluatorConfig is the shared body of ValidateConfig and the
-// Create/Update recheck.
-func validateEvaluatorConfig(ctx context.Context, cfg tfsdk.Config) diag.Diagnostics {
-	var diags diag.Diagnostics
-	var typ, mode, code, prompt, model, outputType types.String
-	var repetitions types.Int64
-	var jury types.Object
-	var labels types.List
-
-	diags.Append(cfg.GetAttribute(ctx, path.Root("type"), &typ)...)
-	diags.Append(cfg.GetAttribute(ctx, path.Root("mode"), &mode)...)
-	diags.Append(cfg.GetAttribute(ctx, path.Root("code"), &code)...)
-	diags.Append(cfg.GetAttribute(ctx, path.Root("prompt"), &prompt)...)
-	diags.Append(cfg.GetAttribute(ctx, path.Root("model"), &model)...)
-	diags.Append(cfg.GetAttribute(ctx, path.Root("output_type"), &outputType)...)
-	diags.Append(cfg.GetAttribute(ctx, path.Root("repetitions"), &repetitions)...)
-	diags.Append(cfg.GetAttribute(ctx, path.Root("jury"), &jury)...)
-	diags.Append(cfg.GetAttribute(ctx, path.Root("categorical_labels"), &labels)...)
-	if diags.HasError() {
-		return diags
-	}
-
-	// An unknown `type` cannot select a branch; the per-attribute validators and
-	// the server still apply.
-	if typ.IsUnknown() || typ.IsNull() {
-		return diags
-	}
-
-	switch typ.ValueString() {
-	case client.EvaluatorTypePython:
-		validatePythonEvaluator(code, prompt, mode, model, outputType, repetitions, jury, labels, &diags)
-	case client.EvaluatorTypeLLM:
-		validateLLMEvaluator(code, prompt, mode, model, outputType, jury, labels, &diags)
-	}
-	return diags
-}
-
-// present reports whether an attribute is set in config. An UNKNOWN value counts
-// as present: the operator wrote something, its value is just not resolved yet.
-func present(v attrValue) bool { return !v.IsNull() }
-
-// attrValue is the minimal surface the presence checks need.
-type attrValue interface{ IsNull() bool }
-
-func rejectAttr(diags *diag.Diagnostics, p path.Path, name, typ string) {
-	diags.AddAttributeError(p, "Attribute not supported for this evaluator type",
-		fmt.Sprintf("`%s` is not part of a %s evaluator and must be removed.", name, typ))
-}
-
-func validatePythonEvaluator(code, prompt, mode, model, outputType types.String, repetitions types.Int64, jury types.Object, labels types.List, diags *diag.Diagnostics) {
-	if !present(code) {
-		diags.AddAttributeError(path.Root("code"), "Missing evaluator code",
-			"`code` is required for a python_eval evaluator. Load it from a file, e.g. "+
-				"`code = file(\"${path.module}/eval.py\")`.")
-	}
-	if !outputType.IsNull() && !outputType.IsUnknown() {
-		if !contains(pythonOutputTypes, outputType.ValueString()) {
-			diags.AddAttributeError(path.Root("output_type"), "Unsupported output_type for python_eval",
-				fmt.Sprintf("python_eval supports only %s (got %q).",
-					strings.Join(quoteAll(pythonOutputTypes), " or "), outputType.ValueString()))
-		}
-	}
-	if present(prompt) {
-		rejectAttr(diags, path.Root("prompt"), "prompt", "python_eval")
-	}
-	if present(mode) {
-		rejectAttr(diags, path.Root("mode"), "mode", "python_eval")
-	}
-	if present(model) {
-		rejectAttr(diags, path.Root("model"), "model", "python_eval")
-	}
-	if present(repetitions) {
-		rejectAttr(diags, path.Root("repetitions"), "repetitions", "python_eval")
-	}
-	if present(jury) {
-		rejectAttr(diags, path.Root("jury"), "jury", "python_eval")
-	}
-	if present(labels) {
-		rejectAttr(diags, path.Root("categorical_labels"), "categorical_labels", "python_eval")
-	}
-}
-
-func validateLLMEvaluator(code, prompt, mode, model, outputType types.String, jury types.Object, labels types.List, diags *diag.Diagnostics) {
-	if !present(prompt) {
-		diags.AddAttributeError(path.Root("prompt"), "Missing judge prompt",
-			"`prompt` is required for an llm_eval evaluator.")
-	}
-	if present(code) {
-		rejectAttr(diags, path.Root("code"), "code", "llm_eval")
-	}
-	if !present(mode) {
-		diags.AddAttributeError(path.Root("mode"), "Missing llm_eval mode",
-			"`mode` is required for an llm_eval evaluator: use `single` with `model`, or `jury` with a `jury` block.")
-	}
-
-	// model XOR jury, regardless of what `mode` says (the server refuses both
-	// together even when mode picks one of them).
-	if present(model) && present(jury) {
-		diags.AddAttributeError(path.Root("mode"), "model and jury cannot be combined",
-			"An llm_eval evaluator judges either with a single `model` or with a `jury`, never both. "+
-				"Set `mode = \"single\"` with `model`, or `mode = \"jury\"` with `jury`.")
-	}
-
-	if !mode.IsNull() && !mode.IsUnknown() {
-		switch mode.ValueString() {
-		case "single":
-			if !present(model) {
-				diags.AddAttributeError(path.Root("model"), "Missing judge model",
-					"`model` is required when `mode = \"single\"`.")
-			}
-			if present(jury) {
-				diags.AddAttributeError(path.Root("jury"), "jury is not allowed for mode = \"single\"",
-					"Remove the `jury` block or set `mode = \"jury\"`.")
-			}
-		case "jury":
-			if !present(jury) {
-				diags.AddAttributeError(path.Root("jury"), "Missing jury configuration",
-					"`jury` is required when `mode = \"jury\"`.")
-			}
-			if present(model) {
-				diags.AddAttributeError(path.Root("model"), "model is not allowed for mode = \"jury\"",
-					"Remove `model` or set `mode = \"single\"`.")
-			}
-			if !outputType.IsNull() && !outputType.IsUnknown() && outputType.ValueString() == "string" {
-				diags.AddAttributeError(path.Root("output_type"), "jury does not support output_type = \"string\"",
-					"A jury has to compare verdicts, which free-form strings do not allow. Use `boolean`, "+
-						"`number` or `categorical`, or switch to `mode = \"single\"`.")
-			}
-		}
-	}
-
-	validateJuryObject(jury, diags)
-	validateCategoricalLabels(outputType, labels, diags)
-}
-
-// validateJuryObject checks the sizing invariant LlmEvaluatorJuryExternalSchema
-// enforces: min_successful_judges may never exceed judges + replacement_judges.
-// (`judges` having at least 2 entries is enforced by the list validator.)
-func validateJuryObject(jury types.Object, diags *diag.Diagnostics) {
-	if jury.IsNull() || jury.IsUnknown() {
+	if resp.Diagnostics.HasError() {
 		return
 	}
-	attrs := jury.Attributes()
-	minSuccessful, _ := attrs["min_successful_judges"].(types.Int64)
-	if minSuccessful.IsNull() || minSuccessful.IsUnknown() {
+
+	external, err := r.evaluators.Create(ctx, cfg.createInput())
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to create evaluator", errDetail(err))
 		return
 	}
-	judges, ok := attrs["judges"].(types.List)
-	if !ok || judges.IsNull() || judges.IsUnknown() {
+
+	internal, err := r.evaluators.Get(ctx, external.ID)
+	if err != nil {
+		// The evaluator EXISTS. Persist what we know (above all its id) so the next
+		// apply updates it instead of creating a duplicate, and fail loudly.
+		resp.Diagnostics.AddError("Evaluator created but could not be read back",
+			"The evaluator was created with id "+external.ID+", but reading it back failed: "+errDetail(err)+
+				"\n\nIts id has been written to state so it is not orphaned; run `terraform plan` again to "+
+				"finish reconciling it.")
+		plan.ID = types.StringValue(external.ID)
+		nullUnknowns(&plan)
+		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 		return
 	}
-	total := len(judges.Elements())
-	if replacements, ok := attrs["replacement_judges"].(types.List); ok {
-		if replacements.IsUnknown() {
+
+	applyWrite(internal, external, &plan)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *evaluatorResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state evaluatorResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	internal, err := r.evaluators.Get(ctx, state.ID.ValueString())
+	if err != nil {
+		if isNotFound(err) {
+			resp.State.RemoveResource(ctx)
 			return
 		}
-		if !replacements.IsNull() {
-			total += len(replacements.Elements())
-		}
-	}
-	if minSuccessful.ValueInt64() > int64(total) {
-		diags.AddAttributeError(path.Root("jury").AtName("min_successful_judges"),
-			"min_successful_judges exceeds the number of judges",
-			fmt.Sprintf("min_successful_judges is %d but only %d judge(s) are configured "+
-				"(judges + replacement_judges). The evaluation could never succeed.",
-				minSuccessful.ValueInt64(), total))
-	}
-}
-
-// validateCategoricalLabels enforces the two categorical invariants
-// validateCategoricalFields applies: at least two labels when
-// output_type = "categorical", and no two labels that collide once trimmed and
-// lower-cased (the server's own comparison).
-func validateCategoricalLabels(outputType types.String, labels types.List, diags *diag.Diagnostics) {
-	isCategorical := !outputType.IsNull() && !outputType.IsUnknown() && outputType.ValueString() == "categorical"
-	if labels.IsUnknown() {
+		resp.Diagnostics.AddError("Unable to read evaluator", errDetail(err))
 		return
 	}
-	if labels.IsNull() {
-		if isCategorical {
-			diags.AddAttributeError(path.Root("categorical_labels"), "Missing categorical labels",
-				"`categorical_labels` is required when `output_type = \"categorical\"`, with at least two labels.")
-		}
+	if d := assertManagedType(internal.Type); d != nil {
+		resp.Diagnostics.Append(d)
 		return
 	}
 
-	elements := labels.Elements()
-	if isCategorical && len(elements) < 2 {
-		diags.AddAttributeError(path.Root("categorical_labels"), "Too few categorical labels",
-			fmt.Sprintf("`output_type = \"categorical\"` needs at least two labels to choose between (got %d).",
-				len(elements)))
+	prior := state
+	applyRead(internal, &state)
+	model, diags := r.resolveModelRef(ctx, internal, prior)
+	resp.Diagnostics.Append(diags...)
+	state.Model = model
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *evaluatorResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan, cfg, state evaluatorResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	resp.Diagnostics.Append(validateEvaluatorConfig(ctx, req.Config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	id := state.ID.ValueString()
+
+	external, err := r.evaluators.Update(ctx, cfg.updateInput(id))
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to update evaluator", errDetail(err))
+		return
 	}
 
-	seen := make(map[string]int, len(elements))
-	for i, element := range elements {
-		obj, ok := element.(types.Object)
-		if !ok || obj.IsNull() || obj.IsUnknown() {
-			continue
+	internal, err := r.evaluators.Get(ctx, id)
+	if err != nil {
+		resp.Diagnostics.AddError("Evaluator updated but could not be read back",
+			"The update of evaluator "+id+" was accepted, but reading it back failed: "+errDetail(err)+
+				"\n\nRun `terraform plan` again to reconcile.")
+		plan.ID = types.StringValue(id)
+		nullUnknowns(&plan)
+		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+		return
+	}
+
+	applyWrite(internal, external, &plan)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *evaluatorResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state evaluatorResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if err := r.evaluators.Delete(ctx, state.ID.ValueString()); err != nil {
+		if isNotFound(err) {
+			return
 		}
-		value, ok := obj.Attributes()["value"].(types.String)
-		if !ok || value.IsNull() || value.IsUnknown() {
-			continue
-		}
-		normalized := strings.ToLower(strings.TrimSpace(value.ValueString()))
-		if first, dup := seen[normalized]; dup {
-			diags.AddAttributeError(path.Root("categorical_labels").AtListIndex(i).AtName("value"),
-				"Duplicate categorical label",
-				fmt.Sprintf("label %d repeats label %d: the server compares label values trimmed and "+
-					"case-insensitively, so %q is not distinct.", i, first, value.ValueString()))
-			continue
-		}
-		seen[normalized] = i
+		resp.Diagnostics.AddError("Unable to delete evaluator", errDetail(err))
 	}
 }
 
-func contains(haystack []string, needle string) bool {
-	for _, candidate := range haystack {
-		if candidate == needle {
-			return true
-		}
+// ImportState adopts an existing evaluator by its ULID. `path` cannot be
+// imported — no endpoint returns it — so it stays null until the first apply
+// after the import re-asserts it from config.
+func (r *evaluatorResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	if !ulidPattern.MatchString(req.ID) {
+		resp.Diagnostics.AddError("Invalid evaluator import id",
+			fmt.Sprintf("%q is not a ULID. Import an evaluator by the 26-character id the API returns as `_id`, "+
+				"e.g. 01JMDPA3QW5C1V0NJ1PW34T4E5.\n\norq's built-in evaluators (orq_pii_detection, "+
+				"orq_secret_detection, …) are addressed by slug and have no evaluator record — they cannot be "+
+				"imported or managed here.", req.ID))
+		return
 	}
-	return false
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func quoteAll(values []string) []string {
-	out := make([]string, 0, len(values))
-	for _, v := range values {
-		out = append(out, `"`+v+`"`)
+// assertManagedType refuses to project an evaluator this resource does not
+// manage onto state.
+func assertManagedType(kind string) diag.Diagnostic {
+	if kind == client.EvaluatorTypePython || kind == client.EvaluatorTypeLLM {
+		return nil
 	}
-	return out
+	return diag.NewErrorDiagnostic("Unsupported evaluator type",
+		fmt.Sprintf("The evaluator is of type %q, which orq_evaluator does not manage (it handles %s only). "+
+			"Manage it through the UI or API instead.", kind, strings.Join(quoteAll(evaluatorTypes), " and ")))
 }
 
 // --- config -> request -------------------------------------------------------
@@ -685,15 +517,6 @@ func juryFromModel(m *evaluatorJuryModel) *client.Jury {
 	}
 }
 
-// createInput builds the POST body from the CONFIG.
-//
-// The config — not the plan — is authoritative for the write, for the same
-// reason as orq_workspace_settings: for an Optional+Computed attribute a null
-// config plans as the PRIOR STATE, so a plan-derived body would re-assert values
-// the operator deliberately left to the server (`description`, `output_type`,
-// `repetitions`) and would fight an out-of-band change to them instead of
-// adopting it. Every other attribute is Required or Optional-only, where config
-// and plan are identical.
 func (m *evaluatorResourceModel) createInput() client.EvaluatorCreateInput {
 	return client.EvaluatorCreateInput{
 		Key:               m.Key.ValueString(),
@@ -711,12 +534,6 @@ func (m *evaluatorResourceModel) createInput() client.EvaluatorCreateInput {
 	}
 }
 
-// updateInput builds the PATCH body from the CONFIG (see createInput).
-//
-// ClearCategoricalLabels is set whenever the config carries no labels: the
-// update is a `$set` field merge, so a removed block has to be spelled as an
-// explicit null or the stored labels would survive and refresh would keep
-// re-reporting them — a diff that never converges.
 func (m *evaluatorResourceModel) updateInput(id string) client.EvaluatorUpdateInput {
 	labels := labelsFromModel(m.CategoricalLabels)
 	return client.EvaluatorUpdateInput{
@@ -739,52 +556,39 @@ func (m *evaluatorResourceModel) updateInput(id string) client.EvaluatorUpdateIn
 
 // --- server -> state ---------------------------------------------------------
 
-// evalPreserveString keeps ANY KNOWN planned value — an explicit null included,
-// which for these Optional+Computed attributes means "the config set nothing and
-// the prior state was empty" — and consults the read-back only for an UNKNOWN
-// one (a create where the config omitted the attribute). Post-apply state must
-// equal the plan for every known planned value or Terraform aborts the apply
-// with "Provider produced inconsistent result after apply".
-func evalPreserveString(planned types.String, srv string) types.String {
-	if !planned.IsUnknown() {
-		return planned
+// applyWrite assembles state from BOTH response shapes: internal is the by-id
+// read-back (the only source of output_type, enabled, project_id and the model
+// document id), external is the create/update response (the only source of the
+// provider-qualified `model` string). The PLAN wins for every known planned
+// value; the read-back may only fill what the plan left unknown.
+func applyWrite(internal, external *client.Evaluator, m *evaluatorResourceModel) {
+	m.ID = types.StringValue(external.ID)
+	m.Key = evalPreserveString(m.Key, internal.Key)
+	m.Type = evalPreserveString(m.Type, internal.Type)
+	m.Description = evalPreserveString(m.Description, internal.Description)
+	m.OutputType = evalPreserveString(m.OutputType, internal.OutputType)
+	m.Repetitions = evalPreserveInt64(m.Repetitions, internal.Repetitions)
+	m.Code = evalPreserveString(m.Code, internal.Code)
+	m.Prompt = evalPreserveString(m.Prompt, internal.Prompt)
+	m.Mode = evalPreserveString(m.Mode, internal.Mode)
+
+	// Computed-only: always the server's value.
+	m.Enabled = types.BoolValue(internal.Enabled)
+	m.ProjectID = optString(internal.ProjectID)
+	m.CreatedAt = optString(internal.Created)
+	m.UpdatedAt = optString(internal.Updated)
+	m.ModelID = evaluatorModelID(internal)
+
+	if m.Model.IsUnknown() {
+		m.Model = optString(external.Model)
 	}
-	return optString(srv)
+
+	// categorical_labels / jury / path stay exactly as planned.
 }
 
-// evalPreserveInt64 is evalPreserveString for an optional integer.
-func evalPreserveInt64(planned types.Int64, srv *int64) types.Int64 {
-	if !planned.IsUnknown() {
-		return planned
-	}
-	if srv == nil {
-		return types.Int64Null()
-	}
-	return types.Int64Value(*srv)
-}
-
-// labelsToModel projects the stored categorical labels onto state.
-func labelsToModel(labels []client.CategoricalLabel) []evaluatorLabelModel {
-	if len(labels) == 0 {
-		return nil
-	}
-	out := make([]evaluatorLabelModel, 0, len(labels))
-	for _, l := range labels {
-		out = append(out, evaluatorLabelModel{
-			Value:       types.StringValue(l.Value),
-			Description: optStringPtr(l.Description),
-		})
-	}
-	return out
-}
-
-// applyRead writes the STORED record onto m. READ PATH ONLY: the server wins for
-// every attribute it can express, so real out-of-band drift surfaces.
-//
-// Three attributes are deliberately NOT touched here:
-//   - `path`, which no endpoint returns (see the schema),
-//   - `jury`, which the stored record spells with model document ids,
-//   - `model`, resolved separately by resolveModelRef.
+// applyRead refreshes state from the STORED record, which wins outright so that
+// out-of-band drift surfaces. `path` (no endpoint returns it), `jury` (stored as
+// model document ids) and `model` (resolveModelRef) are deliberately untouched.
 func applyRead(e *client.Evaluator, m *evaluatorResourceModel) {
 	m.ID = types.StringValue(e.ID)
 	m.Key = types.StringValue(e.Key)
@@ -807,10 +611,10 @@ func applyRead(e *client.Evaluator, m *evaluatorResourceModel) {
 	m.CategoricalLabels = labelsToModel(e.CategoricalLabels)
 }
 
-// evaluatorModelID reports the model document id that belongs in state. A jury
-// evaluator has no single judge model, and a record that was once single-mode
-// can still carry a stale `model` sub-document (the update is a `$set` merge),
-// so mode — not the presence of the field — decides.
+// evaluatorModelID reports the model document id that belongs in state. Mode —
+// not the presence of the field — decides: a record that was once single-mode
+// can still carry a stale `model` sub-document, because the update is a $set
+// merge with no unset.
 func evaluatorModelID(e *client.Evaluator) types.String {
 	if e.Mode == "jury" {
 		return types.StringNull()
@@ -818,46 +622,41 @@ func evaluatorModelID(e *client.Evaluator) types.String {
 	return optString(e.ModelID)
 }
 
-// applyWrite assembles state from BOTH response shapes after a create/update.
-//
-// internal is the by-id read-back (the only source of output_type, enabled,
-// project_id and the model document id); external is the create/update response
-// (the only source of the provider-qualified `model` string). The PLAN wins for
-// every known planned value; the read-back may only fill what the plan left
-// unknown. That is the same authority split as orq_workspace_settings, and it is
-// what keeps the two shapes from producing a diff: nothing the write path reads
-// back can overwrite a value the operator configured.
-func applyWrite(internal, external *client.Evaluator, m *evaluatorResourceModel) {
-	m.ID = types.StringValue(external.ID)
-	m.Key = evalPreserveString(m.Key, internal.Key)
-	m.Type = evalPreserveString(m.Type, internal.Type)
-	m.Description = evalPreserveString(m.Description, internal.Description)
-	m.OutputType = evalPreserveString(m.OutputType, internal.OutputType)
-	m.Repetitions = evalPreserveInt64(m.Repetitions, internal.Repetitions)
-	m.Code = evalPreserveString(m.Code, internal.Code)
-	m.Prompt = evalPreserveString(m.Prompt, internal.Prompt)
-	m.Mode = evalPreserveString(m.Mode, internal.Mode)
-
-	// Computed-only: always the server's value.
-	m.Enabled = types.BoolValue(internal.Enabled)
-	m.ProjectID = optString(internal.ProjectID)
-	m.CreatedAt = optString(internal.Created)
-	m.UpdatedAt = optString(internal.Updated)
-	m.ModelID = evaluatorModelID(internal)
-
-	// `model`: the external response echoes the string that was sent, so it is
-	// the authoritative spelling here — but only for a plan that left it unknown.
-	if m.Model.IsUnknown() {
-		m.Model = optString(external.Model)
+func labelsToModel(labels []client.CategoricalLabel) []evaluatorLabelModel {
+	if len(labels) == 0 {
+		return nil
 	}
-
-	// categorical_labels / jury / path stay exactly as planned.
+	out := make([]evaluatorLabelModel, 0, len(labels))
+	for _, l := range labels {
+		out = append(out, evaluatorLabelModel{
+			Value:       types.StringValue(l.Value),
+			Description: optStringPtr(l.Description),
+		})
+	}
+	return out
 }
 
-// nullUnknowns collapses every attribute that may still be unknown to a null, so
-// a PARTIAL state can be persisted after a write that succeeded but whose
-// read-back failed. Terraform rejects unknown values in post-apply state, and
-// dropping the state entirely would orphan the evaluator that was just created.
+// evalPreserveString keeps ANY KNOWN planned value — an explicit null included —
+// and consults the read-back only for an UNKNOWN one.
+func evalPreserveString(planned types.String, srv string) types.String {
+	if !planned.IsUnknown() {
+		return planned
+	}
+	return optString(srv)
+}
+
+func evalPreserveInt64(planned types.Int64, srv *int64) types.Int64 {
+	if !planned.IsUnknown() {
+		return planned
+	}
+	if srv == nil {
+		return types.Int64Null()
+	}
+	return types.Int64Value(*srv)
+}
+
+// nullUnknowns collapses every possibly-unknown attribute to a null so a PARTIAL
+// state can be persisted after a write that succeeded but whose read-back failed.
 func nullUnknowns(m *evaluatorResourceModel) {
 	for _, s := range []*types.String{
 		&m.ID, &m.Key, &m.Type, &m.Path, &m.Description, &m.OutputType,
@@ -876,22 +675,15 @@ func nullUnknowns(m *evaluatorResourceModel) {
 	}
 }
 
-// resolveModelRef decides what `model` holds after a refresh.
-//
-// The stored record only knows the model DOCUMENT ID, so the provider-qualified
-// string cannot be read back directly. The recorded model_id is used as the
-// drift detector: while it still matches, the string in state is by construction
-// the one that produced it and is kept verbatim (no catalog call at all). Once
-// it differs — the model was changed out of band, or this is a fresh import with
-// no recorded id — the id is resolved through the model catalog and the ref is
-// written. A raw document id is NEVER written into `model`.
+// resolveModelRef decides what `model` holds after a refresh. The stored record
+// only knows the model DOCUMENT ID, so a raw id would otherwise land in a
+// config-authoritative attribute.
 func (r *evaluatorResource) resolveModelRef(ctx context.Context, internal *client.Evaluator, prior evaluatorResourceModel) (types.String, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	if internal.Mode == "jury" || internal.ModelID == "" {
 		return types.StringNull(), diags
 	}
-	if !prior.ModelID.IsNull() && prior.ModelID.ValueString() == internal.ModelID &&
-		!prior.Model.IsNull() && !prior.Model.IsUnknown() {
+	if priorModelRefStillCurrent(prior, internal.ModelID) {
 		return prior.Model, diags
 	}
 	m, err := r.models.Get(ctx, internal.ModelID)
@@ -900,10 +692,7 @@ func (r *evaluatorResource) resolveModelRef(ctx context.Context, internal *clien
 			"The evaluator references model document "+internal.ModelID+", which could not be resolved to a "+
 				"provider/model ref: "+errDetail(err)+"\n\nThe previously known value for `model` was kept, so a "+
 				"real change to the judge model may not show up in the next plan.")
-		if prior.Model.IsUnknown() {
-			return types.StringNull(), diags
-		}
-		return prior.Model, diags
+		return keepPriorModelRef(prior), diags
 	}
 	if m.RefID != "" {
 		return types.StringValue(m.RefID), diags
@@ -914,159 +703,20 @@ func (r *evaluatorResource) resolveModelRef(ctx context.Context, internal *clien
 	diags.AddWarning("Could not resolve the evaluator's judge model",
 		"The model catalog returned no provider-qualified ref for document "+internal.ModelID+
 			". The previously known value for `model` was kept.")
+	return keepPriorModelRef(prior), diags
+}
+
+// priorModelRefStillCurrent reports whether the ref already in state is the one
+// that produced the document id the server now stores. While it holds, the
+// catalog is not consulted at all.
+func priorModelRefStillCurrent(prior evaluatorResourceModel, storedModelID string) bool {
+	return !prior.ModelID.IsNull() && prior.ModelID.ValueString() == storedModelID &&
+		!prior.Model.IsNull() && !prior.Model.IsUnknown()
+}
+
+func keepPriorModelRef(prior evaluatorResourceModel) types.String {
 	if prior.Model.IsUnknown() {
-		return types.StringNull(), diags
+		return types.StringNull()
 	}
-	return prior.Model, diags
-}
-
-// assertManagedType refuses to project an evaluator this resource does not
-// manage onto state. Without it an import (or an id typo) of e.g. a `ragas`
-// evaluator would be adopted, and the next apply would try to "fix" its type —
-// which the API rejects — or destroy and recreate it as something else.
-func assertManagedType(kind string) diag.Diagnostic {
-	if kind == client.EvaluatorTypePython || kind == client.EvaluatorTypeLLM {
-		return nil
-	}
-	return diag.NewErrorDiagnostic("Unsupported evaluator type",
-		fmt.Sprintf("The evaluator is of type %q, which orq_evaluator does not manage (it handles %s only). "+
-			"Manage it through the UI or API instead.", kind, strings.Join(quoteAll(evaluatorTypes), " and ")))
-}
-
-// --- CRUD --------------------------------------------------------------------
-
-func (r *evaluatorResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan, cfg evaluatorResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	// The CONFIG decides what is written; the plan carries what lands in state.
-	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
-	// Re-run the cross-field checks: ValidateConfig may have deferred some of
-	// them on an unknown value, and the framework never re-runs it at apply.
-	resp.Diagnostics.Append(validateEvaluatorConfig(ctx, req.Config)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	external, err := r.evaluators.Create(ctx, cfg.createInput())
-	if err != nil {
-		resp.Diagnostics.AddError("Unable to create evaluator", errDetail(err))
-		return
-	}
-
-	internal, err := r.evaluators.Get(ctx, external.ID)
-	if err != nil {
-		// The evaluator EXISTS. Persist what we know (above all its id) so the next
-		// apply updates it instead of creating a duplicate, and fail loudly.
-		resp.Diagnostics.AddError("Evaluator created but could not be read back",
-			"The evaluator was created with id "+external.ID+", but reading it back failed: "+errDetail(err)+
-				"\n\nIts id has been written to state so it is not orphaned; run `terraform plan` again to "+
-				"finish reconciling it.")
-		plan.ID = types.StringValue(external.ID)
-		nullUnknowns(&plan)
-		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-		return
-	}
-
-	applyWrite(internal, external, &plan)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-}
-
-func (r *evaluatorResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state evaluatorResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	internal, err := r.evaluators.Get(ctx, state.ID.ValueString())
-	if err != nil {
-		if isNotFound(err) {
-			// Deleted out of band: drop it so the next plan re-creates it.
-			resp.State.RemoveResource(ctx)
-			return
-		}
-		resp.Diagnostics.AddError("Unable to read evaluator", errDetail(err))
-		return
-	}
-	if d := assertManagedType(internal.Type); d != nil {
-		resp.Diagnostics.Append(d)
-		return
-	}
-
-	prior := state
-	applyRead(internal, &state)
-	model, diags := r.resolveModelRef(ctx, internal, prior)
-	resp.Diagnostics.Append(diags...)
-	state.Model = model
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-}
-
-func (r *evaluatorResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan, cfg, state evaluatorResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	// See Create: the deferred cross-field checks are re-run here once known.
-	resp.Diagnostics.Append(validateEvaluatorConfig(ctx, req.Config)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	id := state.ID.ValueString()
-
-	external, err := r.evaluators.Update(ctx, cfg.updateInput(id))
-	if err != nil {
-		resp.Diagnostics.AddError("Unable to update evaluator", errDetail(err))
-		return
-	}
-
-	internal, err := r.evaluators.Get(ctx, id)
-	if err != nil {
-		resp.Diagnostics.AddError("Evaluator updated but could not be read back",
-			"The update of evaluator "+id+" was accepted, but reading it back failed: "+errDetail(err)+
-				"\n\nRun `terraform plan` again to reconcile.")
-		plan.ID = types.StringValue(id)
-		nullUnknowns(&plan)
-		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-		return
-	}
-
-	applyWrite(internal, external, &plan)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-}
-
-func (r *evaluatorResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state evaluatorResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	if err := r.evaluators.Delete(ctx, state.ID.ValueString()); err != nil {
-		if isNotFound(err) {
-			return
-		}
-		resp.Diagnostics.AddError("Unable to delete evaluator", errDetail(err))
-	}
-}
-
-// ImportState adopts an existing evaluator by its ULID:
-//
-//	terraform import orq_evaluator.this 01JMDPA3QW5C1V0NJ1PW34T4E5
-//
-// A non-ULID id is refused outright. orq's BUILT-IN evaluators are addressed by
-// slug (`orq_pii_detection`, …) and have no evaluator record at all, so passing
-// one would otherwise produce a confusing 404 at refresh time; and only a record
-// id can be adopted.
-//
-// `path` cannot be imported — no endpoint returns it — so it stays null until
-// the first apply after the import re-asserts it from config.
-func (r *evaluatorResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	if !ulidPattern.MatchString(req.ID) {
-		resp.Diagnostics.AddError("Invalid evaluator import id",
-			fmt.Sprintf("%q is not a ULID. Import an evaluator by the 26-character id the API returns as `_id`, "+
-				"e.g. 01JMDPA3QW5C1V0NJ1PW34T4E5.\n\norq's built-in evaluators (orq_pii_detection, "+
-				"orq_secret_detection, …) are addressed by slug and have no evaluator record — they cannot be "+
-				"imported or managed here.", req.ID))
-		return
-	}
-	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+	return prior.Model
 }

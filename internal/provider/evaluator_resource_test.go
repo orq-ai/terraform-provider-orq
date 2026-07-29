@@ -64,9 +64,8 @@ var juryAttrTypes = map[string]attr.Type{
 	"min_successful_judges": types.Int64Type,
 }
 
-// juryObject builds a stand-in for the jury block carrying only what
-// validateJuryObject inspects: the two judge-list lengths and the threshold.
-// Element typing is irrelevant to that check, so plain string lists are used.
+// juryObject carries only what validateJurySizing inspects: the two judge-list
+// lengths and the threshold. A negative replacements count means a null list.
 func juryObject(judges, replacements int, minSuccessful *int64) types.Object {
 	strList := func(n int) attr.Value {
 		elems := make([]attr.Value, 0, n)
@@ -95,15 +94,8 @@ func juryObject(judges, replacements int, minSuccessful *int64) types.Object {
 	return o
 }
 
-func juryNull() types.Object { return types.ObjectNull(juryAttrTypes) }
-
 // --- schema shape -----------------------------------------------------------
 
-// TestEvaluatorSchemaModifiers pins the two attributes whose plan modifier is a
-// correctness decision rather than cosmetics: `type` (the API rejects a type
-// change with a 400) and `mode` (the $set-merge update cannot unset the
-// abandoned jury/model sub-document, so jury->single would silently keep judging
-// as a jury).
 func TestEvaluatorSchemaModifiers(t *testing.T) {
 	ctx := context.Background()
 	s := evaluatorSchema(t)
@@ -124,17 +116,11 @@ func TestEvaluatorSchemaModifiers(t *testing.T) {
 			t.Errorf("%s must force replacement", name)
 		}
 	}
-	// `key` is renameable in place (the API patches display_name) — marking it
-	// RequiresReplace would destroy evaluators on a harmless rename.
 	if requiresReplace("key") {
 		t.Error("key must NOT force replacement: the API supports renaming in place")
 	}
 }
 
-// TestEvaluatorSchemaComputedAttributes pins which attributes are server-owned.
-// `enabled`, `project_id` and `model_id` are Computed-ONLY because no public
-// create/update body accepts them — making any of them Optional would silently
-// drop the operator's value.
 func TestEvaluatorSchemaComputedAttributes(t *testing.T) {
 	s := evaluatorSchema(t)
 	computedOnly := []string{"id", "enabled", "project_id", "model_id", "created_at", "updated_at"}
@@ -160,8 +146,8 @@ func TestEvaluatorSchemaComputedAttributes(t *testing.T) {
 			t.Errorf("%s must be Optional+Computed", name)
 		}
 	}
-	// `model` must NOT be Computed: it is config-authoritative and a Computed
-	// marking would let a refresh substitute a value the config never wrote.
+	// `model` is config-authoritative: Computed would let a refresh substitute a
+	// value the config never wrote.
 	if s.Attributes["model"].IsComputed() {
 		t.Error("model must not be Computed")
 	}
@@ -194,7 +180,6 @@ func TestEvaluatorReservedKeyRejected(t *testing.T) {
 	}
 }
 
-// TestEvaluatorKeyPattern pins the charset the server enforces.
 func TestEvaluatorKeyPattern(t *testing.T) {
 	valid := []string{"a", "my-eval", "my_eval", "Eval1", "a1-b_c2"}
 	invalid := []string{"", "-eval", "eval-", "_eval", "eval_", "my eval", "my.eval", "my/eval"}
@@ -216,32 +201,25 @@ func TestEvaluatorValidatePython(t *testing.T) {
 	code := types.StringValue("def evaluate(**kwargs): return True")
 	cases := []struct {
 		name      string
-		code      types.String
-		prompt    types.String
-		mode      types.String
-		model     types.String
-		output    types.String
-		reps      types.Int64
-		jury      types.Object
-		labels    types.List
+		cfg       evaluatorConfig
 		wantError bool
 	}{
-		{"minimal ok", code, types.StringNull(), types.StringNull(), types.StringNull(), types.StringNull(), types.Int64Null(), juryNull(), labelList(), false},
-		{"number output ok", code, types.StringNull(), types.StringNull(), types.StringNull(), types.StringValue("number"), types.Int64Null(), juryNull(), labelList(), false},
-		{"missing code rejected", types.StringNull(), types.StringNull(), types.StringNull(), types.StringNull(), types.StringNull(), types.Int64Null(), juryNull(), labelList(), true},
-		{"categorical output rejected", code, types.StringNull(), types.StringNull(), types.StringNull(), types.StringValue("categorical"), types.Int64Null(), juryNull(), labelList(), true},
-		{"string output rejected", code, types.StringNull(), types.StringNull(), types.StringNull(), types.StringValue("string"), types.Int64Null(), juryNull(), labelList(), true},
-		{"prompt rejected", code, types.StringValue("x"), types.StringNull(), types.StringNull(), types.StringNull(), types.Int64Null(), juryNull(), labelList(), true},
-		{"mode rejected", code, types.StringNull(), types.StringValue("single"), types.StringNull(), types.StringNull(), types.Int64Null(), juryNull(), labelList(), true},
-		{"model rejected", code, types.StringNull(), types.StringNull(), types.StringValue("openai/gpt-4o"), types.StringNull(), types.Int64Null(), juryNull(), labelList(), true},
-		{"repetitions rejected", code, types.StringNull(), types.StringNull(), types.StringNull(), types.StringNull(), types.Int64Value(2), juryNull(), labelList(), true},
-		{"jury rejected", code, types.StringNull(), types.StringNull(), types.StringNull(), types.StringNull(), types.Int64Null(), juryObject(2, 0, nil), labelList(), true},
-		{"labels rejected", code, types.StringNull(), types.StringNull(), types.StringNull(), types.StringNull(), types.Int64Null(), juryNull(), labelList("a", "b"), true},
+		{"minimal ok", evaluatorConfig{Code: code}, false},
+		{"number output ok", evaluatorConfig{Code: code, OutputType: types.StringValue("number")}, false},
+		{"missing code rejected", evaluatorConfig{}, true},
+		{"categorical output rejected", evaluatorConfig{Code: code, OutputType: types.StringValue("categorical")}, true},
+		{"string output rejected", evaluatorConfig{Code: code, OutputType: types.StringValue("string")}, true},
+		{"prompt rejected", evaluatorConfig{Code: code, Prompt: types.StringValue("x")}, true},
+		{"mode rejected", evaluatorConfig{Code: code, Mode: types.StringValue("single")}, true},
+		{"model rejected", evaluatorConfig{Code: code, Model: types.StringValue("openai/gpt-4o")}, true},
+		{"repetitions rejected", evaluatorConfig{Code: code, Repetitions: types.Int64Value(2)}, true},
+		{"jury rejected", evaluatorConfig{Code: code, Jury: juryObject(2, 0, nil)}, true},
+		{"labels rejected", evaluatorConfig{Code: code, Labels: labelList("a", "b")}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var diags diag.Diagnostics
-			validatePythonEvaluator(tc.code, tc.prompt, tc.mode, tc.model, tc.output, tc.reps, tc.jury, tc.labels, &diags)
+			tc.cfg.validatePython(&diags)
 			if diags.HasError() != tc.wantError {
 				t.Errorf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
 			}
@@ -252,42 +230,38 @@ func TestEvaluatorValidatePython(t *testing.T) {
 func TestEvaluatorValidateLLM(t *testing.T) {
 	prompt := types.StringValue("judge it")
 	model := types.StringValue("openai/gpt-4o")
+	single := types.StringValue("single")
+	jury := types.StringValue("jury")
 	two := int64(2)
 	five := int64(5)
 	cases := []struct {
 		name      string
-		code      types.String
-		prompt    types.String
-		mode      types.String
-		model     types.String
-		output    types.String
-		jury      types.Object
-		labels    types.List
+		cfg       evaluatorConfig
 		wantError bool
 	}{
-		{"single ok", types.StringNull(), prompt, types.StringValue("single"), model, types.StringNull(), juryNull(), labelList(), false},
-		{"jury ok", types.StringNull(), prompt, types.StringValue("jury"), types.StringNull(), types.StringNull(), juryObject(2, 0, &two), labelList(), false},
-		{"missing prompt rejected", types.StringNull(), types.StringNull(), types.StringValue("single"), model, types.StringNull(), juryNull(), labelList(), true},
-		{"missing mode rejected", types.StringNull(), prompt, types.StringNull(), model, types.StringNull(), juryNull(), labelList(), true},
-		{"code rejected", types.StringValue("x"), prompt, types.StringValue("single"), model, types.StringNull(), juryNull(), labelList(), true},
-		{"single without model rejected", types.StringNull(), prompt, types.StringValue("single"), types.StringNull(), types.StringNull(), juryNull(), labelList(), true},
-		{"jury without jury block rejected", types.StringNull(), prompt, types.StringValue("jury"), types.StringNull(), types.StringNull(), juryNull(), labelList(), true},
-		{"model and jury together rejected", types.StringNull(), prompt, types.StringValue("single"), model, types.StringNull(), juryObject(2, 0, nil), labelList(), true},
-		{"jury with model rejected", types.StringNull(), prompt, types.StringValue("jury"), model, types.StringNull(), juryObject(2, 0, nil), labelList(), true},
-		{"jury with string output rejected", types.StringNull(), prompt, types.StringValue("jury"), types.StringNull(), types.StringValue("string"), juryObject(2, 0, nil), labelList(), true},
-		{"single with string output ok", types.StringNull(), prompt, types.StringValue("single"), model, types.StringValue("string"), juryNull(), labelList(), false},
-		{"min_successful over judge count rejected", types.StringNull(), prompt, types.StringValue("jury"), types.StringNull(), types.StringNull(), juryObject(2, 1, &five), labelList(), true},
-		{"min_successful within judge count ok", types.StringNull(), prompt, types.StringValue("jury"), types.StringNull(), types.StringNull(), juryObject(2, 3, &five), labelList(), false},
-		{"categorical without labels rejected", types.StringNull(), prompt, types.StringValue("single"), model, types.StringValue("categorical"), juryNull(), labelList(), true},
-		{"categorical with one label rejected", types.StringNull(), prompt, types.StringValue("single"), model, types.StringValue("categorical"), juryNull(), labelList("a"), true},
-		{"categorical with two labels ok", types.StringNull(), prompt, types.StringValue("single"), model, types.StringValue("categorical"), juryNull(), labelList("a", "b"), false},
-		{"case-insensitive duplicate labels rejected", types.StringNull(), prompt, types.StringValue("single"), model, types.StringValue("categorical"), juryNull(), labelList("Friendly", " friendly "), true},
-		{"unknown mode defers", types.StringNull(), prompt, types.StringUnknown(), model, types.StringNull(), juryNull(), labelList(), false},
+		{"single ok", evaluatorConfig{Prompt: prompt, Mode: single, Model: model}, false},
+		{"jury ok", evaluatorConfig{Prompt: prompt, Mode: jury, Jury: juryObject(2, 0, &two)}, false},
+		{"missing prompt rejected", evaluatorConfig{Mode: single, Model: model}, true},
+		{"missing mode rejected", evaluatorConfig{Prompt: prompt, Model: model}, true},
+		{"code rejected", evaluatorConfig{Code: types.StringValue("x"), Prompt: prompt, Mode: single, Model: model}, true},
+		{"single without model rejected", evaluatorConfig{Prompt: prompt, Mode: single}, true},
+		{"jury without jury block rejected", evaluatorConfig{Prompt: prompt, Mode: jury}, true},
+		{"model and jury together rejected", evaluatorConfig{Prompt: prompt, Mode: single, Model: model, Jury: juryObject(2, 0, nil)}, true},
+		{"jury with model rejected", evaluatorConfig{Prompt: prompt, Mode: jury, Model: model, Jury: juryObject(2, 0, nil)}, true},
+		{"jury with string output rejected", evaluatorConfig{Prompt: prompt, Mode: jury, OutputType: types.StringValue("string"), Jury: juryObject(2, 0, nil)}, true},
+		{"single with string output ok", evaluatorConfig{Prompt: prompt, Mode: single, Model: model, OutputType: types.StringValue("string")}, false},
+		{"min_successful over judge count rejected", evaluatorConfig{Prompt: prompt, Mode: jury, Jury: juryObject(2, 1, &five)}, true},
+		{"min_successful within judge count ok", evaluatorConfig{Prompt: prompt, Mode: jury, Jury: juryObject(2, 3, &five)}, false},
+		{"categorical without labels rejected", evaluatorConfig{Prompt: prompt, Mode: single, Model: model, OutputType: types.StringValue("categorical")}, true},
+		{"categorical with one label rejected", evaluatorConfig{Prompt: prompt, Mode: single, Model: model, OutputType: types.StringValue("categorical"), Labels: labelList("a")}, true},
+		{"categorical with two labels ok", evaluatorConfig{Prompt: prompt, Mode: single, Model: model, OutputType: types.StringValue("categorical"), Labels: labelList("a", "b")}, false},
+		{"case-insensitive duplicate labels rejected", evaluatorConfig{Prompt: prompt, Mode: single, Model: model, OutputType: types.StringValue("categorical"), Labels: labelList("Friendly", " friendly ")}, true},
+		{"unknown mode defers", evaluatorConfig{Prompt: prompt, Mode: types.StringUnknown(), Model: model}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var diags diag.Diagnostics
-			validateLLMEvaluator(tc.code, tc.prompt, tc.mode, tc.model, tc.output, tc.jury, tc.labels, &diags)
+			tc.cfg.validateLLM(&diags)
 			if diags.HasError() != tc.wantError {
 				t.Errorf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
 			}
@@ -297,8 +271,6 @@ func TestEvaluatorValidateLLM(t *testing.T) {
 
 // --- conversions ------------------------------------------------------------
 
-// TestEvaluatorCreateInputConversion covers config -> request for both types,
-// including the fallback-list-of-strings -> list-of-objects mapping.
 func TestEvaluatorCreateInputConversion(t *testing.T) {
 	python := evaluatorResourceModel{
 		Key:         types.StringValue("my-eval"),
@@ -367,8 +339,6 @@ func TestEvaluatorCreateInputConversion(t *testing.T) {
 	}
 }
 
-// TestEvaluatorUpdateInputClearsLabels proves the $set-merge workaround is
-// driven from the model: no labels in config => "clear them".
 func TestEvaluatorUpdateInputClearsLabels(t *testing.T) {
 	m := evaluatorResourceModel{
 		Key:  types.StringValue("my-eval"),
@@ -412,7 +382,7 @@ func (s *stubModels) Update(context.Context, client.ModelUpdateInput) (*client.M
 func (s *stubModels) Delete(context.Context, string) error { return nil }
 
 // externalLLM / internalLLM are the two representations of THE SAME stored
-// evaluator, exactly as the two endpoints serialize it.
+// evaluator, as the two endpoints serialize it.
 func externalLLM() *client.Evaluator {
 	reps := int64(2)
 	warm := "warm"
@@ -463,8 +433,7 @@ func internalLLM() *client.Evaluator {
 }
 
 // plannedLLM is what the operator configured, as the plan carries it into
-// Create/Update. output_type is set explicitly here so the write path has a
-// known planned value to preserve.
+// Create/Update.
 func plannedLLM() evaluatorResourceModel {
 	warm := types.StringValue("warm")
 	return evaluatorResourceModel{
@@ -491,18 +460,9 @@ func plannedLLM() evaluatorResourceModel {
 	}
 }
 
-// TestEvaluatorShapeAsymmetryProducesNoDiff is the central regression test for
-// this resource.
-//
-// Create/Update see the EXTERNAL body (key, `model` as a string, no
-// output_type/enabled/project_id) while the very next refresh sees the INTERNAL
-// one (display_name, `model` as a document-id object, plus those three fields).
-// A naive implementation would therefore write one state on apply and a
-// DIFFERENT state on the next read — a diff that never converges.
-//
-// Here the state produced by the write path and the state produced by the read
-// path over the same evaluator must be IDENTICAL, and a second read must be a
-// fixed point.
+// The write path sees the EXTERNAL body and the very next refresh sees the
+// INTERNAL one, so the two must produce IDENTICAL state and a second read must
+// be a fixed point — otherwise the diff never converges.
 func TestEvaluatorShapeAsymmetryProducesNoDiff(t *testing.T) {
 	ctx := context.Background()
 	r := &evaluatorResource{models: &stubModels{byID: map[string]*client.Model{
@@ -516,8 +476,7 @@ func TestEvaluatorShapeAsymmetryProducesNoDiff(t *testing.T) {
 	// Nothing may still be unknown once an apply completes.
 	assertNoUnknowns(t, "after apply", afterApply)
 
-	// READ PATH: the same evaluator, refreshed. path and jury are not carried by
-	// any response, so they survive from prior state — seed them as such.
+	// READ PATH: the same evaluator, refreshed.
 	afterRefresh := afterApply
 	applyRead(internalLLM(), &afterRefresh)
 	model, diags := r.resolveModelRef(ctx, internalLLM(), afterApply)
@@ -540,10 +499,6 @@ func TestEvaluatorShapeAsymmetryProducesNoDiff(t *testing.T) {
 	}
 }
 
-// TestEvaluatorReadNeverWritesModelDocumentID proves the single worst failure
-// mode is impossible: `model` must never be filled with the stored document id.
-// With no prior state (a fresh import) the id is resolved through the catalog;
-// with a matching prior model_id the catalog is not consulted at all.
 func TestEvaluatorReadNeverWritesModelDocumentID(t *testing.T) {
 	ctx := context.Background()
 	stub := &stubModels{byID: map[string]*client.Model{
@@ -567,8 +522,7 @@ func TestEvaluatorReadNeverWritesModelDocumentID(t *testing.T) {
 		t.Errorf("catalog calls = %d, want 1 for an unresolved id", stub.calls)
 	}
 
-	// Steady state: model_id matches, so the string is kept verbatim and the
-	// catalog is NOT called again.
+	// Steady state: model_id matches, so the catalog is NOT called again.
 	stub.calls = 0
 	steady := evaluatorResourceModel{
 		Model:   types.StringValue("openai/gpt-4o"),
@@ -614,9 +568,8 @@ func TestEvaluatorReadNeverWritesModelDocumentID(t *testing.T) {
 	}
 }
 
-// TestEvaluatorApplyWritePreservesPlan proves the write path never overwrites a
-// KNOWN planned value with the read-back — the rule Terraform enforces as
-// "Provider produced inconsistent result after apply".
+// Overwriting a known planned value with the read-back is what Terraform aborts
+// as "Provider produced inconsistent result after apply".
 func TestEvaluatorApplyWritePreservesPlan(t *testing.T) {
 	planned := plannedLLM()
 	// A server that (wrongly) reports different values for the managed fields.
@@ -648,9 +601,7 @@ func TestEvaluatorApplyWritePreservesPlan(t *testing.T) {
 	}
 }
 
-// TestEvaluatorApplyWriteFillsUnknownFromReadBack proves the other half of the
-// authority split: an attribute the config omitted (planned unknown) IS filled
-// from the by-id read-back — the only place output_type can come from, since the
+// The by-id read-back is the only place output_type can come from: the
 // create/update response omits it entirely.
 func TestEvaluatorApplyWriteFillsUnknownFromReadBack(t *testing.T) {
 	planned := plannedLLM()
@@ -673,10 +624,6 @@ func TestEvaluatorApplyWriteFillsUnknownFromReadBack(t *testing.T) {
 	assertNoUnknowns(t, "filled", got)
 }
 
-// TestEvaluatorNullUnknownsMakesStatePersistable proves the partial-state escape
-// hatch used when a write succeeds but the read-back fails: every attribute has
-// to be concrete before state can be written, or Terraform rejects it and the
-// just-created evaluator is orphaned.
 func TestEvaluatorNullUnknownsMakesStatePersistable(t *testing.T) {
 	m := plannedLLM()
 	m.ID = types.StringValue("01JMDPA3QW5C1V0NJ1PW34T4E5")
@@ -710,9 +657,6 @@ func assertNoUnknowns(t *testing.T, label string, m evaluatorResourceModel) {
 
 // --- type guard + import ----------------------------------------------------
 
-// TestEvaluatorAssertManagedType proves an out-of-scope evaluator type is
-// refused rather than adopted (which would make the next apply try to change an
-// immutable `type`, or destroy and recreate the record as something else).
 func TestEvaluatorAssertManagedType(t *testing.T) {
 	for _, kind := range []string{client.EvaluatorTypePython, client.EvaluatorTypeLLM} {
 		if d := assertManagedType(kind); d != nil {
@@ -726,8 +670,7 @@ func TestEvaluatorAssertManagedType(t *testing.T) {
 	}
 }
 
-// TestEvaluatorImportRejectsNonULID proves import refuses anything that is not a
-// record id — notably the built-in evaluators' slug ids, which have no record.
+// The built-in evaluators' slug ids have no evaluator record at all.
 func TestEvaluatorImportRejectsNonULID(t *testing.T) {
 	ctx := context.Background()
 	r := &evaluatorResource{}
@@ -752,9 +695,6 @@ func TestEvaluatorImportRejectsNonULID(t *testing.T) {
 
 // --- read projection --------------------------------------------------------
 
-// TestEvaluatorApplyReadLeavesPathAndJuryAlone proves the read path does not
-// invent values for the two attributes no response can express. Nulling them
-// would produce a perpetual diff against a config that sets them.
 func TestEvaluatorApplyReadLeavesPathAndJuryAlone(t *testing.T) {
 	m := evaluatorResourceModel{
 		Path: types.StringValue("Default/evaluators"),
@@ -769,8 +709,6 @@ func TestEvaluatorApplyReadLeavesPathAndJuryAlone(t *testing.T) {
 	}
 }
 
-// TestEvaluatorApplyReadPythonClearsLLMAttributes proves a python_eval refresh
-// leaves no stale llm values behind.
 func TestEvaluatorApplyReadPythonClearsLLMAttributes(t *testing.T) {
 	m := plannedLLM()
 	applyRead(&client.Evaluator{

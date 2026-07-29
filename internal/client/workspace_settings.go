@@ -7,38 +7,31 @@ import (
 	"github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1/platformv1connect"
 )
 
-// WorkspaceSettings is the transport-agnostic projection of the workspace
-// settings singleton. A workspace IS the tenant, so there is no id: the
-// credential selects the workspace.
+// WorkspaceSettings is the workspace settings singleton. A workspace IS the
+// tenant, so there is no id: the credential selects the workspace.
 type WorkspaceSettings struct {
-	// Key is the read-only workspace slug. It is never writable through this
-	// service (the proto deliberately has no key field on the update request).
+	// Key is read-only: the update request has no key field.
 	Key                  string
 	DisplayName          string
 	EnforceEnabledModels bool
-	// PiiRedaction is nil when the workspace has never configured the
-	// workspace-default PII redaction plugin.
+	// PiiRedaction is nil when the workspace never configured the plugin.
 	PiiRedaction *PiiRedaction
 }
 
 // PiiRedaction is the workspace-default pii_redaction plugin configuration.
 type PiiRedaction struct {
 	Enabled bool
-	// Config is nil when the stored document carries no `config` object (an
-	// enable flag on its own).
+	// Config is nil when the stored document is an enable flag on its own.
 	Config *PiiRedactionConfig
 }
 
-// PiiRedactionConfig mirrors the plugin config. Every field is optional; a nil
-// pointer / nil slice means "absent", which on the write path means the key is
-// not stored and on the read path means the stored document omitted it.
+// PiiRedactionConfig mirrors the plugin config; a nil pointer/slice means the
+// key is absent.
 //
 // Entities is ALWAYS nil when the server holds no entities: the stored document
-// omits the key entirely for an empty list (which the gateway reads as "redact
-// every entity type the detector finds"). The distinction between "no entities
-// key" and "an empty list" therefore does not survive the server, and the
-// resource layer — not this seam — is what re-establishes it against the
-// operator's config.
+// omits the key entirely for an empty list, so "no entities key" and "an empty
+// list" do not survive the round trip. The resource layer re-establishes the
+// distinction against the operator's config.
 type PiiRedactionConfig struct {
 	Language  *string
 	Entities  []string
@@ -46,28 +39,22 @@ type PiiRedactionConfig struct {
 	Threshold *float64
 }
 
-// WorkspaceSettingsUpdateInput is a PARTIAL update: a nil field is omitted from
-// the request and the server leaves the stored value unchanged.
-//
-// PiiRedaction is the exception to "partial": omitting it (nil) leaves the
-// stored object alone, but SENDING it fully REPLACES the stored object — every
-// config key the operator dropped is dropped server-side too.
+// WorkspaceSettingsUpdateInput is a PARTIAL update: a nil field is omitted and
+// the server leaves the stored value unchanged. PiiRedaction is the exception —
+// sending it fully REPLACES the stored object.
 type WorkspaceSettingsUpdateInput struct {
 	DisplayName          *string
 	EnforceEnabledModels *bool
 	PiiRedaction         *PiiRedaction
 }
 
-// IsEmpty reports whether the input would write nothing at all. The resource
-// layer uses it to answer an "adopt, manage nothing" configuration with a plain
-// read instead of a no-op write RPC.
+// IsEmpty reports whether the input would write nothing at all.
 func (in WorkspaceSettingsUpdateInput) IsEmpty() bool {
 	return in.DisplayName == nil && in.EnforceEnabledModels == nil && in.PiiRedaction == nil
 }
 
-// WorkspaceSettingsAPI is the per-resource seam for the workspace-settings
-// domain (Connect-backed). There is no Create or Delete: the workspace is the
-// tenant, so the settings singleton always exists and can never be removed.
+// WorkspaceSettingsAPI has no Create or Delete: the singleton always exists and
+// can never be removed.
 type WorkspaceSettingsAPI interface {
 	Get(ctx context.Context) (*WorkspaceSettings, error)
 	Update(ctx context.Context, in WorkspaceSettingsUpdateInput) (*WorkspaceSettings, error)
@@ -118,8 +105,8 @@ func piiRedactionToProto(p *PiiRedaction) *platformv1.PiiRedaction {
 	return out
 }
 
-// cloneStr / cloneFloat copy an optional scalar so the caller and the proto
-// message never alias the same pointer.
+// cloneStr / cloneFloat / cloneBool keep the caller and the proto message from
+// aliasing the same pointer.
 func cloneStr(v *string) *string {
 	if v == nil {
 		return nil
