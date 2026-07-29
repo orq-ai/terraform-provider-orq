@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -194,6 +195,11 @@ func TestWorkspaceSettingsDisplayNameWhitespaceRejected(t *testing.T) {
 		{"interior nbsp", "Acme\u00a0Inc", false},
 		{"interior em space", "Acme\u2003Inc", false},
 		{"non-ascii letters", "Ünïcodé Wörkspace", false},
+		// The length bound counts code points like the server's protovalidate
+		// max_len, not UTF-8 bytes: 128 two-byte runes must pass (256 bytes),
+		// 129 must fail.
+		{"128 two-byte runes", strings.Repeat("é", 128), false},
+		{"129 two-byte runes", strings.Repeat("é", 129), true},
 		{"leading ascii space", " orq-test", true},
 		{"trailing ascii space", "orq-test ", true},
 		{"ascii whitespace only", "   ", true},
@@ -506,6 +512,33 @@ func TestWorkspaceSettingsApplyPiiFields(t *testing.T) {
 	}
 	if got := listStrings(t, ucfg.Entities); len(got) != 2 || got[0] != "person" {
 		t.Errorf("unknown entities must be filled from the read-back verbatim, got %v", got)
+	}
+
+	// A KNOWN list carrying an UNKNOWN element is not fully known either: it
+	// cannot be written to state as-is and must resolve from the read-back. A
+	// listFullyKnown that only checked List.IsUnknown() would miss this.
+	partial := workspaceSettingsResourceModel{PiiRedaction: &workspaceSettingsPiiModel{
+		Enabled: types.BoolValue(true),
+		Config: &workspaceSettingsPiiConfigModel{
+			Entities: types.ListValueMust(types.StringType, []attr.Value{
+				types.StringValue("PERSON"), types.StringUnknown(),
+			}),
+		},
+	}}
+	if diags := applySettings(srv, &partial, true); diags.HasError() {
+		t.Fatalf("applySettings: %v", diags)
+	}
+	pents := partial.PiiRedaction.Config.Entities
+	if pents.IsUnknown() {
+		t.Error("post-apply state must be wholly known, entities is still unknown")
+	}
+	for _, e := range pents.Elements() {
+		if e.IsUnknown() {
+			t.Error("post-apply state must be wholly known, an entities element is still unknown")
+		}
+	}
+	if got := listStrings(t, pents); len(got) != 2 || got[0] != "person" {
+		t.Errorf("a partially-unknown planned list must resolve from the read-back, got %v", got)
 	}
 }
 

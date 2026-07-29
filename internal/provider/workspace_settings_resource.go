@@ -145,7 +145,10 @@ func (r *workspaceSettingsResource) Schema(_ context.Context, _ resource.SchemaR
 					"plan-time error names the problem instead of hiding it. The check mirrors the server's " +
 					"Unicode-aware trim, so padding with a non-breaking space (U+00A0) is rejected too.",
 				Validators: []validator.String{
-					stringvalidator.LengthBetween(1, 128),
+					// UTF8LengthBetween counts code points, matching the server's
+					// protovalidate min_len/max_len; plain LengthBetween counts UTF-8
+					// bytes and would reject e.g. 65 two-byte characters as 130.
+					stringvalidator.UTF8LengthBetween(1, 128),
 					displayNameWhitespaceValidator{},
 				},
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
