@@ -1,0 +1,426 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+import "orq/platform/v1/budgets.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Identities"
+      description: "Identities represent end users from your system for usage and engagement tracking."
+    }
+  ]
+};
+
+service IdentitiesService {
+  rpc CreateIdentity(CreateIdentityRequest) returns (CreateIdentityResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "identity.create"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v2/identities"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create an identity"
+      description: "Creates a new identity with a unique external_id. If an identity with the same external_id already exists, the operation will fail."
+      operation_id: "CreateIdentity"
+      tags: ["Identities"]
+      responses: {
+        response_or_reference: [
+          {
+            name: "201"
+            value: {
+              response: {
+                description: "Identity created successfully."
+                content: {
+                  additional_properties: [
+                    {
+                      name: "application/json"
+                      value: {
+                        schema: {
+                          reference: {_ref: "#/components/schemas/CreateIdentityResponse"}
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "create"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "create"}
+        }
+      ]
+    };
+  }
+
+  rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "identity.list"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/identities"};
+    option (openapi.v3.operation) = {
+      summary: "List identities"
+      description: "Retrieves a paginated list of identities in your workspace. Use pagination parameters to navigate through large identity lists efficiently."
+      operation_id: "ListIdentities"
+      tags: ["Identities"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "list"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "list"}
+        }
+      ]
+    };
+  }
+
+  rpc RetrieveIdentity(RetrieveIdentityRequest) returns (RetrieveIdentityResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "identity.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/identities/{id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve an identity"
+      description: "Retrieves detailed information about a specific identity using their identity ID or external ID from your system."
+      operation_id: "RetrieveIdentity"
+      tags: ["Identities"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "retrieve"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "retrieve"}
+        }
+      ]
+    };
+  }
+
+  rpc UpdateIdentity(UpdateIdentityRequest) returns (UpdateIdentityResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "identity.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      patch: "/v2/identities/{id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update an identity"
+      description: "Updates specific fields of an existing identity. Only the fields provided in the request body will be updated."
+      operation_id: "UpdateIdentity"
+      tags: ["Identities"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "update"}
+        }
+      ]
+    };
+  }
+
+  rpc DeleteIdentity(DeleteIdentityRequest) returns (DeleteIdentityResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "identity.delete"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v2/identities/{id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete an identity"
+      description: "Permanently deletes an identity from your workspace and cleans up associated budget configurations."
+      operation_id: "DeleteIdentity"
+      tags: ["Identities"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "identities"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "delete"}
+        }
+      ]
+    };
+  }
+}
+
+message Identity {
+  option (openapi.v3.schema) = {
+    required: [
+      "id",
+      "external_id",
+      "workspace_id",
+      "created",
+      "updated"
+    ]
+  };
+
+  // Unique identity identifier assigned by ORQ. Returned as `_id` for
+  // compatibility with the v1 identity API.
+  string id = 1 [json_name = "_id"];
+  // Customer-provided stable identifier for this identity. This value is
+  // required on create and is unique within the workspace.
+  string external_id = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 120
+  }];
+  // Workspace that owns the identity.
+  string workspace_id = 3;
+  // Human-readable display name for the identity.
+  optional string display_name = 4;
+  // Email address associated with the identity.
+  optional string email = 5 [(buf.validate.field).string.email = true];
+  // URL of the identity avatar image.
+  optional string avatar_url = 6 [(buf.validate.field).string.uri = true];
+  // Free-form labels used to organize and filter identities.
+  repeated string tags = 7;
+  // Custom JSON metadata stored with the identity.
+  google.protobuf.Struct metadata = 8;
+  // ISO timestamp for when the identity was created.
+  string created = 9;
+  // ISO timestamp for when the identity was last updated.
+  string updated = 10;
+  // Optional usage and cost metrics. Present only when requested with
+  // `include_metrics`.
+  optional IdentityMetrics metrics = 11;
+  // The budget scoped to this identity, if one exists. Read-only here:
+  // budgets are created and managed through the Budgets API
+  // (scope.identity). Present only when requested with `include_budget`.
+  // Live consumption (`usage`) is not attached on this path — call the
+  // Budgets API for current spend.
+  optional Budget budget = 12 [(openapi.v3.property) = {read_only: true}];
+}
+
+message IdentityMetrics {
+  option (openapi.v3.schema) = {
+    required: [
+      "total_tokens",
+      "total_cost",
+      "total_requests",
+      "error_rate"
+    ]
+  };
+
+  // Total token count attributed to the identity.
+  double total_tokens = 1;
+  // Total cost attributed to the identity.
+  double total_cost = 2;
+  // Total request count attributed to the identity.
+  double total_requests = 3;
+  // Fraction of attributed requests that failed.
+  double error_rate = 4;
+}
+
+message IdentityFilter {
+  // Return only identities that have at least one of these tags.
+  repeated string tags = 1;
+}
+
+enum IdentitySortField {
+  IDENTITY_SORT_FIELD_UNSPECIFIED = 0;
+  IDENTITY_SORT_FIELD_DISPLAY_NAME = 1;
+  IDENTITY_SORT_FIELD_UPDATED = 2;
+}
+
+message CreateIdentityRequest {
+  option (openapi.v3.schema) = {
+    required: ["external_id"]
+  };
+
+  // Customer-provided stable identifier for this identity. Must be unique
+  // within the workspace.
+  string external_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 120
+  }];
+  // Human-readable display name for the identity.
+  optional string display_name = 2;
+  // Email address associated with the identity.
+  optional string email = 3 [(buf.validate.field).string.email = true];
+  // URL of the identity avatar image.
+  optional string avatar_url = 4 [(buf.validate.field).string.uri = true];
+  // Free-form labels used to organize and filter identities.
+  repeated string tags = 5;
+  // Custom JSON metadata stored with the identity.
+  google.protobuf.Struct metadata = 6;
+}
+
+message CreateIdentityResponse {
+  option (openapi.v3.schema) = {
+    required: ["identity"]
+  };
+
+  // Newly created identity.
+  Identity identity = 1;
+}
+
+message ListIdentitiesRequest {
+  optional int32 limit = 1 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+  // Cursor for forward pagination. Set to the `_id` of the last item from
+  // the previous page.
+  string starting_after = 2;
+  // Cursor for backward pagination. Set to the `_id` of the first item from
+  // the previous page.
+  string ending_before = 3;
+  // Case-insensitive search text matched against identity profile fields.
+  string search = 4;
+  // Optional filters applied before pagination.
+  IdentityFilter filter_by = 5;
+  // Include aggregate usage metrics on each returned identity.
+  bool include_metrics = 6;
+  // Field used to order the list.
+  IdentitySortField sort_by = 7;
+  // When true, embed each identity's identity-scoped budget (config and
+  // limits only, no live usage) on the returned records. Adds one budget
+  // lookup for the page; omit to skip it.
+  bool include_budget = 8;
+}
+
+message ListIdentitiesResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+
+  // Object discriminator for list responses; always `list`.
+  string object = 1;
+  // Page of identities.
+  repeated Identity data = 2;
+  // Whether more identities are available in the selected pagination
+  // direction.
+  bool has_more = 3;
+}
+
+message RetrieveIdentityRequest {
+  option (openapi.v3.schema) = {
+    required: ["id"]
+  };
+
+  // Identity ID to retrieve.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  // Include aggregate usage metrics on the returned identity.
+  bool include_metrics = 2;
+  // When true, embed the identity-scoped budget (config and limits only,
+  // no live usage) on the returned record.
+  bool include_budget = 3;
+}
+
+message RetrieveIdentityResponse {
+  option (openapi.v3.schema) = {
+    required: ["identity"]
+  };
+
+  // Requested identity.
+  Identity identity = 1;
+}
+
+message UpdateIdentityRequest {
+  option (openapi.v3.schema) = {
+    required: ["id"]
+  };
+
+  // Identity ID to update.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  // New display name. Omit to keep the current display name.
+  optional string display_name = 2;
+  // New email address. Omit to keep the current email.
+  optional string email = 3 [(buf.validate.field).string.email = true];
+  // New avatar image URL. Omit to keep the current avatar URL.
+  optional string avatar_url = 4 [(buf.validate.field).string.uri = true];
+  // Replacement tag list. Leave empty to clear tags.
+  repeated string tags = 5;
+  // Replacement custom JSON metadata.
+  google.protobuf.Struct metadata = 6;
+}
+
+message UpdateIdentityResponse {
+  option (openapi.v3.schema) = {
+    required: ["identity"]
+  };
+
+  // Updated identity.
+  Identity identity = 1;
+}
+
+message DeleteIdentityRequest {
+  option (openapi.v3.schema) = {
+    required: ["id"]
+  };
+
+  // Identity ID to delete.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteIdentityResponse {}

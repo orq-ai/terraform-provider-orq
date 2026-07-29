@@ -1,0 +1,33 @@
+version: v2
+# Generates the Connect (connect-go) client stubs into internal/gen.
+# All generated Go lives under the provider module path via managed mode.
+# Reproduce with `make generate` — NEVER hand-edit internal/gen.
+#
+# Remote plugin versions are PINNED (not floating "latest") so a regen months
+# from now is byte-for-byte reproducible. Bump deliberately and re-commit:
+#   - protocolbuffers/go tracks google.golang.org/protobuf (see go.mod).
+#   - connectrpc/gosimple tracks connectrpc.com/connect (see go.mod).
+#
+# `clean: true` deletes the plugin output dir (internal/gen) before generating,
+# so a proto removed from the sync no longer leaves an orphaned *.pb.go behind.
+clean: true
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/orq-ai/terraform-provider-orq/internal/gen
+plugins:
+  # Message types (*.pb.go)
+  - remote: buf.build/protocolbuffers/go:v1.36.11
+    out: internal/gen
+    opt: paths=source_relative
+    include_imports: true
+  # Connect clients (*.connect.go) — "simple" flavor: methods return
+  # (*Resp, error) directly instead of connect.Request/Response wrappers.
+  - remote: buf.build/connectrpc/gosimple:v1.20.0
+    out: internal/gen
+    opt:
+      - paths=source_relative
+      - simple
+inputs:
+  - directory: proto

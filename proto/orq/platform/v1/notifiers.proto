@@ -1,0 +1,319 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Notifiers"
+      description: "Notifier destinations used to send delivery and workflow notifications."
+    }
+  ]
+};
+
+service NotifiersService {
+  rpc CreateNotifier(CreateNotifierRequest) returns (CreateNotifierResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "notifier.create"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {
+      post: "/v2/notifiers"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create a notifier"
+      description: "Creates a notifier destination in a project. Choose `NOTIFIER_TYPE_EMAIL`, `NOTIFIER_TYPE_SLACK_WEBHOOK`, or `NOTIFIER_TYPE_WEBHOOK` and provide the matching destination fields."
+      operation_id: "NotifierCreate"
+      tags: ["Notifiers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "create"}
+        }
+      ]
+    };
+  }
+
+  rpc ListNotifiers(ListNotifiersRequest) returns (ListNotifiersResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "notifier.list"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {get: "/v2/notifiers"};
+    option (openapi.v3.operation) = {
+      summary: "List notifiers"
+      description: "Returns notifier destinations visible to the caller, ordered by creation time with the newest notifier first."
+      operation_id: "NotifierList"
+      tags: ["Notifiers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "list"}
+        }
+      ]
+    };
+  }
+
+  rpc GetNotifier(GetNotifierRequest) returns (GetNotifierResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "notifier.view"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {get: "/v2/notifiers/{notifier_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a notifier"
+      description: "Retrieves an existing notifier by ID."
+      operation_id: "NotifierGet"
+      tags: ["Notifiers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        }
+      ]
+    };
+  }
+
+  rpc UpdateNotifier(UpdateNotifierRequest) returns (UpdateNotifierResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "notifier.update"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {
+      patch: "/v2/notifiers/{notifier_id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update a notifier"
+      description: "Partially updates an existing notifier. When changing `type`, provide the destination fields required by the new notifier type."
+      operation_id: "NotifierUpdate"
+      tags: ["Notifiers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        }
+      ]
+    };
+  }
+
+  rpc DeleteNotifier(DeleteNotifierRequest) returns (DeleteNotifierResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "notifier.delete"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {delete: "/v2/notifiers/{notifier_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete a notifier"
+      description: "Deletes an existing notifier by ID."
+      operation_id: "NotifierDelete"
+      tags: ["Notifiers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        }
+      ]
+    };
+  }
+}
+
+enum NotifierType {
+  NOTIFIER_TYPE_UNSPECIFIED = 0;
+  NOTIFIER_TYPE_EMAIL = 1;
+  NOTIFIER_TYPE_SLACK_WEBHOOK = 2;
+  NOTIFIER_TYPE_WEBHOOK = 3;
+}
+
+message Notifier {
+  option (openapi.v3.schema) = {
+    required: [
+      "id",
+      "display_name",
+      "created_at",
+      "updated_at",
+      "type"
+    ]
+  };
+
+  // Unique notifier identifier assigned by ORQ.
+  string id = 1 [json_name = "_id"];
+  // Project that contains the notifier. Empty for workspace-wide notifiers.
+  string project_id = 2 [(openapi.v3.property) = {description: "Project that contains the notifier. Empty for workspace-wide notifiers."}];
+  // Human-readable notifier name.
+  string display_name = 3 [(openapi.v3.property) = {description: "Human-readable notifier name."}];
+  // Time when the notifier was created.
+  google.protobuf.Timestamp created_at = 4;
+  // Time when the notifier was last updated.
+  google.protobuf.Timestamp updated_at = 5;
+  // User ID that created the notifier.
+  string created_by_id = 6;
+  // User ID that last updated the notifier.
+  string updated_by_id = 7;
+  // Custom JSON metadata stored with the notifier.
+  google.protobuf.Struct metadata = 8;
+  // Notifier destination type. The type determines which destination fields are required.
+  NotifierType type = 9 [(openapi.v3.property) = {description: "Notifier destination type. Use `NOTIFIER_TYPE_EMAIL`, `NOTIFIER_TYPE_SLACK_WEBHOOK`, or `NOTIFIER_TYPE_WEBHOOK`."}];
+  // Email addresses notified when `type` is `NOTIFIER_TYPE_EMAIL`.
+  repeated string emails = 10 [(openapi.v3.property) = {description: "Email addresses notified when `type` is `NOTIFIER_TYPE_EMAIL`."}];
+  // Slack incoming webhook URL used when `type` is `NOTIFIER_TYPE_SLACK_WEBHOOK`.
+  string incoming_webhook_url = 11 [(openapi.v3.property) = {description: "Slack incoming webhook URL used when `type` is `NOTIFIER_TYPE_SLACK_WEBHOOK`."}];
+  // Generic webhook URL used when `type` is `NOTIFIER_TYPE_WEBHOOK`.
+  string webhook_url = 12 [(openapi.v3.property) = {description: "Generic webhook URL used when `type` is `NOTIFIER_TYPE_WEBHOOK`."}];
+  // Optional HTTP headers for generic webhooks. Each entry may be a string value or an object with `secret` and `value`.
+  google.protobuf.Struct headers = 13 [(openapi.v3.property) = {description: "Optional HTTP headers for generic webhooks. Each entry may be a string value or an object with `secret` and `value`."}];
+}
+
+message CreateNotifierRequest {
+  option (openapi.v3.schema) = {
+    required: [
+      "display_name",
+      "type"
+    ]
+  };
+
+  string project_id = 1 [
+    (openapi.v3.property) = {description: "Optional. Workspace-scoped callers may set this to create a project-scoped notifier, or omit it for a workspace-wide notifier. Project-scoped API keys create in the API key's project."},
+    (buf.validate.field).string.max_len = 255
+  ];
+  string display_name = 2 [
+    (openapi.v3.property) = {description: "Required. Human-readable notifier name."},
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 255
+  ];
+  google.protobuf.Struct metadata = 3 [(openapi.v3.property) = {description: "Optional. Custom JSON metadata stored with the notifier."}];
+  NotifierType type = 4 [(openapi.v3.property) = {description: "Required. Destination type. Use `NOTIFIER_TYPE_EMAIL`, `NOTIFIER_TYPE_SLACK_WEBHOOK`, or `NOTIFIER_TYPE_WEBHOOK`."}];
+  repeated string emails = 5 [(openapi.v3.property) = {description: "Required when `type` is `NOTIFIER_TYPE_EMAIL`. Omit for other notifier types."}];
+  string incoming_webhook_url = 6 [(openapi.v3.property) = {description: "Required when `type` is `NOTIFIER_TYPE_SLACK_WEBHOOK`. Omit for other notifier types."}];
+  string webhook_url = 7 [(openapi.v3.property) = {description: "Required when `type` is `NOTIFIER_TYPE_WEBHOOK`. Omit for other notifier types."}];
+  google.protobuf.Struct headers = 8 [(openapi.v3.property) = {description: "Optional generic webhook headers. Each value may be a string or `{ \"secret\": true, \"value\": \"...\" }`."}];
+}
+
+message CreateNotifierResponse {
+  option (openapi.v3.schema) = {
+    required: ["notifier"]
+  };
+
+  Notifier notifier = 1;
+}
+
+message ListNotifiersRequest {
+  // Optional. Number of notifiers to return. Defaults to 25 and must be between 1 and 200.
+  optional int32 limit = 1 [
+    (openapi.v3.property) = {description: "Optional. Number of notifiers to return. Defaults to 25 and must be between 1 and 200."},
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+  // Cursor for forward pagination. Set to the `_id` of the last item from the previous page.
+  string starting_after = 2;
+  // Cursor for backward pagination. Set to the `_id` of the first item from the previous page.
+  string ending_before = 3;
+  // Restrict results to one project. Must be a project the caller is authorized for.
+  string project_id = 4;
+  // Optional. Case-insensitive substring match on the notifier name.
+  optional string search = 5 [(openapi.v3.property) = {description: "Optional. Case-insensitive substring match on the notifier name."}];
+  // Optional. Restrict results to these notifier types.
+  repeated NotifierType type = 6 [(openapi.v3.property) = {description: "Optional. Restrict results to these notifier types."}];
+}
+
+message ListNotifiersResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+
+  // Object discriminator for list responses; always `list`.
+  string object = 1;
+  // Page of notifiers.
+  repeated Notifier data = 2;
+  // Whether more notifiers are available in the selected pagination direction.
+  bool has_more = 3;
+}
+
+message GetNotifierRequest {
+  option (openapi.v3.schema) = {
+    required: ["notifier_id"]
+  };
+
+  string notifier_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetNotifierResponse {
+  option (openapi.v3.schema) = {
+    required: ["notifier"]
+  };
+
+  Notifier notifier = 1;
+}
+
+message UpdateNotifierRequest {
+  option (openapi.v3.schema) = {
+    required: ["notifier_id"]
+  };
+
+  string notifier_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional string project_id = 2 [
+    (openapi.v3.property) = {description: "Optional. New containing project. Workspace-scoped callers may set an empty value to make the notifier workspace-wide. Project-scoped API keys remain pinned to the API key's project."},
+    (buf.validate.field).string.max_len = 255
+  ];
+  optional string display_name = 3 [
+    (openapi.v3.property) = {description: "Optional. New human-readable notifier name."},
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 255
+  ];
+  google.protobuf.Struct metadata = 4 [(openapi.v3.property) = {description: "Optional. Replacement custom JSON metadata."}];
+  optional NotifierType type = 5 [(openapi.v3.property) = {description: "Optional. New destination type. When provided, also provide the destination field required by the new type."}];
+  repeated string emails = 6 [(openapi.v3.property) = {description: "Optional replacement email recipients. Required when changing `type` to `NOTIFIER_TYPE_EMAIL`."}];
+  optional string incoming_webhook_url = 7 [(openapi.v3.property) = {description: "Optional replacement Slack incoming webhook URL. Required when changing `type` to `NOTIFIER_TYPE_SLACK_WEBHOOK`."}];
+  optional string webhook_url = 8 [(openapi.v3.property) = {description: "Optional replacement generic webhook URL. Required when changing `type` to `NOTIFIER_TYPE_WEBHOOK`."}];
+  google.protobuf.Struct headers = 9 [(openapi.v3.property) = {description: "Optional replacement generic webhook headers. Secret header values returned by GET or LIST are masked as an empty string; omit those entries or replace them with the real value when updating."}];
+}
+
+message UpdateNotifierResponse {
+  option (openapi.v3.schema) = {
+    required: ["notifier"]
+  };
+
+  Notifier notifier = 1;
+}
+
+message DeleteNotifierRequest {
+  option (openapi.v3.schema) = {
+    required: ["notifier_id"]
+  };
+
+  string notifier_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteNotifierResponse {}

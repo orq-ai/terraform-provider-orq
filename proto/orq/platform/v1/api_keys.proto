@@ -1,0 +1,665 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/apikeys/v1/catalog.proto";
+import "orq/authz/v1/authz.proto";
+import "orq/platform/v1/budgets.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "API keys"
+      description: "API keys authenticate programmatic access to the workspace. The unified key model exposes opaque tokens, per-domain access grants, and budget / rate-limit constraints (see ADR 0001 and ADR 0002)."
+    }
+  ]
+};
+
+service ApiKeysService {
+  rpc CreateApiKey(CreateApiKeyRequest) returns (CreateApiKeyResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "api-key.create"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {
+      post: "/v2/api-keys"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create a new API key"
+      description: "Mints a new opaque API key (`sk-orq-<key_id>-<secret>`) in the workspace. The raw secret is returned ONCE in the response and is never retrievable afterwards. The stored record retains only `token_prefix` and a SHA-256 `token_hash`."
+      operation_id: "ApiKeyCreate"
+      tags: ["API keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "apiKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "create"}
+        }
+      ]
+    };
+  }
+
+  rpc ListApiKeys(ListApiKeysRequest) returns (ListApiKeysResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "api-key.list"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {get: "/v2/api-keys"};
+    option (openapi.v3.operation) = {
+      summary: "List API keys"
+      description: "Returns API keys visible to the current workspace, ordered by creation time with the newest key first. The `api_key` and `token_hash` fields are never returned by this endpoint; only `token_prefix` is included."
+      operation_id: "ApiKeyList"
+      tags: ["API keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "apiKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "list"}
+        }
+      ]
+    };
+  }
+
+  rpc GetApiKey(GetApiKeyRequest) returns (GetApiKeyResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "api-key.view"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {get: "/v2/api-keys/{api_key_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve an API key"
+      description: "Retrieves the metadata for an existing API key by its unique identifier. The raw secret is never returned — only `token_prefix`, `permission_mode`, `project_scope`, and lifecycle fields."
+      operation_id: "ApiKeyGet"
+      tags: ["API keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "apiKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        }
+      ]
+    };
+  }
+
+  rpc UpdateApiKey(UpdateApiKeyRequest) returns (UpdateApiKeyResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "api-key.update"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {
+      patch: "/v2/api-keys/{api_key_id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update an API key"
+      description: "Updates mutable fields of an API key: display name, status (active / disabled / revoked), permission mode and access map, project scope, and constraints (budget / rate limit / expiry). Omitted fields keep their current values."
+      operation_id: "ApiKeyUpdate"
+      tags: ["API keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "apiKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        }
+      ]
+    };
+  }
+
+  rpc DeleteApiKey(DeleteApiKeyRequest) returns (DeleteApiKeyResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "api-key.delete"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {delete: "/v2/api-keys/{api_key_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete an API key"
+      description: "Permanently deletes an API key. Cache entries in `API_KEYS_KV` are invalidated immediately so an in-flight token cannot ride out the TTL. The response body is empty on success."
+      operation_id: "ApiKeyDelete"
+      tags: ["API keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "apiKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        }
+      ]
+    };
+  }
+
+  rpc ListCapabilities(ListCapabilitiesRequest) returns (ListCapabilitiesResponse) {
+    option (orq.authz.v1.authz) = {scope: AUTHZ_SCOPE_PUBLIC};
+    option (google.api.http) = {get: "/v2/api-keys/capabilities"};
+    option (openapi.v3.operation) = {
+      summary: "List capability catalog"
+      description: "Returns the capability catalog: the set of permission domains that can be granted to an API key. Each entry includes the domain id, display name, group, allowed project scopes, and the read / write verb sets resolved at authorize() time. Drives the permissions UI in the dashboard."
+      operation_id: "ApiKeyListCapabilities"
+      tags: ["API keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "apiKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "listCapabilities"}
+        }
+      ]
+    };
+  }
+}
+
+// ApiKey is the canonical record stored in MongoDB `auth.apiKeys`.
+// It is the source of truth for scope, permissions, owner, budget,
+// expiration, and revocation (see ADR 0001).
+message ApiKey {
+  option (openapi.v3.schema) = {
+    required: [
+      "api_key_id",
+      "name",
+      "owner",
+      "project_scope",
+      "permission_mode",
+      "token_prefix",
+      "status",
+      "created_at",
+      "updated_at"
+    ]
+  };
+
+  // Canonical key identifier (ULID). Embedded in opaque tokens as
+  // `sk-orq-<id>-<secret>`.
+  string api_key_id = 1;
+
+  // Human-readable name shown in the dashboard.
+  string name = 3 [(openapi.v3.property) = {description: "Human-readable name shown in the dashboard."}];
+
+  // Owner attribution (drives lifecycle).
+  ApiKeyOwner owner = 4;
+
+  // Project authorization scope.
+  ProjectScope project_scope = 5;
+
+  // Permission preset. `all` and `read_only` resolve at auth time from
+  // the capability catalog. `restricted` reads the per-domain `access`
+  // map.
+  PermissionMode permission_mode = 6;
+
+  // Per-domain access map. Only populated when `permission_mode` is
+  // `PERMISSION_MODE_RESTRICTED`. The authoritative list of valid
+  // keys and the per-domain read / write semantics are exposed at
+  // runtime via the capability catalog endpoint.
+  //
+  // Valid keys are the Domain.id values in the capability catalog —
+  // see libs/catalog/orq/apikeys/v1/catalog.textpb for the canonical
+  // list. The ids are intentionally not duplicated here to avoid drift.
+  //
+  // Values are AccessLevel enum names on the JSON wire:
+  //   "ACCESS_LEVEL_NONE"  — capability not granted
+  //   "ACCESS_LEVEL_READ"  — list / view verbs
+  //   "ACCESS_LEVEL_WRITE" — list / view + mutating / execute verbs
+  map<string, orq.apikeys.v1.AccessLevel> access = 7;
+
+  // Displayable prefix for UI listings (e.g. "sk-orq-01HXY..."). Safe
+  // to expose.
+  string token_prefix = 8;
+
+  // Hashed bearer secret. Never returned by the API.
+  string token_hash = 9 [(openapi.v3.property) = {
+    specification_extension: [
+      {
+        name: "x-orq-hidden"
+        value: {yaml: "true"}
+      },
+      {
+        name: "x-speakeasy-ignore"
+        value: {yaml: "true"}
+      }
+    ]
+  }];
+
+  // Lifecycle status.
+  ApiKeyStatus status = 10;
+
+  // Audit: user who created the key. Optional. Distinct from
+  // `owner.user_id` — created_by is provenance only, while owner
+  // determines lifecycle binding.
+  string created_by_id = 12;
+
+  // Audit: user who last updated the key.
+  string updated_by_id = 13;
+
+  // Time the key was created.
+  google.protobuf.Timestamp created_at = 14;
+
+  // Time the key was last updated.
+  google.protobuf.Timestamp updated_at = 15;
+
+  // Last authenticated use. Updated via NATS debounce + 1% sampler.
+  google.protobuf.Timestamp last_used_at = 16;
+
+  // Optional expiration. The authenticate hot-path rejects keys whose
+  // `expires_at` is in the past. Unset means the key never expires.
+  optional google.protobuf.Timestamp expires_at = 20;
+
+  // Legacy JWT for pre-migration keys. Empty for newly issued opaque
+  // keys. Never returned by the public API.
+  string api_key = 17 [(openapi.v3.property) = {
+    specification_extension: [
+      {
+        name: "x-orq-hidden"
+        value: {yaml: "true"}
+      },
+      {
+        name: "x-speakeasy-ignore"
+        value: {yaml: "true"}
+      }
+    ]
+  }];
+
+  // Token family marker used by the legacy adapter to route validation.
+  LegacyTokenFamily legacy_token_family = 18;
+
+  // Legacy MongoDB `_id` from before the canonical ULID was assigned.
+  // Used by the adapter to resolve a JWT back to this canonical record.
+  string legacy_key_id = 19;
+
+  // The budget scoped to this api-key, if one exists. Read-only here:
+  // budgets are created and managed through the Budgets API
+  // (scope.api_key). Populated only when the read request sets
+  // `include_budget`. Live consumption (`usage`) is not attached on this
+  // path — call the Budgets API for current spend.
+  optional Budget budget = 21 [(openapi.v3.property) = {read_only: true}];
+
+  // Optional MCP-gateway access restriction. Unset means the key can
+  // reach every MCP gateway allowed by its project scope. See
+  // McpAccess for the deny_all / allow-list semantics.
+  McpAccess mcp_access = 22;
+}
+
+// McpAccess optionally restricts which MCP gateways an API key may
+// reach at the data plane. It is orthogonal to permission_mode /
+// access: the key must still hold the `mcp_gateway.execute` verb and
+// project membership; McpAccess only narrows the reachable gateway set
+// within that grant. Human sessions and keys without an McpAccess are
+// unaffected.
+//
+// Semantics:
+//   - absent, or deny_all=false with an empty allowed_mcp_gateway_ids:
+//     no restriction — every gateway in the key's project scope is
+//     reachable.
+//   - deny_all=true: zero gateways are reachable. Wins over
+//     allowed_mcp_gateway_ids.
+//   - non-empty allowed_mcp_gateway_ids: only the listed gateway ids
+//     are reachable. Each id must look like `mcp_gateway_<ULID>`.
+message McpAccess {
+  // When true, the key is denied every MCP gateway regardless of
+  // allowed_mcp_gateway_ids.
+  bool deny_all = 1;
+
+  // Allow-list of MCP gateway ids (`mcp_gateway_<ULID>`) the key may
+  // reach. Ignored when deny_all is true. Empty (with deny_all=false)
+  // means no restriction.
+  repeated string allowed_mcp_gateway_ids = 2;
+
+  // Allow-list of MCP toolset ids (`mcp_toolset_<ULID>`) the key is
+  // bound to. When non-empty, the key sees and may call only the tools
+  // that are both exposed by the target gateway and members of the
+  // union of these toolsets. Empty means no toolset restriction.
+  repeated string toolset_ids = 3;
+}
+
+// Owner attribution drives lifecycle.
+//
+// `service_account` keys are workspace-owned and outlive any individual
+// user. `user` keys are bound to `user_id`: when the user is removed,
+// disabled, or loses project access, the key is revoked / its scope
+// shrinks per the cascade rules in ADR 0001.
+message ApiKeyOwner {
+  oneof kind {
+    UserOwner user = 1;
+    ServiceAccountOwner service_account = 2;
+  }
+}
+
+message UserOwner {
+  option (openapi.v3.schema) = {
+    required: ["user_id"]
+  };
+
+  // User ID that owns the API key.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ServiceAccountOwner {}
+
+// Project authorization scope. Single-project or all-projects.
+// Multi-project use cases are served by minting per-project keys or by
+// using an all-projects key with `restricted` mode.
+message ProjectScope {
+  oneof kind {
+    AllProjects all = 1;
+    SingleProject single = 2;
+  }
+}
+
+message AllProjects {}
+
+message SingleProject {
+  option (openapi.v3.schema) = {
+    required: ["project_id"]
+  };
+
+  // Project ID this API key is scoped to.
+  string project_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Permission preset. The capability catalog at
+// libs/api-keys/src/catalog.ts maps these to concrete Permission[]
+// resolved at authorize() time.
+enum PermissionMode {
+  PERMISSION_MODE_UNSPECIFIED = 0;
+  PERMISSION_MODE_ALL = 1;
+  PERMISSION_MODE_RESTRICTED = 2;
+  PERMISSION_MODE_READ_ONLY = 3;
+}
+
+// Lifecycle status. `revoked` is terminal; `disabled` is reversible.
+enum ApiKeyStatus {
+  API_KEY_STATUS_UNSPECIFIED = 0;
+  API_KEY_STATUS_ACTIVE = 1;
+  API_KEY_STATUS_DISABLED = 2;
+  API_KEY_STATUS_REVOKED = 3;
+}
+
+// Token family for pre-migration keys. Determines how the legacy
+// adapter decodes and resolves the canonical record. New opaque keys
+// use LEGACY_TOKEN_FAMILY_UNSPECIFIED (i.e., not legacy).
+enum LegacyTokenFamily {
+  LEGACY_TOKEN_FAMILY_UNSPECIFIED = 0;
+  LEGACY_TOKEN_FAMILY_ROUTER_JWT = 1;
+  LEGACY_TOKEN_FAMILY_PROJECT_JWT = 2;
+  LEGACY_TOKEN_FAMILY_WORKSPACE_JWT = 3;
+}
+
+// Principal is the runtime result of authentication. User sessions and
+// API keys both resolve to a Principal before authorize() is called.
+// `permissions` is the resolved verb list, drawn from the same
+// per-domain enum used by user roles.
+message Principal {
+  PrincipalType type = 1;
+
+  // user_id (for type=USER) or api_key_id (for type=API_KEY).
+  string id = 2;
+
+  string workspace_id = 3;
+
+  ProjectScope project_scope = 4;
+
+  // Resolved permission verbs. Encoded as "domain.verb" strings (e.g.
+  // "agents.CREATE", "deployments.BYPASS_APPROVAL") to keep the wire
+  // shape stable as the catalog evolves.
+  repeated string permissions = 5;
+
+  // Only populated when type=API_KEY.
+  ApiKeyOwner owner = 7;
+}
+
+enum PrincipalType {
+  PRINCIPAL_TYPE_UNSPECIFIED = 0;
+  PRINCIPAL_TYPE_USER = 1;
+  PRINCIPAL_TYPE_API_KEY = 2;
+}
+
+// ---------------- Service request / response messages ----------------
+
+message CreateApiKeyRequest {
+  option (openapi.v3.schema) = {
+    required: ["name"]
+  };
+
+  // Human-readable name. Required.
+  string name = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 128
+  ];
+
+  // Owner attribution. Defaults to service_account when omitted.
+  ApiKeyOwner owner = 2;
+
+  // Project authorization scope. Defaults to all-projects when omitted.
+  ProjectScope project_scope = 3;
+
+  // Permission preset. Defaults to PERMISSION_MODE_ALL when omitted.
+  PermissionMode permission_mode = 4;
+
+  // Per-domain access map. Required when `permission_mode` =
+  // `PERMISSION_MODE_RESTRICTED`. See `ApiKey.access` for the full
+  // catalog of valid keys (Domain.id) and AccessLevel string values,
+  // or fetch the live catalog via the capability catalog endpoint.
+  map<string, orq.apikeys.v1.AccessLevel> access = 5;
+
+  // Optional expiration. When set, the authenticate hot-path rejects
+  // the key once `expires_at` is in the past. Unset means the key
+  // never expires.
+  optional google.protobuf.Timestamp expires_at = 6;
+
+  // Optional MCP-gateway access restriction. Unset means no
+  // restriction. See McpAccess for the deny_all / allow-list semantics.
+  McpAccess mcp_access = 7;
+}
+
+message CreateApiKeyResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "api_key",
+      "token"
+    ]
+  };
+
+  // Newly minted api-key record.
+  ApiKey api_key = 1;
+
+  // Raw bearer token in the form `sk-orq-<api_key_id>-<secret>`.
+  // Returned ONCE; the API never exposes this value again. Clients
+  // must persist it immediately on receipt.
+  string token = 2;
+}
+
+message ListApiKeysRequest {
+  // Page size, 1–200. Unset uses the server default (25).
+  optional int32 limit = 1 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+
+  // Cursor for forward pagination. Set to the `api_key_id` of the last
+  // item from the previous page.
+  string starting_after = 2;
+
+  // Cursor for backward pagination. Set to the `api_key_id` of the
+  // first item from the previous page.
+  string ending_before = 3;
+
+  // Optional filter: only return keys belonging to this project. When
+  // omitted, returns workspace-scoped and any single-project keys.
+  optional string project_id = 4;
+
+  // Optional filter: only return keys with this status.
+  optional ApiKeyStatus status = 5;
+
+  // Optional case-insensitive substring match against the api-key
+  // name. Empty means no name filter.
+  optional string search = 6;
+
+  // Optional filter: only return keys whose `owner.kind` matches
+  // one of the requested types. Combines the user / service-account
+  // oneof cases into a single repeated enum so the wire stays flat
+  // and multi-select filters travel as a single field. Empty means
+  // no owner-type filter.
+  repeated OwnerType owner_type = 7;
+
+  // Optional filter: only return keys whose permission mode is one
+  // of the listed presets. Empty means no permission-mode filter.
+  repeated PermissionMode permission_mode = 8;
+
+  // When true, embed each key's api-key-scoped budget (config and limits
+  // only, no live usage) on the returned records. Adds one budget lookup
+  // for the page; omit to skip it.
+  bool include_budget = 9;
+}
+
+// OwnerType is the filter-side discriminator for ApiKeyOwner. The
+// stored shape stays the `kind` oneof; this enum exists so the list
+// filter can travel as a single field.
+enum OwnerType {
+  OWNER_TYPE_UNSPECIFIED = 0;
+  OWNER_TYPE_USER = 1;
+  OWNER_TYPE_SERVICE_ACCOUNT = 2;
+}
+
+message ListApiKeysResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+
+  // Object discriminator for list responses; always `list`.
+  string object = 1;
+
+  // Page of api-keys, ordered newest first. `token_hash` and
+  // `api_key` are always elided in list responses.
+  repeated ApiKey data = 2;
+
+  // Whether more api-keys are available in the selected pagination
+  // direction.
+  bool has_more = 3;
+}
+
+message GetApiKeyRequest {
+  option (openapi.v3.schema) = {
+    required: ["api_key_id"]
+  };
+
+  // API key id to retrieve (e.g. `01H...`).
+  string api_key_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // When true, embed the api-key-scoped budget (config and limits only,
+  // no live usage) on the returned record.
+  bool include_budget = 2;
+}
+
+message GetApiKeyResponse {
+  option (openapi.v3.schema) = {
+    required: ["api_key"]
+  };
+
+  // Requested api-key. Raw token never included.
+  ApiKey api_key = 1;
+}
+
+message UpdateApiKeyRequest {
+  option (openapi.v3.schema) = {
+    required: ["api_key_id"]
+  };
+
+  // API key id to update.
+  string api_key_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // New name. Omit to keep current.
+  optional string name = 2 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 128
+  ];
+
+  // New lifecycle status. Omit to keep current.
+  optional ApiKeyStatus status = 3;
+
+  // New permission preset. Omit to keep current.
+  optional PermissionMode permission_mode = 4;
+
+  // Replacement access map. Required when changing to
+  // `PERMISSION_MODE_RESTRICTED`; ignored otherwise. Provide an empty
+  // map to clear. See `ApiKey.access` for the full catalog of valid
+  // keys (Domain.id) and AccessLevel string values, or fetch the
+  // live catalog via the capability catalog endpoint.
+  map<string, orq.apikeys.v1.AccessLevel> access = 5;
+
+  // New project scope. Omit to keep current.
+  ProjectScope project_scope = 6;
+
+  // New expiration. Omit to keep current. Set `clear_expires_at = true`
+  // to remove an existing expiration (a zero Timestamp here would still
+  // mean "no change" because of optional semantics).
+  optional google.protobuf.Timestamp expires_at = 7;
+
+  // Force-clear the expiration. Mutually exclusive with `expires_at`.
+  bool clear_expires_at = 8;
+
+  // Replacement MCP-gateway access restriction. Absent leaves the
+  // current value intact; an explicitly-set McpAccess replaces it —
+  // including an empty one (deny_all=false + empty list), which clears
+  // any existing restriction. See McpAccess.
+  McpAccess mcp_access = 9;
+}
+
+message UpdateApiKeyResponse {
+  option (openapi.v3.schema) = {
+    required: ["api_key"]
+  };
+
+  // Updated api-key.
+  ApiKey api_key = 1;
+}
+
+message DeleteApiKeyRequest {
+  option (openapi.v3.schema) = {
+    required: ["api_key_id"]
+  };
+
+  // API key id to delete.
+  string api_key_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteApiKeyResponse {}
+
+// ---------------- Capability catalog ----------------
+//
+// The Domain / DomainGroup / ScopeMode types now live in the shared
+// `orq.apikeys.v1` proto package (libs/catalog) so the Go service,
+// the TypeScript service, and any future runtime can load the catalog
+// from a single textpb source of truth without drift.
+
+message ListCapabilitiesRequest {}
+
+message ListCapabilitiesResponse {
+  option (openapi.v3.schema) = {
+    required: ["domains"]
+  };
+
+  // Full capability catalog. Order is stable: workspace-admin first,
+  // then platform, then gateway.
+  repeated orq.apikeys.v1.Domain domains = 1;
+}

@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Workspace Settings"
+      description: "Workspace-level settings managed with a workspace credential. A workspace is the tenant, so these settings are a singleton — there is nothing to create or delete, only read and update."
+    }
+  ]
+};
+
+// WorkspaceSettingsService exposes the small, workspace-scoped settings surface
+// the Terraform provider manages with a management key. The workspace itself is
+// the tenant, so the service offers only read (Get) and partial update (Update)
+// — never create or delete.
+service WorkspaceSettingsService {
+  rpc GetWorkspaceSettings(GetWorkspaceSettingsRequest) returns (GetWorkspaceSettingsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "workspace.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/workspace-settings"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve workspace settings"
+      description: "Returns the current settings for the authenticated workspace: its read-only key/slug, display name, the enforce-enabled-models flag, and the workspace-default PII redaction plugin configuration."
+      operation_id: "WorkspaceSettingsGet"
+      tags: ["Workspace Settings"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "workspaceSettings"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        }
+      ]
+    };
+  }
+
+  rpc UpdateWorkspaceSettings(UpdateWorkspaceSettingsRequest) returns (UpdateWorkspaceSettingsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "workspace.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      patch: "/v2/workspace-settings"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update workspace settings"
+      description: "Partially updates workspace settings. Every field is optional; an omitted field is left unchanged. Provide `display_name` to rename the workspace, `enforce_enabled_models` to toggle model enforcement, or `pii_redaction` to replace the workspace-default PII redaction plugin configuration."
+      operation_id: "WorkspaceSettingsUpdate"
+      tags: ["Workspace Settings"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "workspaceSettings"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        }
+      ]
+    };
+  }
+}
+
+// PiiRedactionConfig mirrors the workspace-default PII redaction plugin config
+// (libs/go/models PIIRedactionPlugin / libs/models/gateway
+// PIIRedactionPluginSchema). Every field is optional; the gateway applies its
+// own defaults for unset fields.
+//
+// The stored value is validated on write with the same
+// models.PIIRedactionPlugin.Validate() the gateway runs per request. Without
+// that, an invalid workspace default would 400 every gateway call for the
+// workspace, since the default plugin is injected into each request and
+// validated there.
+message PiiRedactionConfig {
+  // Detector language. One of "en" or "nl"; omit for the gateway default
+  // ("en"). The valid entity catalog depends on this value.
+  optional string language = 1 [(buf.validate.field).string.min_len = 1];
+  // Entity types to redact (e.g. "EMAIL_ADDRESS", "PERSON"). Values are
+  // validated against the entity catalog for `language`; omit to redact every
+  // type the detector finds.
+  repeated string entities = 2;
+  // Behaviour when redaction cannot run: "block" (fail closed, the default) or
+  // "passthrough" (fail open, send the original text).
+  optional string on_failure = 3 [(buf.validate.field).string.min_len = 1];
+  // Detection confidence threshold in the [0, 1] range.
+  optional double threshold = 4 [
+    (buf.validate.field).double.gte = 0,
+    (buf.validate.field).double.lte = 1
+  ];
+}
+
+// PiiRedaction is the workspace-default configuration for the pii_redaction
+// plugin: an enable flag plus the optional plugin config the gateway applies as
+// a floor for requests that send no plugins of their own.
+message PiiRedaction {
+  option (openapi.v3.schema) = {
+    required: ["enabled"]
+  };
+
+  // Whether the workspace-default PII redaction plugin is enabled.
+  bool enabled = 1;
+  // Plugin configuration applied when enabled. Optional.
+  PiiRedactionConfig config = 2;
+}
+
+// WorkspaceSettings is the full settings state returned by Get and Update.
+message WorkspaceSettings {
+  option (openapi.v3.schema) = {
+    required: [
+      "key",
+      "display_name",
+      "enforce_enabled_models"
+    ]
+  };
+
+  // Read-only workspace key/slug. Returned for reference; it cannot be changed
+  // through this service.
+  string key = 1;
+  // Human-readable workspace display name.
+  string display_name = 2;
+  // Whether only workspace-enabled models may be served.
+  bool enforce_enabled_models = 3;
+  // Workspace-default PII redaction plugin configuration. Omitted when the
+  // workspace has never configured it.
+  PiiRedaction pii_redaction = 4;
+}
+
+message GetWorkspaceSettingsRequest {}
+
+message GetWorkspaceSettingsResponse {
+  option (openapi.v3.schema) = {
+    required: ["settings"]
+  };
+
+  // Current workspace settings.
+  WorkspaceSettings settings = 1;
+}
+
+// UpdateWorkspaceSettingsRequest is a partial update: every field is optional
+// and an omitted field is left unchanged.
+//
+// There is deliberately no `key` / `slug` field. The workspace slug is
+// immutable through this service (it is embedded in resource URLs and API
+// credentials), mirroring the dashboard's WorkspaceUpdateGuard, which rejects a
+// `key` in the PATCH /workspaces/:key body. Do not add one.
+message UpdateWorkspaceSettingsRequest {
+  // New workspace display name. Omit to keep the current name.
+  optional string display_name = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 128
+  ];
+  // New value for the enforce-enabled-models flag. Omit to keep the current
+  // value.
+  optional bool enforce_enabled_models = 2;
+  // Replacement workspace-default PII redaction configuration. Omit to leave
+  // the current PII redaction configuration unchanged; when present it fully
+  // replaces the stored pii_redaction object.
+  PiiRedaction pii_redaction = 3;
+}
+
+message UpdateWorkspaceSettingsResponse {
+  option (openapi.v3.schema) = {
+    required: ["settings"]
+  };
+
+  // Updated workspace settings.
+  WorkspaceSettings settings = 1;
+}

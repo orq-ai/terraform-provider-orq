@@ -1,0 +1,73 @@
+# oapi-codegen config for the REST (router-entity) half of the provider.
+#
+# The spec openapi/openapi.json is a COMMITTED COPY synced from the platform
+# monorepo: orquesta-web/.openapi/v2/public/openapi.json
+# Re-sync with `make openapi-sync` (see Makefile), then `make generate`.
+#
+# Only router-entity domains are generated here (guardrail-rules, routing-rules,
+# policies, models, workspace-models). Everything else in the provider goes over
+# Connect.
+#
+# Generation is scoped by an EXACT operation-ID allowlist rather than by tag.
+# The `Models` tag also covers `GET /v3/router/models` (operationId
+# `list-models`), the OpenAI-compatible router garden endpoint, which is NOT a
+# phase-1 provider surface; a tag include would pull it (and its transitive
+# schemas) in. Listing operationIds explicitly keeps the generated client to the
+# intended `/v2/{models,workspace-models}` + guardrail/routing/policy surface.
+# Unused schemas are pruned by default. Keep this list in sync as phase-1 grows.
+package: restgen
+output: internal/restgen/client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  include-operation-ids:
+    # Guardrail Rules (/v2/guardrail-rules)
+    - GuardrailRuleList
+    - GuardrailRuleCreate
+    - GuardrailRuleListUsedGuardrails
+    - GuardrailRuleGet
+    - GuardrailRuleUpdate
+    - GuardrailRuleDelete
+    # Routing Rules (/v2/routing-rules)
+    - RoutingRuleList
+    - RoutingRuleCreate
+    - RoutingRuleListUsedModels
+    - RoutingRuleGet
+    - RoutingRuleUpdate
+    - RoutingRuleDelete
+    # Policies (/v2/policies)
+    - PolicyList
+    - PolicyCreate
+    - PolicyGet
+    - PolicyUpdate
+    - PolicyDelete
+    # Models (/v2/models) — router-entity CRUD, NOT /v3/router/models
+    - ModelList
+    - ModelCreate
+    - ModelUpdate
+    - ModelDelete
+    - ModelValidate
+    - ModelCreateAutorouter
+    - ModelUpdateAutorouter
+    - ModelCreateAwsBedrock
+    - ModelUpdateAwsBedrock
+    - ModelValidateAwsBedrock
+    - ModelCreateOpenAILike
+    - ModelUpdateOpenAILike
+    - ModelCreateVertex
+    - ModelAzureFoundryDeployments
+    - ModelLiteLLMImport
+    - ModelListLitellm
+    # Workspace Models (/v2/workspace-models)
+    - ModelEnable
+    - ModelDisable
+    # Evaluators (/v2/evaluators) — orq_evaluator. GetEvals (the LIST) is
+    # deliberately NOT generated: the resource reads by id (GetEval was made
+    # public for exactly that) and a list include would pull the full
+    # eight-variant response union, including types this provider does not
+    # manage, into the generated tree for no caller.
+    - CreateEval
+    - GetEval
+    - UpdateEval
+    - DeleteEval

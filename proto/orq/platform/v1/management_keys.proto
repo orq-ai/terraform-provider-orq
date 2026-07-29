@@ -1,0 +1,450 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/managementkeys/v1/catalog.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Management keys"
+      description: "Management keys are workspace-scoped credentials that authenticate programmatic access to workspace administration surfaces (API keys, budgets). Unlike project-scoped API keys, a management key always operates at the workspace level."
+    }
+  ]
+};
+
+service ManagementKeysService {
+  rpc CreateManagementKey(CreateManagementKeyRequest) returns (CreateManagementKeyResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "management-key.create"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v2/management-keys"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create a new management key"
+      description: "Mints a new opaque management key (`sk-orq-<key_id>-<secret>`) in the workspace. The raw secret is returned ONCE in the response and is never retrievable afterwards. The stored record retains only `token_prefix` and a SHA-256 `token_hash`."
+      operation_id: "ManagementKeyCreate"
+      tags: ["Management keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "managementKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "create"}
+        }
+      ]
+    };
+  }
+
+  rpc ListManagementKeys(ListManagementKeysRequest) returns (ListManagementKeysResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "management-key.list"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/management-keys"};
+    option (openapi.v3.operation) = {
+      summary: "List management keys"
+      description: "Returns management keys in the current workspace, ordered by creation time with the newest key first. The `api_key` and `token_hash` fields are never returned by this endpoint; only `token_prefix` is included."
+      operation_id: "ManagementKeyList"
+      tags: ["Management keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "managementKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "list"}
+        }
+      ]
+    };
+  }
+
+  rpc GetManagementKey(GetManagementKeyRequest) returns (GetManagementKeyResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "management-key.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/management-keys/{management_key_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a management key"
+      description: "Retrieves the metadata for an existing management key by its unique identifier. The raw secret is never returned — only `token_prefix`, `permission_mode`, and lifecycle fields."
+      operation_id: "ManagementKeyGet"
+      tags: ["Management keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "managementKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        }
+      ]
+    };
+  }
+
+  rpc UpdateManagementKey(UpdateManagementKeyRequest) returns (UpdateManagementKeyResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "management-key.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      patch: "/v2/management-keys/{management_key_id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update a management key"
+      description: "Updates mutable fields of a management key: display name, status (active / disabled / revoked), permission mode and access map, and expiry. Omitted fields keep their current values."
+      operation_id: "ManagementKeyUpdate"
+      tags: ["Management keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "managementKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        }
+      ]
+    };
+  }
+
+  rpc DeleteManagementKey(DeleteManagementKeyRequest) returns (DeleteManagementKeyResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "management-key.delete"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v2/management-keys/{management_key_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete a management key"
+      description: "Permanently deletes a management key. Cache entries are invalidated immediately so an in-flight token cannot ride out the TTL. The response body is empty on success."
+      operation_id: "ManagementKeyDelete"
+      tags: ["Management keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "managementKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        }
+      ]
+    };
+  }
+
+  rpc ListManagementCapabilities(ListManagementCapabilitiesRequest) returns (ListManagementCapabilitiesResponse) {
+    option (orq.authz.v1.authz) = {scope: AUTHZ_SCOPE_PUBLIC};
+    option (google.api.http) = {get: "/v2/management-keys/capabilities"};
+    option (openapi.v3.operation) = {
+      summary: "List management capability catalog"
+      description: "Returns the management capability catalog: the set of workspace-admin permission domains that can be granted to a management key. Each entry includes the domain id, display name, group, and the read / write verb support. Drives the permissions UI in the dashboard."
+      operation_id: "ManagementKeyListCapabilities"
+      tags: ["Management keys"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "managementKeys"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "listCapabilities"}
+        }
+      ]
+    };
+  }
+}
+
+// ManagementKey is the canonical record stored in MongoDB
+// `auth.managementKeys`. It is the source of truth for permissions,
+// expiration, and revocation. Management keys are always
+// workspace-scoped — there is no project_scope field, and they have no
+// per-user owner (every management key is workspace-owned;
+// `created_by_id` records who created it).
+message ManagementKey {
+  option (openapi.v3.schema) = {
+    required: [
+      "management_key_id",
+      "name",
+      "permission_mode",
+      "token_prefix",
+      "status",
+      "created_at",
+      "updated_at"
+    ]
+  };
+
+  // Canonical key identifier (ULID). Embedded in opaque tokens as
+  // `sk-orq-<id>-<secret>`.
+  string management_key_id = 1;
+
+  // Human-readable name shown in the dashboard.
+  string name = 2 [(openapi.v3.property) = {description: "Human-readable name shown in the dashboard."}];
+
+  reserved 3;
+  reserved "owner";
+
+  // Permission preset. `all` and `read_only` resolve at auth time from
+  // the management capability catalog. `restricted` reads the per-domain
+  // `access` map.
+  ManagementPermissionMode permission_mode = 4;
+
+  // Per-domain access map. Only populated when `permission_mode` is
+  // `MANAGEMENT_PERMISSION_MODE_RESTRICTED`. Valid keys are the Domain.id
+  // values in the management capability catalog — see
+  // libs/catalog/orq/managementkeys/v1/catalog.textpb for the canonical
+  // list.
+  map<string, orq.managementkeys.v1.AccessLevel> access = 5;
+
+  // Displayable prefix for UI listings (e.g. "sk-orq-01HXY..."). Safe
+  // to expose.
+  string token_prefix = 6;
+
+  // Hashed bearer secret. Never returned by the API.
+  string token_hash = 7 [(openapi.v3.property) = {
+    specification_extension: [
+      {
+        name: "x-orq-hidden"
+        value: {yaml: "true"}
+      },
+      {
+        name: "x-speakeasy-ignore"
+        value: {yaml: "true"}
+      }
+    ]
+  }];
+
+  // Lifecycle status.
+  ManagementKeyStatus status = 8;
+
+  // Audit: user who created the key.
+  string created_by_id = 9;
+
+  // Audit: user who last updated the key.
+  string updated_by_id = 10;
+
+  // Time the key was created.
+  google.protobuf.Timestamp created_at = 11;
+
+  // Time the key was last updated.
+  google.protobuf.Timestamp updated_at = 12;
+
+  // Last authenticated use.
+  google.protobuf.Timestamp last_used_at = 13;
+
+  // Optional expiration. The authenticate hot-path rejects keys whose
+  // `expires_at` is in the past. Unset means the key never expires.
+  optional google.protobuf.Timestamp expires_at = 14;
+}
+
+// Permission preset. The management capability catalog maps these to
+// concrete verbs resolved at authorize() time.
+enum ManagementPermissionMode {
+  MANAGEMENT_PERMISSION_MODE_UNSPECIFIED = 0;
+  MANAGEMENT_PERMISSION_MODE_ALL = 1;
+  MANAGEMENT_PERMISSION_MODE_RESTRICTED = 2;
+  MANAGEMENT_PERMISSION_MODE_READ_ONLY = 3;
+}
+
+// Lifecycle status. `revoked` is terminal; `disabled` is reversible.
+enum ManagementKeyStatus {
+  MANAGEMENT_KEY_STATUS_UNSPECIFIED = 0;
+  MANAGEMENT_KEY_STATUS_ACTIVE = 1;
+  MANAGEMENT_KEY_STATUS_DISABLED = 2;
+  MANAGEMENT_KEY_STATUS_REVOKED = 3;
+}
+
+// ---------------- Service request / response messages ----------------
+
+message CreateManagementKeyRequest {
+  option (openapi.v3.schema) = {
+    required: ["name"]
+  };
+
+  // Human-readable name. Required.
+  string name = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 128
+  ];
+
+  reserved 2;
+  reserved "owner";
+
+  // Permission preset. Defaults to MANAGEMENT_PERMISSION_MODE_ALL when omitted.
+  ManagementPermissionMode permission_mode = 3;
+
+  // Per-domain access map. Required when `permission_mode` =
+  // `MANAGEMENT_PERMISSION_MODE_RESTRICTED`. See `ManagementKey.access`
+  // for the catalog of valid keys (Domain.id) and AccessLevel string
+  // values, or fetch the live catalog via the capability catalog
+  // endpoint.
+  map<string, orq.managementkeys.v1.AccessLevel> access = 4;
+
+  // Optional expiration. When set, the authenticate hot-path rejects
+  // the key once `expires_at` is in the past. Unset means the key
+  // never expires.
+  optional google.protobuf.Timestamp expires_at = 5;
+}
+
+message CreateManagementKeyResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "management_key",
+      "token"
+    ]
+  };
+
+  // Newly minted management-key record.
+  ManagementKey management_key = 1;
+
+  // Raw bearer token in the form `sk-orq-<management_key_id>-<secret>`.
+  // Returned ONCE; the API never exposes this value again.
+  string token = 2;
+}
+
+message ListManagementKeysRequest {
+  // Page size, 1–200. Unset uses the server default (25).
+  optional int32 limit = 1 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+
+  // Cursor for forward pagination. Set to the `management_key_id` of the
+  // last item from the previous page.
+  string starting_after = 2;
+
+  // Cursor for backward pagination. Set to the `management_key_id` of the
+  // first item from the previous page.
+  string ending_before = 3;
+
+  // Optional filter: only return keys with this status.
+  optional ManagementKeyStatus status = 4;
+
+  // Optional case-insensitive substring match against the management-key
+  // name. Empty means no name filter.
+  optional string search = 5;
+
+  reserved 6;
+  reserved "owner_type";
+
+  // Optional filter: only return keys whose permission mode is one of
+  // the listed presets. Empty means no permission-mode filter.
+  repeated ManagementPermissionMode permission_mode = 7;
+}
+
+message ListManagementKeysResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+
+  // Object discriminator for list responses; always `list`.
+  string object = 1;
+
+  // Page of management-keys, ordered newest first. `token_hash` and
+  // `api_key` are always elided in list responses.
+  repeated ManagementKey data = 2;
+
+  // Whether more management-keys are available in the selected pagination
+  // direction.
+  bool has_more = 3;
+}
+
+message GetManagementKeyRequest {
+  option (openapi.v3.schema) = {
+    required: ["management_key_id"]
+  };
+
+  // Management key id to retrieve (e.g. `01H...`).
+  string management_key_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetManagementKeyResponse {
+  option (openapi.v3.schema) = {
+    required: ["management_key"]
+  };
+
+  // Requested management-key. Raw token never included.
+  ManagementKey management_key = 1;
+}
+
+message UpdateManagementKeyRequest {
+  option (openapi.v3.schema) = {
+    required: ["management_key_id"]
+  };
+
+  // Management key id to update.
+  string management_key_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // New name. Omit to keep current.
+  optional string name = 2 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 128
+  ];
+
+  // New lifecycle status. Omit to keep current.
+  optional ManagementKeyStatus status = 3;
+
+  // New permission preset. Omit to keep current.
+  optional ManagementPermissionMode permission_mode = 4;
+
+  // Replacement access map. Required when changing to
+  // `MANAGEMENT_PERMISSION_MODE_RESTRICTED`; ignored otherwise. Provide
+  // an empty map to clear.
+  map<string, orq.managementkeys.v1.AccessLevel> access = 5;
+
+  // New expiration. Omit to keep current. Set `clear_expires_at = true`
+  // to remove an existing expiration.
+  optional google.protobuf.Timestamp expires_at = 6;
+
+  // Force-clear the expiration. Mutually exclusive with `expires_at`.
+  bool clear_expires_at = 7;
+}
+
+message UpdateManagementKeyResponse {
+  option (openapi.v3.schema) = {
+    required: ["management_key"]
+  };
+
+  // Updated management-key.
+  ManagementKey management_key = 1;
+}
+
+message DeleteManagementKeyRequest {
+  option (openapi.v3.schema) = {
+    required: ["management_key_id"]
+  };
+
+  // Management key id to delete.
+  string management_key_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteManagementKeyResponse {}
+
+// ---------------- Capability catalog ----------------
+
+message ListManagementCapabilitiesRequest {}
+
+message ListManagementCapabilitiesResponse {
+  option (openapi.v3.schema) = {
+    required: ["domains"]
+  };
+
+  // Full management capability catalog.
+  repeated orq.managementkeys.v1.Domain domains = 1;
+}

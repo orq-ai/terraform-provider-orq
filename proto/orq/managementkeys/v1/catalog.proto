@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package orq.managementkeys.v1;
+
+// Capability catalog for orq.ai management keys.
+//
+// Management keys are workspace-scoped credentials that govern workspace
+// administration surfaces and workspace-managed platform resources. This
+// catalog is the cross-runtime source of truth for the permission domains a
+// management key may hold. The Go service (libs/go/managementkeys) loads the
+// same `catalog.textpb` fixture and reconstructs the in-memory catalog from it.
+//
+// Verb derivation (read/write -> *.list/*.view/*.create/*.update/
+// *.delete) stays hand-written in the runtime — that is logic, not
+// data, and lives next to the authorize() path.
+//
+// To add or change a domain: edit `catalog.textpb`, run the catalog
+// codegen target, commit both the textpb and the generated artifacts.
+
+// DomainGroup is the logical grouping shown in the dashboard
+// permission picker.
+enum DomainGroup {
+  DOMAIN_GROUP_UNSPECIFIED = 0;
+  // Domains grantable to workspace-level management keys.
+  DOMAIN_GROUP_WORKSPACE_ADMIN = 1;
+}
+
+// AccessLevel is the per-domain grant level on a management key.
+enum AccessLevel {
+  ACCESS_LEVEL_UNSPECIFIED = 0;
+  ACCESS_LEVEL_NONE = 1;
+  ACCESS_LEVEL_READ = 2;
+  ACCESS_LEVEL_WRITE = 3;
+}
+
+// Domain describes a permission domain that can be granted to a
+// management key. Verbs are derived from id + readable/writable.
+message Domain {
+  // Stable domain identifier (e.g. "api-key", "budget"). Used as the
+  // key in ManagementKey.access and as the verb prefix in resolved
+  // permissions (e.g. budget.list, budget.view, budget.create).
+  string id = 1;
+
+  // Human-readable label for the dashboard.
+  string display_name = 2;
+
+  // Logical group used by the UI to render this entry.
+  DomainGroup group = 3;
+
+  // Whether this domain can be granted read access.
+  bool readable = 4;
+
+  // Whether this domain can be granted write access.
+  bool writable = 5;
+}
+
+// Catalog is the top-level fixture. The textpb data file is versioned
+// via the `version` field so future schema changes can branch on it.
+message Catalog {
+  // Catalog schema version. Bump only on a breaking shape change.
+  int32 version = 1;
+
+  // Full ordered list of permission domains.
+  repeated Domain domains = 2;
+}

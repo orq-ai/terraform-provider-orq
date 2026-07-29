@@ -1,0 +1,25 @@
+# Built provider binary
+/terraform-provider-orq
+terraform-provider-orq_v*
+
+# Local Terraform state / plugin dirs from manual testing
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Dev overrides / secrets
+.terraformrc
+terraform.rc
+*.decrypted~
+.env
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# NOTE: internal/gen and internal/restgen ARE committed on purpose (reproducible
+# generated code, verified by `make check-generated`). Do not ignore them.
