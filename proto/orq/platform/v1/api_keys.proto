@@ -289,6 +289,43 @@ message ApiKey {
   // `include_budget`. Live consumption (`usage`) is not attached on this
   // path — call the Budgets API for current spend.
   optional Budget budget = 21 [(openapi.v3.property) = {read_only: true}];
+
+  // Optional MCP-gateway access restriction. Unset means the key can
+  // reach every MCP gateway allowed by its project scope. See
+  // McpAccess for the deny_all / allow-list semantics.
+  McpAccess mcp_access = 22;
+}
+
+// McpAccess optionally restricts which MCP gateways an API key may
+// reach at the data plane. It is orthogonal to permission_mode /
+// access: the key must still hold the `mcp_gateway.execute` verb and
+// project membership; McpAccess only narrows the reachable gateway set
+// within that grant. Human sessions and keys without an McpAccess are
+// unaffected.
+//
+// Semantics:
+//   - absent, or deny_all=false with an empty allowed_mcp_gateway_ids:
+//     no restriction — every gateway in the key's project scope is
+//     reachable.
+//   - deny_all=true: zero gateways are reachable. Wins over
+//     allowed_mcp_gateway_ids.
+//   - non-empty allowed_mcp_gateway_ids: only the listed gateway ids
+//     are reachable. Each id must look like `mcp_gateway_<ULID>`.
+message McpAccess {
+  // When true, the key is denied every MCP gateway regardless of
+  // allowed_mcp_gateway_ids.
+  bool deny_all = 1;
+
+  // Allow-list of MCP gateway ids (`mcp_gateway_<ULID>`) the key may
+  // reach. Ignored when deny_all is true. Empty (with deny_all=false)
+  // means no restriction.
+  repeated string allowed_mcp_gateway_ids = 2;
+
+  // Allow-list of MCP toolset ids (`mcp_toolset_<ULID>`) the key is
+  // bound to. When non-empty, the key sees and may call only the tools
+  // that are both exposed by the target gateway and members of the
+  // union of these toolsets. Empty means no toolset restriction.
+  repeated string toolset_ids = 3;
 }
 
 // Owner attribution drives lifecycle.
@@ -425,6 +462,10 @@ message CreateApiKeyRequest {
   // the key once `expires_at` is in the past. Unset means the key
   // never expires.
   optional google.protobuf.Timestamp expires_at = 6;
+
+  // Optional MCP-gateway access restriction. Unset means no
+  // restriction. See McpAccess for the deny_all / allow-list semantics.
+  McpAccess mcp_access = 7;
 }
 
 message CreateApiKeyResponse {
@@ -576,6 +617,12 @@ message UpdateApiKeyRequest {
 
   // Force-clear the expiration. Mutually exclusive with `expires_at`.
   bool clear_expires_at = 8;
+
+  // Replacement MCP-gateway access restriction. Absent leaves the
+  // current value intact; an explicitly-set McpAccess replaces it —
+  // including an empty one (deny_all=false + empty list), which clears
+  // any existing restriction. See McpAccess.
+  McpAccess mcp_access = 9;
 }
 
 message UpdateApiKeyResponse {

@@ -57,6 +57,7 @@ type Client struct {
 	apiKeys         APIKeysAPI
 	managementKeys  ManagementKeysAPI
 	models          ModelsAPI
+	settings        WorkspaceSettingsAPI
 
 	rest *restgen.ClientWithResponses
 }
@@ -148,6 +149,7 @@ func New(cfg Config) (*Client, error) {
 	modelSharingClient := platformv1connect.NewModelSharingServiceClient(connectHTTP, connectURL, connectOpts)
 	apiKeysClient := platformv1connect.NewApiKeysServiceClient(connectHTTP, connectURL, connectOpts)
 	managementKeysClient := platformv1connect.NewManagementKeysServiceClient(connectHTTP, connectURL, connectOpts)
+	workspaceSettingsClient := platformv1connect.NewWorkspaceSettingsServiceClient(connectHTTP, connectURL, connectOpts)
 
 	// REST transport: shared token injected via an origin-scoped bearer
 	// round-tripper, with the same redirect policy as the Connect client.
@@ -171,6 +173,7 @@ func New(cfg Config) (*Client, error) {
 		apiKeys:         &connectAPIKeys{c: apiKeysClient},
 		managementKeys:  &connectManagementKeys{c: managementKeysClient},
 		models:          &restModels{c: rest},
+		settings:        &connectWorkspaceSettings{c: workspaceSettingsClient},
 		rest:            rest,
 	}, nil
 }
@@ -202,3 +205,7 @@ func (c *Client) ManagementKeys() ManagementKeysAPI { return c.managementKeys }
 
 // Models returns the transport-agnostic custom-models API (REST-backed).
 func (c *Client) Models() ModelsAPI { return c.models }
+
+// WorkspaceSettings returns the transport-agnostic workspace-settings API
+// (Connect-backed). It is a singleton: read + partial update only.
+func (c *Client) WorkspaceSettings() WorkspaceSettingsAPI { return c.settings }

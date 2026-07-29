@@ -77,7 +77,7 @@ record-source-commit:
 
 proto-sync: record-source-commit
 	@set -e; \
-	for f in projects budgets management_keys notifiers model_sharing api_keys identities sharing; do \
+	for f in projects budgets management_keys notifiers model_sharing api_keys identities sharing workspace_settings; do \
 		cp $(MONOREPO)/apps/platform-api/proto/orq/platform/v1/$$f.proto proto/orq/platform/v1/; \
 	done; \
 	cp $(MONOREPO)/libs/catalog/orq/authz/v1/authz.proto proto/orq/authz/v1/; \

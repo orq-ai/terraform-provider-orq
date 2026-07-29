@@ -2033,9 +2033,9 @@ func (x *GetBudgetConsumptionResponse) GetRequestsInWindow() int32 {
 
 type CheckBudgetsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// API key that issued the request (if any).
+	// API key that issued the request, resolved by the gateway.
 	ApiKeyId string `protobuf:"bytes,1,opt,name=api_key_id,json=apiKeyId,proto3" json:"api_key_id,omitempty"`
-	// Project the request targets (if any).
+	// Project the request targets, resolved by the gateway.
 	ProjectId string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Identity external id for contact-scoped budgets (if any).
 	IdentityExternalId string `protobuf:"bytes,3,opt,name=identity_external_id,json=identityExternalId,proto3" json:"identity_external_id,omitempty"`
@@ -2460,11 +2460,11 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x10_scope_target_idB\f\n" +
 	"\n" +
 	"_is_activeB\b\n" +
-	"\x06_query\"u\n" +
+	"\x06_query\"\x95\x01\n" +
 	"\x13ListBudgetsResponse\x12\x16\n" +
 	"\x06object\x18\x01 \x01(\tR\x06object\x12+\n" +
 	"\x04data\x18\x02 \x03(\v2\x17.orq.platform.v1.BudgetR\x04data\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\xa0\x04\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore:\x1e\xbaG\x1b\xba\x01\x06object\xba\x01\x04data\xba\x01\bhas_more\"\xa0\x04\n" +
 	"\x13UpdateBudgetRequest\x12$\n" +
 	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\x12:\n" +
 	"\x06limits\x18\x02 \x01(\v2\x1d.orq.platform.v1.BudgetLimitsH\x00R\x06limits\x88\x01\x01\x12>\n" +
@@ -2556,7 +2556,7 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x1dBUDGET_SORT_FIELD_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cBUDGET_SORT_FIELD_EXPIRES_AT\x10\x01\x12 \n" +
 	"\x1cBUDGET_SORT_FIELD_CREATED_AT\x10\x02\x12 \n" +
-	"\x1cBUDGET_SORT_FIELD_UPDATED_AT\x10\x032\xa1\x1f\n" +
+	"\x1cBUDGET_SORT_FIELD_UPDATED_AT\x10\x032\xae \n" +
 	"\x0eBudgetsService\x12\xfe\x05\n" +
 	"\fCreateBudget\x12$.orq.platform.v1.CreateBudgetRequest\x1a%.orq.platform.v1.CreateBudgetResponse\"\xa0\x05\xbaG\xf1\x04\n" +
 	"\aBudgets\x12\x13Create a new budget\x1a\xc3\x02Creates a new budget in the workspace. Exactly one scope variant must be set (workspace / project / identity / api_key / provider / model). At least one of `limits.amount`, `limits.token_limit`, or `rate_limit.requests_per_minute` MUST be provided. Uniqueness is enforced across (workspace_id, scope_kind, scope_target_id).*\fBudgetCreatej\x1e\n" +
@@ -2598,11 +2598,14 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\aBudgets\x12\x1eGet current-period consumption\x1a\x99\x01Returns the current-period cost, token, and per-minute request counters for the budget. Values reflect the live Redis state for the active period bucket.*\x14BudgetGetConsumptionj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj-\n" +
 	"\x19x-speakeasy-name-override\x12\x10\x12\x0egetConsumption\x8a\xb5\x18\x0f\n" +
-	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02%\x12#/v2/budgets/{budget_id}/consumption\x12\xb7\x03\n" +
-	"\fCheckBudgets\x12$.orq.platform.v1.CheckBudgetsRequest\x1a%.orq.platform.v1.CheckBudgetsResponse\"\xd9\x02\xbaG\xb3\x02\n" +
-	"\aBudgets\x12\x18Check budget enforcement\x1a\xba\x01Internal endpoint used by the gateway to resolve applicable budgets and check enforcement gates for a request. Returns allowed/rejected status with dimension info for rate-limit headers.*\vBudgetCheckj\x1e\n" +
+	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02%\x12#/v2/budgets/{budget_id}/consumption\x12\xc4\x04\n" +
+	"\fCheckBudgets\x12$.orq.platform.v1.CheckBudgetsRequest\x1a%.orq.platform.v1.CheckBudgetsResponse\"\xe6\x03\xbaG\xc0\x03\n" +
+	"\aBudgets\n" +
+	"\aprivate\x12\x18Check budget enforcement\x1a\x88\x02Internal endpoint used by the gateway to resolve applicable budgets and check enforcement gates for a request. Authenticated with an internal service token; external API keys are rejected. Returns allowed/rejected status with dimension info for rate-limit headers.*\vBudgetCheckj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj$\n" +
-	"\x19x-speakeasy-name-override\x12\a\x12\x05check\x8a\xb5\x18\x02\x10\x03\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v2/budgets/checkB\x82\x04\xbaG\xab\x02:\xa8\x02\n" +
+	"\x19x-speakeasy-name-override\x12\a\x12\x05checkj\x16\n" +
+	"\fx-cli-hidden\x12\x06\x12\x04truej\x1c\n" +
+	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x02\x10\x03\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v2/budgets/checkB\x82\x04\xbaG\xab\x02:\xa8\x02\n" +
 	"\aBudgets\x12\x9c\x02Budgets govern spend, token usage, and request rate across six scopes: workspace, project, identity, api-key, provider, and model. A budget is hierarchical and defense-in-depth — every applicable budget is a hard gate, and the most restrictive one wins per dimension (see ADR 0007).\n" +
 	"\x13com.orq.platform.v1B\fBudgetsProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"
 

@@ -148,3 +148,23 @@ func stringMapValue(m map[string]string) types.Map {
 	out, _ := types.MapValueFrom(context.Background(), types.StringType, elems)
 	return out
 }
+
+// optStringPtr maps an optional server string onto an attribute: a nil pointer
+// (the field is absent from the response) yields null, a present pointer yields
+// its value verbatim — including "" , which is a value the server chose to
+// store, not an absence.
+func optStringPtr(v *string) types.String {
+	if v == nil {
+		return types.StringNull()
+	}
+	return types.StringValue(*v)
+}
+
+// optFloat64Ptr mirrors optStringPtr for an optional server float (a nil pointer
+// is an absent field, not a 0).
+func optFloat64Ptr(v *float64) types.Float64 {
+	if v == nil {
+		return types.Float64Null()
+	}
+	return types.Float64Value(*v)
+}

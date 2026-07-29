@@ -205,6 +205,9 @@ service BudgetsService {
     };
   }
 
+  // Internal enforcement endpoint. The gate increments RPM counters, so the
+  // handler rejects external API-key principals; only the gateway may call
+  // it, authenticated with an internal `orq.internal` token.
   rpc CheckBudgets(CheckBudgetsRequest) returns (CheckBudgetsResponse) {
     option (orq.authz.v1.authz) = {
       verb: ""
@@ -216,9 +219,9 @@ service BudgetsService {
     };
     option (openapi.v3.operation) = {
       summary: "Check budget enforcement"
-      description: "Internal endpoint used by the gateway to resolve applicable budgets and check enforcement gates for a request. Returns allowed/rejected status with dimension info for rate-limit headers."
+      description: "Internal endpoint used by the gateway to resolve applicable budgets and check enforcement gates for a request. Authenticated with an internal service token; external API keys are rejected. Returns allowed/rejected status with dimension info for rate-limit headers."
       operation_id: "BudgetCheck"
-      tags: ["Budgets"]
+      tags: ["Budgets", "private"]
       specification_extension: [
         {
           name: "x-speakeasy-group"
@@ -227,6 +230,14 @@ service BudgetsService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "check"}
+        },
+        {
+          name: "x-cli-hidden"
+          value: {yaml: "true"}
+        },
+        {
+          name: "x-speakeasy-ignore"
+          value: {yaml: "true"}
         }
       ]
     };
@@ -532,6 +543,14 @@ message ListBudgetsRequest {
 }
 
 message ListBudgetsResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+
   // Object discriminator for list responses; always `list`.
   string object = 1;
 
@@ -628,10 +647,10 @@ message GetBudgetConsumptionResponse {
 }
 
 message CheckBudgetsRequest {
-  // API key that issued the request (if any).
+  // API key that issued the request, resolved by the gateway.
   string api_key_id = 1;
 
-  // Project the request targets (if any).
+  // Project the request targets, resolved by the gateway.
   string project_id = 2;
 
   // Identity external id for contact-scoped budgets (if any).
