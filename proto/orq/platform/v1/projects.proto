@@ -1,0 +1,365 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Projects"
+      description: "Projects organize resources within a workspace"
+    }
+  ]
+  components: {
+    security_schemes: {
+      additional_properties: [
+        {
+          name: "Bearer"
+          value: {
+            security_scheme: {
+              type: "http"
+              scheme: "bearer"
+              bearer_format: "JWT"
+            }
+          }
+        },
+        {
+          name: "ApiKey"
+          value: {
+            security_scheme: {
+              type: "apiKey"
+              in: "header"
+              name: "Authorization"
+            }
+          }
+        }
+      ]
+    }
+  }
+  security: [
+    {
+      additional_properties: [
+        {
+          name: "Bearer"
+          value: {
+            value: []
+          }
+        }
+      ]
+    },
+    {
+      additional_properties: [
+        {
+          name: "ApiKey"
+          value: {
+            value: []
+          }
+        }
+      ]
+    }
+  ]
+};
+
+service ProjectsService {
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "project.create"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v2/projects"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create a new project"
+      description: "Creates a project in the current workspace. Projects are workspace-level containers for resources such as skills, deployments, datasets, rules, and related team access."
+      operation_id: "ProjectCreate"
+      tags: ["Projects"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "create"}
+        }
+      ]
+    };
+  }
+
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "project.list"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/projects"};
+    option (openapi.v3.operation) = {
+      summary: "List all projects"
+      description: "Returns projects visible to the current workspace, ordered by creation time with the newest project first. Use `starting_after` or `ending_before` to page through large collections."
+      operation_id: "ProjectList"
+      tags: ["Projects"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "list"}
+        }
+      ]
+    };
+  }
+
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "project.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/projects/{project_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a project"
+      description: "Retrieves the details of an existing project by its unique project ID."
+      operation_id: "ProjectGet"
+      tags: ["Projects"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        }
+      ]
+    };
+  }
+
+  rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "project.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      patch: "/v2/projects/{project_id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update a project"
+      description: "Updates the specified project by setting the values of the parameters passed."
+      operation_id: "ProjectUpdate"
+      tags: ["Projects"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        }
+      ]
+    };
+  }
+
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "project.delete"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v2/projects/{project_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete a project"
+      description: "Deletes a project from the workspace. The response body is empty when the delete succeeds."
+      operation_id: "ProjectDelete"
+      tags: ["Projects"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        }
+      ]
+    };
+  }
+}
+
+message Project {
+  option (openapi.v3.schema) = {
+    required: [
+      "project_id",
+      "name",
+      "key",
+      "workspace_id",
+      "is_archived",
+      "is_default",
+      "teams",
+      "created_at",
+      "updated_at"
+    ]
+  };
+
+  // Unique project identifier assigned by ORQ. Use this value in
+  // retrieve, update, and delete requests.
+  string project_id = 1;
+  // Human-readable project name.
+  string name = 2;
+  // Stable project key generated from the name and used by internal
+  // workspace navigation.
+  string key = 3;
+  // Workspace that owns the project. Hidden from the public OpenAPI
+  // schema because workspace scope is inferred from authentication.
+  string workspace_id = 4 [(openapi.v3.property) = {
+    specification_extension: [
+      {
+        name: "x-orq-hidden"
+        value: {yaml: "true"}
+      },
+      {
+        name: "x-speakeasy-ignore"
+        value: {yaml: "true"}
+      }
+    ]
+  }];
+  // Whether the project is archived and hidden from normal active
+  // project lists.
+  bool is_archived = 5;
+  // Whether this is the workspace default project.
+  bool is_default = 6;
+  // Team identifiers associated with the project for access and
+  // organization.
+  repeated string teams = 7;
+  // Time when the project was created.
+  google.protobuf.Timestamp created_at = 8;
+  // Time when the project was last updated.
+  google.protobuf.Timestamp updated_at = 9;
+  // User ID that created the project.
+  string created_by_id = 10;
+  // User ID that last updated the project.
+  string updated_by_id = 11;
+  // Optional human-readable description of the project.
+  string description = 12;
+}
+
+message CreateProjectRequest {
+  option (openapi.v3.schema) = {
+    required: ["name"]
+  };
+
+  // Project name. Names must be non-empty and at most 128 characters.
+  string name = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 128
+  ];
+  // Team identifiers to associate with the project.
+  repeated string teams = 2;
+  // Optional human-readable description, at most 500 characters.
+  optional string description = 3 [(buf.validate.field).string.max_len = 500];
+}
+
+message CreateProjectResponse {
+  option (openapi.v3.schema) = {
+    required: ["project"]
+  };
+
+  // Newly created project.
+  Project project = 1;
+}
+
+message ListProjectsRequest {
+  // Page size, 1-200. Unset uses the server default.
+  optional int32 limit = 1 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+  // Cursor for forward pagination. Set to the `project_id` of the last
+  // item from the previous page.
+  string starting_after = 2;
+  // Cursor for backward pagination. Set to the `project_id` of the first
+  // item from the previous page.
+  string ending_before = 3;
+}
+
+message ListProjectsResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+
+  // Object discriminator for list responses; always `list`.
+  string object = 1;
+  // Page of projects, ordered newest first.
+  repeated Project data = 2;
+  // Whether more projects are available in the selected pagination
+  // direction.
+  bool has_more = 3;
+}
+
+message GetProjectRequest {
+  option (openapi.v3.schema) = {
+    required: ["project_id"]
+  };
+
+  // Project ID to retrieve.
+  string project_id = 1;
+}
+
+message GetProjectResponse {
+  option (openapi.v3.schema) = {
+    required: ["project"]
+  };
+
+  // Requested project.
+  Project project = 1;
+}
+
+message UpdateProjectRequest {
+  option (openapi.v3.schema) = {
+    required: ["project_id"]
+  };
+
+  // Project ID to update.
+  string project_id = 1;
+  // New project name. Omit to keep the current name.
+  optional string name = 2 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 128
+  ];
+  // Replacement list of team identifiers associated with the project.
+  // Leave empty to remove all team associations.
+  repeated string teams = 3;
+  // New project description. Omit to keep the current description.
+  optional string description = 4 [(buf.validate.field).string.max_len = 500];
+}
+
+message UpdateProjectResponse {
+  option (openapi.v3.schema) = {
+    required: ["project"]
+  };
+
+  // Updated project.
+  Project project = 1;
+}
+
+message DeleteProjectRequest {
+  option (openapi.v3.schema) = {
+    required: ["project_id"]
+  };
+
+  // Project ID to delete.
+  string project_id = 1;
+}
+
+message DeleteProjectResponse {}

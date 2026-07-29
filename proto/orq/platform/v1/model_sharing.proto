@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+import "orq/platform/v1/sharing.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Model Sharing"
+      description: "Model sharing controls which projects a workspace model is available to. Workspace admins configure a model's Sharing (all projects / selected projects); the config ships inline on the models list response, so there is no separate read endpoint."
+    }
+  ]
+};
+
+service ModelSharingService {
+  rpc SetModelSharing(SetModelSharingRequest) returns (SetModelSharingResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "workspace-model.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      put: "/v2/models/{model_id}/sharing"
+      body: "sharing"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Set a model's sharing config"
+      description: "Persists the project sharing config for a workspace model. Exactly one sharing mode must be set (all_projects / selected)."
+      operation_id: "ModelSharingSet"
+      tags: ["Model Sharing"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "modelSharing"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "set"}
+        },
+        {
+          name: "x-cli-hidden"
+          value: {yaml: "true"}
+        },
+        {
+          name: "x-speakeasy-ignore"
+          value: {yaml: "true"}
+        }
+      ]
+    };
+  }
+}
+
+message SetModelSharingRequest {
+  string model_id = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 128
+  ];
+  Sharing sharing = 2 [(buf.validate.field).required = true];
+}
+
+message SetModelSharingResponse {
+  string model_id = 1;
+  Sharing sharing = 2;
+}

@@ -1,0 +1,26 @@
+version: v2
+# Proto module for the Connect (connect-go) client half of the provider.
+#
+# The .proto files under proto/ are a COMMITTED COPY synced from the platform
+# monorepo (github.com/orq-ai/orquesta-web). Sync sources:
+#   proto/orq/platform/v1/*.proto  <- orquesta-web/apps/platform-api/proto/orq/platform/v1/
+#   proto/openapiv3/*.proto        <- orquesta-web/apps/platform-api/proto/openapiv3/
+#   proto/orq/authz/v1/*.proto     <- orquesta-web/libs/catalog/orq/authz/v1/
+#   proto/orq/apikeys/v1/*.proto   <- orquesta-web/libs/catalog/orq/apikeys/v1/
+#   proto/orq/managementkeys/v1/*  <- orquesta-web/libs/catalog/orq/managementkeys/v1/
+# Re-sync with `make proto-sync` (see Makefile), then `make generate`.
+modules:
+  - path: proto
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/bufbuild/protovalidate
+lint:
+  use:
+    - STANDARD
+  ignore:
+    - proto/openapiv3
+breaking:
+  use:
+    - FILE
+  ignore:
+    - proto/openapiv3
