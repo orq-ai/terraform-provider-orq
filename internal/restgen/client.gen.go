@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -71,6 +72,1215 @@ func (e EvaluatorRefExecuteOn) Valid() bool {
 	case EvaluatorRefExecuteOnInput:
 		return true
 	case EvaluatorRefExecuteOnOutput:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams0Type.
+const (
+	EvaluatorResponseFunctionFunctionParams0TypeContains EvaluatorResponseFunctionFunctionParams0Type = "contains"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams0Type enum.
+func (e EvaluatorResponseFunctionFunctionParams0Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams0TypeContains:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams1Type.
+const (
+	EvaluatorResponseFunctionFunctionParams1TypeContainsNone EvaluatorResponseFunctionFunctionParams1Type = "contains_none"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams1Type enum.
+func (e EvaluatorResponseFunctionFunctionParams1Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams1TypeContainsNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams2Type.
+const (
+	EvaluatorResponseFunctionFunctionParams2TypeContainsAll EvaluatorResponseFunctionFunctionParams2Type = "contains_all"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams2Type enum.
+func (e EvaluatorResponseFunctionFunctionParams2Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams2TypeContainsAll:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams3Type.
+const (
+	EvaluatorResponseFunctionFunctionParams3TypeContainsAny EvaluatorResponseFunctionFunctionParams3Type = "contains_any"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams3Type enum.
+func (e EvaluatorResponseFunctionFunctionParams3Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams3TypeContainsAny:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams4Type.
+const (
+	EvaluatorResponseFunctionFunctionParams4TypeContainsEmail EvaluatorResponseFunctionFunctionParams4Type = "contains_email"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams4Type enum.
+func (e EvaluatorResponseFunctionFunctionParams4Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams4TypeContainsEmail:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams5Type.
+const (
+	EvaluatorResponseFunctionFunctionParams5TypeContainsUrl EvaluatorResponseFunctionFunctionParams5Type = "contains_url"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams5Type enum.
+func (e EvaluatorResponseFunctionFunctionParams5Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams5TypeContainsUrl:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams6Type.
+const (
+	EvaluatorResponseFunctionFunctionParams6TypeContainsValidLink EvaluatorResponseFunctionFunctionParams6Type = "contains_valid_link"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams6Type enum.
+func (e EvaluatorResponseFunctionFunctionParams6Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams6TypeContainsValidLink:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams7Type.
+const (
+	EvaluatorResponseFunctionFunctionParams7TypeStartWith EvaluatorResponseFunctionFunctionParams7Type = "start_with"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams7Type enum.
+func (e EvaluatorResponseFunctionFunctionParams7Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams7TypeStartWith:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams8Type.
+const (
+	EvaluatorResponseFunctionFunctionParams8TypeEndsWith EvaluatorResponseFunctionFunctionParams8Type = "ends_with"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams8Type enum.
+func (e EvaluatorResponseFunctionFunctionParams8Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams8TypeEndsWith:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams9Type.
+const (
+	EvaluatorResponseFunctionFunctionParams9TypeExactMatch EvaluatorResponseFunctionFunctionParams9Type = "exact_match"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams9Type enum.
+func (e EvaluatorResponseFunctionFunctionParams9Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams9TypeExactMatch:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams10Type.
+const (
+	EvaluatorResponseFunctionFunctionParams10TypeLengthLessThan EvaluatorResponseFunctionFunctionParams10Type = "length_less_than"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams10Type enum.
+func (e EvaluatorResponseFunctionFunctionParams10Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams10TypeLengthLessThan:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams11Type.
+const (
+	EvaluatorResponseFunctionFunctionParams11TypeLengthBetween EvaluatorResponseFunctionFunctionParams11Type = "length_between"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams11Type enum.
+func (e EvaluatorResponseFunctionFunctionParams11Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams11TypeLengthBetween:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams12Type.
+const (
+	EvaluatorResponseFunctionFunctionParams12TypeLengthGreaterThan EvaluatorResponseFunctionFunctionParams12Type = "length_greater_than"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams12Type enum.
+func (e EvaluatorResponseFunctionFunctionParams12Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams12TypeLengthGreaterThan:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams13Type.
+const (
+	EvaluatorResponseFunctionFunctionParams13TypeOneLine EvaluatorResponseFunctionFunctionParams13Type = "one_line"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams13Type enum.
+func (e EvaluatorResponseFunctionFunctionParams13Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams13TypeOneLine:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams14Type.
+const (
+	EvaluatorResponseFunctionFunctionParams14TypeRegex EvaluatorResponseFunctionFunctionParams14Type = "regex"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams14Type enum.
+func (e EvaluatorResponseFunctionFunctionParams14Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams14TypeRegex:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams15Type.
+const (
+	EvaluatorResponseFunctionFunctionParams15TypeIsValidJson EvaluatorResponseFunctionFunctionParams15Type = "is_valid_json"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams15Type enum.
+func (e EvaluatorResponseFunctionFunctionParams15Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams15TypeIsValidJson:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams16Type.
+const (
+	EvaluatorResponseFunctionFunctionParams16TypeModerationsOpenai EvaluatorResponseFunctionFunctionParams16Type = "moderations_openai"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams16Type enum.
+func (e EvaluatorResponseFunctionFunctionParams16Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams16TypeModerationsOpenai:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams17Type.
+const (
+	EvaluatorResponseFunctionFunctionParams17TypeModerationsGoogle EvaluatorResponseFunctionFunctionParams17Type = "moderations_google"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams17Type enum.
+func (e EvaluatorResponseFunctionFunctionParams17Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams17TypeModerationsGoogle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams18Type.
+const (
+	EvaluatorResponseFunctionFunctionParams18TypeBertScore EvaluatorResponseFunctionFunctionParams18Type = "bert_score"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams18Type enum.
+func (e EvaluatorResponseFunctionFunctionParams18Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams18TypeBertScore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams19Type.
+const (
+	EvaluatorResponseFunctionFunctionParams19TypeBleuScore EvaluatorResponseFunctionFunctionParams19Type = "bleu_score"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams19Type enum.
+func (e EvaluatorResponseFunctionFunctionParams19Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams19TypeBleuScore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams20Type.
+const (
+	EvaluatorResponseFunctionFunctionParams20TypeRougeN EvaluatorResponseFunctionFunctionParams20Type = "rouge_n"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams20Type enum.
+func (e EvaluatorResponseFunctionFunctionParams20Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams20TypeRougeN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams21Type.
+const (
+	EvaluatorResponseFunctionFunctionParams21TypeMeteorScore EvaluatorResponseFunctionFunctionParams21Type = "meteor_score"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams21Type enum.
+func (e EvaluatorResponseFunctionFunctionParams21Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams21TypeMeteorScore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams22Type.
+const (
+	EvaluatorResponseFunctionFunctionParams22TypeCosineSimilarity EvaluatorResponseFunctionFunctionParams22Type = "cosine_similarity"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams22Type enum.
+func (e EvaluatorResponseFunctionFunctionParams22Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams22TypeCosineSimilarity:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams23Type.
+const (
+	EvaluatorResponseFunctionFunctionParams23TypeLevenshteinDistance EvaluatorResponseFunctionFunctionParams23Type = "levenshtein_distance"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams23Type enum.
+func (e EvaluatorResponseFunctionFunctionParams23Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams23TypeLevenshteinDistance:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams24Type.
+const (
+	EvaluatorResponseFunctionFunctionParams24TypeKeywordsMatch EvaluatorResponseFunctionFunctionParams24Type = "keywords_match"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams24Type enum.
+func (e EvaluatorResponseFunctionFunctionParams24Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams24TypeKeywordsMatch:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams25Type.
+const (
+	EvaluatorResponseFunctionFunctionParams25TypeMostRepeatedWords EvaluatorResponseFunctionFunctionParams25Type = "most_repeated_words"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams25Type enum.
+func (e EvaluatorResponseFunctionFunctionParams25Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams25TypeMostRepeatedWords:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams26Type.
+const (
+	EvaluatorResponseFunctionFunctionParams26TypeFleschReadingEase EvaluatorResponseFunctionFunctionParams26Type = "flesch_reading_ease"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams26Type enum.
+func (e EvaluatorResponseFunctionFunctionParams26Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams26TypeFleschReadingEase:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams27Type.
+const (
+	EvaluatorResponseFunctionFunctionParams27TypeGseEnglishLevel EvaluatorResponseFunctionFunctionParams27Type = "gse_english_level"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams27Type enum.
+func (e EvaluatorResponseFunctionFunctionParams27Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams27TypeGseEnglishLevel:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams28Type.
+const (
+	EvaluatorResponseFunctionFunctionParams28TypeWordsCount EvaluatorResponseFunctionFunctionParams28Type = "words_count"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams28Type enum.
+func (e EvaluatorResponseFunctionFunctionParams28Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams28TypeWordsCount:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams29Type.
+const (
+	EvaluatorResponseFunctionFunctionParams29TypeSentencesCount EvaluatorResponseFunctionFunctionParams29Type = "sentences_count"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams29Type enum.
+func (e EvaluatorResponseFunctionFunctionParams29Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams29TypeSentencesCount:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams30Type.
+const (
+	EvaluatorResponseFunctionFunctionParams30TypeLexicalRepetition EvaluatorResponseFunctionFunctionParams30Type = "lexical_repetition"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams30Type enum.
+func (e EvaluatorResponseFunctionFunctionParams30Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams30TypeLexicalRepetition:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionFunctionParams31Type.
+const (
+	EvaluatorResponseFunctionFunctionParams31TypeGrammarDiversity EvaluatorResponseFunctionFunctionParams31Type = "grammar_diversity"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionFunctionParams31Type enum.
+func (e EvaluatorResponseFunctionFunctionParams31Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionFunctionParams31TypeGrammarDiversity:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionGuardrailConfig0Type.
+const (
+	EvaluatorResponseFunctionGuardrailConfig0TypeBoolean EvaluatorResponseFunctionGuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionGuardrailConfig0Type enum.
+func (e EvaluatorResponseFunctionGuardrailConfig0Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionGuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionGuardrailConfig1Type.
+const (
+	EvaluatorResponseFunctionGuardrailConfig1TypeCategorical EvaluatorResponseFunctionGuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionGuardrailConfig1Type enum.
+func (e EvaluatorResponseFunctionGuardrailConfig1Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionGuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionGuardrailConfig2Operator.
+const (
+	EvaluatorResponseFunctionGuardrailConfig2OperatorEq  EvaluatorResponseFunctionGuardrailConfig2Operator = "eq"
+	EvaluatorResponseFunctionGuardrailConfig2OperatorGt  EvaluatorResponseFunctionGuardrailConfig2Operator = "gt"
+	EvaluatorResponseFunctionGuardrailConfig2OperatorGte EvaluatorResponseFunctionGuardrailConfig2Operator = "gte"
+	EvaluatorResponseFunctionGuardrailConfig2OperatorLt  EvaluatorResponseFunctionGuardrailConfig2Operator = "lt"
+	EvaluatorResponseFunctionGuardrailConfig2OperatorLte EvaluatorResponseFunctionGuardrailConfig2Operator = "lte"
+	EvaluatorResponseFunctionGuardrailConfig2OperatorNe  EvaluatorResponseFunctionGuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionGuardrailConfig2Operator enum.
+func (e EvaluatorResponseFunctionGuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionGuardrailConfig2OperatorEq:
+		return true
+	case EvaluatorResponseFunctionGuardrailConfig2OperatorGt:
+		return true
+	case EvaluatorResponseFunctionGuardrailConfig2OperatorGte:
+		return true
+	case EvaluatorResponseFunctionGuardrailConfig2OperatorLt:
+		return true
+	case EvaluatorResponseFunctionGuardrailConfig2OperatorLte:
+		return true
+	case EvaluatorResponseFunctionGuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionGuardrailConfig2Type.
+const (
+	EvaluatorResponseFunctionGuardrailConfig2TypeNumber EvaluatorResponseFunctionGuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionGuardrailConfig2Type enum.
+func (e EvaluatorResponseFunctionGuardrailConfig2Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionGuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseFunctionType.
+const (
+	EvaluatorResponseFunctionTypeFunctionEval EvaluatorResponseFunctionType = "function_eval"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseFunctionType enum.
+func (e EvaluatorResponseFunctionType) Valid() bool {
+	switch e {
+	case EvaluatorResponseFunctionTypeFunctionEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseHttpGuardrailConfig0Type.
+const (
+	EvaluatorResponseHttpGuardrailConfig0TypeBoolean EvaluatorResponseHttpGuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseHttpGuardrailConfig0Type enum.
+func (e EvaluatorResponseHttpGuardrailConfig0Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseHttpGuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseHttpGuardrailConfig1Type.
+const (
+	EvaluatorResponseHttpGuardrailConfig1TypeCategorical EvaluatorResponseHttpGuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseHttpGuardrailConfig1Type enum.
+func (e EvaluatorResponseHttpGuardrailConfig1Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseHttpGuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseHttpGuardrailConfig2Operator.
+const (
+	EvaluatorResponseHttpGuardrailConfig2OperatorEq  EvaluatorResponseHttpGuardrailConfig2Operator = "eq"
+	EvaluatorResponseHttpGuardrailConfig2OperatorGt  EvaluatorResponseHttpGuardrailConfig2Operator = "gt"
+	EvaluatorResponseHttpGuardrailConfig2OperatorGte EvaluatorResponseHttpGuardrailConfig2Operator = "gte"
+	EvaluatorResponseHttpGuardrailConfig2OperatorLt  EvaluatorResponseHttpGuardrailConfig2Operator = "lt"
+	EvaluatorResponseHttpGuardrailConfig2OperatorLte EvaluatorResponseHttpGuardrailConfig2Operator = "lte"
+	EvaluatorResponseHttpGuardrailConfig2OperatorNe  EvaluatorResponseHttpGuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseHttpGuardrailConfig2Operator enum.
+func (e EvaluatorResponseHttpGuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case EvaluatorResponseHttpGuardrailConfig2OperatorEq:
+		return true
+	case EvaluatorResponseHttpGuardrailConfig2OperatorGt:
+		return true
+	case EvaluatorResponseHttpGuardrailConfig2OperatorGte:
+		return true
+	case EvaluatorResponseHttpGuardrailConfig2OperatorLt:
+		return true
+	case EvaluatorResponseHttpGuardrailConfig2OperatorLte:
+		return true
+	case EvaluatorResponseHttpGuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseHttpGuardrailConfig2Type.
+const (
+	EvaluatorResponseHttpGuardrailConfig2TypeNumber EvaluatorResponseHttpGuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseHttpGuardrailConfig2Type enum.
+func (e EvaluatorResponseHttpGuardrailConfig2Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseHttpGuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseHttpMethod.
+const (
+	EvaluatorResponseHttpMethodGET  EvaluatorResponseHttpMethod = "GET"
+	EvaluatorResponseHttpMethodPOST EvaluatorResponseHttpMethod = "POST"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseHttpMethod enum.
+func (e EvaluatorResponseHttpMethod) Valid() bool {
+	switch e {
+	case EvaluatorResponseHttpMethodGET:
+		return true
+	case EvaluatorResponseHttpMethodPOST:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseHttpType.
+const (
+	EvaluatorResponseHttpTypeHttpEval EvaluatorResponseHttpType = "http_eval"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseHttpType enum.
+func (e EvaluatorResponseHttpType) Valid() bool {
+	switch e {
+	case EvaluatorResponseHttpTypeHttpEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseJsonSchemaGuardrailConfig0Type.
+const (
+	EvaluatorResponseJsonSchemaGuardrailConfig0TypeBoolean EvaluatorResponseJsonSchemaGuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseJsonSchemaGuardrailConfig0Type enum.
+func (e EvaluatorResponseJsonSchemaGuardrailConfig0Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseJsonSchemaGuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseJsonSchemaGuardrailConfig1Type.
+const (
+	EvaluatorResponseJsonSchemaGuardrailConfig1TypeCategorical EvaluatorResponseJsonSchemaGuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseJsonSchemaGuardrailConfig1Type enum.
+func (e EvaluatorResponseJsonSchemaGuardrailConfig1Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseJsonSchemaGuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseJsonSchemaGuardrailConfig2Operator.
+const (
+	EvaluatorResponseJsonSchemaGuardrailConfig2OperatorEq  EvaluatorResponseJsonSchemaGuardrailConfig2Operator = "eq"
+	EvaluatorResponseJsonSchemaGuardrailConfig2OperatorGt  EvaluatorResponseJsonSchemaGuardrailConfig2Operator = "gt"
+	EvaluatorResponseJsonSchemaGuardrailConfig2OperatorGte EvaluatorResponseJsonSchemaGuardrailConfig2Operator = "gte"
+	EvaluatorResponseJsonSchemaGuardrailConfig2OperatorLt  EvaluatorResponseJsonSchemaGuardrailConfig2Operator = "lt"
+	EvaluatorResponseJsonSchemaGuardrailConfig2OperatorLte EvaluatorResponseJsonSchemaGuardrailConfig2Operator = "lte"
+	EvaluatorResponseJsonSchemaGuardrailConfig2OperatorNe  EvaluatorResponseJsonSchemaGuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseJsonSchemaGuardrailConfig2Operator enum.
+func (e EvaluatorResponseJsonSchemaGuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case EvaluatorResponseJsonSchemaGuardrailConfig2OperatorEq:
+		return true
+	case EvaluatorResponseJsonSchemaGuardrailConfig2OperatorGt:
+		return true
+	case EvaluatorResponseJsonSchemaGuardrailConfig2OperatorGte:
+		return true
+	case EvaluatorResponseJsonSchemaGuardrailConfig2OperatorLt:
+		return true
+	case EvaluatorResponseJsonSchemaGuardrailConfig2OperatorLte:
+		return true
+	case EvaluatorResponseJsonSchemaGuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseJsonSchemaGuardrailConfig2Type.
+const (
+	EvaluatorResponseJsonSchemaGuardrailConfig2TypeNumber EvaluatorResponseJsonSchemaGuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseJsonSchemaGuardrailConfig2Type enum.
+func (e EvaluatorResponseJsonSchemaGuardrailConfig2Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseJsonSchemaGuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseJsonSchemaType.
+const (
+	EvaluatorResponseJsonSchemaTypeJsonSchema EvaluatorResponseJsonSchemaType = "json_schema"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseJsonSchemaType enum.
+func (e EvaluatorResponseJsonSchemaType) Valid() bool {
+	switch e {
+	case EvaluatorResponseJsonSchemaTypeJsonSchema:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseLlmGuardrailConfig0Type.
+const (
+	EvaluatorResponseLlmGuardrailConfig0TypeBoolean EvaluatorResponseLlmGuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseLlmGuardrailConfig0Type enum.
+func (e EvaluatorResponseLlmGuardrailConfig0Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseLlmGuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseLlmGuardrailConfig1Type.
+const (
+	EvaluatorResponseLlmGuardrailConfig1TypeCategorical EvaluatorResponseLlmGuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseLlmGuardrailConfig1Type enum.
+func (e EvaluatorResponseLlmGuardrailConfig1Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseLlmGuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseLlmGuardrailConfig2Operator.
+const (
+	EvaluatorResponseLlmGuardrailConfig2OperatorEq  EvaluatorResponseLlmGuardrailConfig2Operator = "eq"
+	EvaluatorResponseLlmGuardrailConfig2OperatorGt  EvaluatorResponseLlmGuardrailConfig2Operator = "gt"
+	EvaluatorResponseLlmGuardrailConfig2OperatorGte EvaluatorResponseLlmGuardrailConfig2Operator = "gte"
+	EvaluatorResponseLlmGuardrailConfig2OperatorLt  EvaluatorResponseLlmGuardrailConfig2Operator = "lt"
+	EvaluatorResponseLlmGuardrailConfig2OperatorLte EvaluatorResponseLlmGuardrailConfig2Operator = "lte"
+	EvaluatorResponseLlmGuardrailConfig2OperatorNe  EvaluatorResponseLlmGuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseLlmGuardrailConfig2Operator enum.
+func (e EvaluatorResponseLlmGuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case EvaluatorResponseLlmGuardrailConfig2OperatorEq:
+		return true
+	case EvaluatorResponseLlmGuardrailConfig2OperatorGt:
+		return true
+	case EvaluatorResponseLlmGuardrailConfig2OperatorGte:
+		return true
+	case EvaluatorResponseLlmGuardrailConfig2OperatorLt:
+		return true
+	case EvaluatorResponseLlmGuardrailConfig2OperatorLte:
+		return true
+	case EvaluatorResponseLlmGuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseLlmGuardrailConfig2Type.
+const (
+	EvaluatorResponseLlmGuardrailConfig2TypeNumber EvaluatorResponseLlmGuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseLlmGuardrailConfig2Type enum.
+func (e EvaluatorResponseLlmGuardrailConfig2Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseLlmGuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseLlmJuryTieValue.
+const (
+	EvaluatorResponseLlmJuryTieValueTie EvaluatorResponseLlmJuryTieValue = "Tie"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseLlmJuryTieValue enum.
+func (e EvaluatorResponseLlmJuryTieValue) Valid() bool {
+	switch e {
+	case EvaluatorResponseLlmJuryTieValueTie:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseLlmMode.
+const (
+	EvaluatorResponseLlmModeJury   EvaluatorResponseLlmMode = "jury"
+	EvaluatorResponseLlmModeSingle EvaluatorResponseLlmMode = "single"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseLlmMode enum.
+func (e EvaluatorResponseLlmMode) Valid() bool {
+	switch e {
+	case EvaluatorResponseLlmModeJury:
+		return true
+	case EvaluatorResponseLlmModeSingle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseLlmType.
+const (
+	EvaluatorResponseLlmTypeLlmEval EvaluatorResponseLlmType = "llm_eval"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseLlmType enum.
+func (e EvaluatorResponseLlmType) Valid() bool {
+	switch e {
+	case EvaluatorResponseLlmTypeLlmEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponsePythonGuardrailConfig0Type.
+const (
+	EvaluatorResponsePythonGuardrailConfig0TypeBoolean EvaluatorResponsePythonGuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponsePythonGuardrailConfig0Type enum.
+func (e EvaluatorResponsePythonGuardrailConfig0Type) Valid() bool {
+	switch e {
+	case EvaluatorResponsePythonGuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponsePythonGuardrailConfig1Type.
+const (
+	EvaluatorResponsePythonGuardrailConfig1TypeCategorical EvaluatorResponsePythonGuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponsePythonGuardrailConfig1Type enum.
+func (e EvaluatorResponsePythonGuardrailConfig1Type) Valid() bool {
+	switch e {
+	case EvaluatorResponsePythonGuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponsePythonGuardrailConfig2Operator.
+const (
+	EvaluatorResponsePythonGuardrailConfig2OperatorEq  EvaluatorResponsePythonGuardrailConfig2Operator = "eq"
+	EvaluatorResponsePythonGuardrailConfig2OperatorGt  EvaluatorResponsePythonGuardrailConfig2Operator = "gt"
+	EvaluatorResponsePythonGuardrailConfig2OperatorGte EvaluatorResponsePythonGuardrailConfig2Operator = "gte"
+	EvaluatorResponsePythonGuardrailConfig2OperatorLt  EvaluatorResponsePythonGuardrailConfig2Operator = "lt"
+	EvaluatorResponsePythonGuardrailConfig2OperatorLte EvaluatorResponsePythonGuardrailConfig2Operator = "lte"
+	EvaluatorResponsePythonGuardrailConfig2OperatorNe  EvaluatorResponsePythonGuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponsePythonGuardrailConfig2Operator enum.
+func (e EvaluatorResponsePythonGuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case EvaluatorResponsePythonGuardrailConfig2OperatorEq:
+		return true
+	case EvaluatorResponsePythonGuardrailConfig2OperatorGt:
+		return true
+	case EvaluatorResponsePythonGuardrailConfig2OperatorGte:
+		return true
+	case EvaluatorResponsePythonGuardrailConfig2OperatorLt:
+		return true
+	case EvaluatorResponsePythonGuardrailConfig2OperatorLte:
+		return true
+	case EvaluatorResponsePythonGuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponsePythonGuardrailConfig2Type.
+const (
+	EvaluatorResponsePythonGuardrailConfig2TypeNumber EvaluatorResponsePythonGuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponsePythonGuardrailConfig2Type enum.
+func (e EvaluatorResponsePythonGuardrailConfig2Type) Valid() bool {
+	switch e {
+	case EvaluatorResponsePythonGuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponsePythonType.
+const (
+	EvaluatorResponsePythonTypePythonEval EvaluatorResponsePythonType = "python_eval"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponsePythonType enum.
+func (e EvaluatorResponsePythonType) Valid() bool {
+	switch e {
+	case EvaluatorResponsePythonTypePythonEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseRagasGuardrailConfig0Type.
+const (
+	EvaluatorResponseRagasGuardrailConfig0TypeBoolean EvaluatorResponseRagasGuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseRagasGuardrailConfig0Type enum.
+func (e EvaluatorResponseRagasGuardrailConfig0Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseRagasGuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseRagasGuardrailConfig1Type.
+const (
+	EvaluatorResponseRagasGuardrailConfig1TypeCategorical EvaluatorResponseRagasGuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseRagasGuardrailConfig1Type enum.
+func (e EvaluatorResponseRagasGuardrailConfig1Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseRagasGuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseRagasGuardrailConfig2Operator.
+const (
+	EvaluatorResponseRagasGuardrailConfig2OperatorEq  EvaluatorResponseRagasGuardrailConfig2Operator = "eq"
+	EvaluatorResponseRagasGuardrailConfig2OperatorGt  EvaluatorResponseRagasGuardrailConfig2Operator = "gt"
+	EvaluatorResponseRagasGuardrailConfig2OperatorGte EvaluatorResponseRagasGuardrailConfig2Operator = "gte"
+	EvaluatorResponseRagasGuardrailConfig2OperatorLt  EvaluatorResponseRagasGuardrailConfig2Operator = "lt"
+	EvaluatorResponseRagasGuardrailConfig2OperatorLte EvaluatorResponseRagasGuardrailConfig2Operator = "lte"
+	EvaluatorResponseRagasGuardrailConfig2OperatorNe  EvaluatorResponseRagasGuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseRagasGuardrailConfig2Operator enum.
+func (e EvaluatorResponseRagasGuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case EvaluatorResponseRagasGuardrailConfig2OperatorEq:
+		return true
+	case EvaluatorResponseRagasGuardrailConfig2OperatorGt:
+		return true
+	case EvaluatorResponseRagasGuardrailConfig2OperatorGte:
+		return true
+	case EvaluatorResponseRagasGuardrailConfig2OperatorLt:
+		return true
+	case EvaluatorResponseRagasGuardrailConfig2OperatorLte:
+		return true
+	case EvaluatorResponseRagasGuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseRagasGuardrailConfig2Type.
+const (
+	EvaluatorResponseRagasGuardrailConfig2TypeNumber EvaluatorResponseRagasGuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseRagasGuardrailConfig2Type enum.
+func (e EvaluatorResponseRagasGuardrailConfig2Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseRagasGuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseRagasRagasMetric.
+const (
+	EvaluatorResponseRagasRagasMetricCoherence             EvaluatorResponseRagasRagasMetric = "coherence"
+	EvaluatorResponseRagasRagasMetricConciseness           EvaluatorResponseRagasRagasMetric = "conciseness"
+	EvaluatorResponseRagasRagasMetricContextEntitiesRecall EvaluatorResponseRagasRagasMetric = "context_entities_recall"
+	EvaluatorResponseRagasRagasMetricContextPrecision      EvaluatorResponseRagasRagasMetric = "context_precision"
+	EvaluatorResponseRagasRagasMetricContextRecall         EvaluatorResponseRagasRagasMetric = "context_recall"
+	EvaluatorResponseRagasRagasMetricCorrectness           EvaluatorResponseRagasRagasMetric = "correctness"
+	EvaluatorResponseRagasRagasMetricFaithfulness          EvaluatorResponseRagasRagasMetric = "faithfulness"
+	EvaluatorResponseRagasRagasMetricHarmfulness           EvaluatorResponseRagasRagasMetric = "harmfulness"
+	EvaluatorResponseRagasRagasMetricMaliciousness         EvaluatorResponseRagasRagasMetric = "maliciousness"
+	EvaluatorResponseRagasRagasMetricNoiseSensitivity      EvaluatorResponseRagasRagasMetric = "noise_sensitivity"
+	EvaluatorResponseRagasRagasMetricResponseRelevancy     EvaluatorResponseRagasRagasMetric = "response_relevancy"
+	EvaluatorResponseRagasRagasMetricSummarization         EvaluatorResponseRagasRagasMetric = "summarization"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseRagasRagasMetric enum.
+func (e EvaluatorResponseRagasRagasMetric) Valid() bool {
+	switch e {
+	case EvaluatorResponseRagasRagasMetricCoherence:
+		return true
+	case EvaluatorResponseRagasRagasMetricConciseness:
+		return true
+	case EvaluatorResponseRagasRagasMetricContextEntitiesRecall:
+		return true
+	case EvaluatorResponseRagasRagasMetricContextPrecision:
+		return true
+	case EvaluatorResponseRagasRagasMetricContextRecall:
+		return true
+	case EvaluatorResponseRagasRagasMetricCorrectness:
+		return true
+	case EvaluatorResponseRagasRagasMetricFaithfulness:
+		return true
+	case EvaluatorResponseRagasRagasMetricHarmfulness:
+		return true
+	case EvaluatorResponseRagasRagasMetricMaliciousness:
+		return true
+	case EvaluatorResponseRagasRagasMetricNoiseSensitivity:
+		return true
+	case EvaluatorResponseRagasRagasMetricResponseRelevancy:
+		return true
+	case EvaluatorResponseRagasRagasMetricSummarization:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseRagasType.
+const (
+	EvaluatorResponseRagasTypeRagas EvaluatorResponseRagasType = "ragas"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseRagasType enum.
+func (e EvaluatorResponseRagasType) Valid() bool {
+	switch e {
+	case EvaluatorResponseRagasTypeRagas:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseTypescriptGuardrailConfig0Type.
+const (
+	EvaluatorResponseTypescriptGuardrailConfig0TypeBoolean EvaluatorResponseTypescriptGuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseTypescriptGuardrailConfig0Type enum.
+func (e EvaluatorResponseTypescriptGuardrailConfig0Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseTypescriptGuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseTypescriptGuardrailConfig1Type.
+const (
+	EvaluatorResponseTypescriptGuardrailConfig1TypeCategorical EvaluatorResponseTypescriptGuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseTypescriptGuardrailConfig1Type enum.
+func (e EvaluatorResponseTypescriptGuardrailConfig1Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseTypescriptGuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseTypescriptGuardrailConfig2Operator.
+const (
+	EvaluatorResponseTypescriptGuardrailConfig2OperatorEq  EvaluatorResponseTypescriptGuardrailConfig2Operator = "eq"
+	EvaluatorResponseTypescriptGuardrailConfig2OperatorGt  EvaluatorResponseTypescriptGuardrailConfig2Operator = "gt"
+	EvaluatorResponseTypescriptGuardrailConfig2OperatorGte EvaluatorResponseTypescriptGuardrailConfig2Operator = "gte"
+	EvaluatorResponseTypescriptGuardrailConfig2OperatorLt  EvaluatorResponseTypescriptGuardrailConfig2Operator = "lt"
+	EvaluatorResponseTypescriptGuardrailConfig2OperatorLte EvaluatorResponseTypescriptGuardrailConfig2Operator = "lte"
+	EvaluatorResponseTypescriptGuardrailConfig2OperatorNe  EvaluatorResponseTypescriptGuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseTypescriptGuardrailConfig2Operator enum.
+func (e EvaluatorResponseTypescriptGuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case EvaluatorResponseTypescriptGuardrailConfig2OperatorEq:
+		return true
+	case EvaluatorResponseTypescriptGuardrailConfig2OperatorGt:
+		return true
+	case EvaluatorResponseTypescriptGuardrailConfig2OperatorGte:
+		return true
+	case EvaluatorResponseTypescriptGuardrailConfig2OperatorLt:
+		return true
+	case EvaluatorResponseTypescriptGuardrailConfig2OperatorLte:
+		return true
+	case EvaluatorResponseTypescriptGuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseTypescriptGuardrailConfig2Type.
+const (
+	EvaluatorResponseTypescriptGuardrailConfig2TypeNumber EvaluatorResponseTypescriptGuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseTypescriptGuardrailConfig2Type enum.
+func (e EvaluatorResponseTypescriptGuardrailConfig2Type) Valid() bool {
+	switch e {
+	case EvaluatorResponseTypescriptGuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluatorResponseTypescriptType.
+const (
+	EvaluatorResponseTypescriptTypeTypescriptEval EvaluatorResponseTypescriptType = "typescript_eval"
+)
+
+// Valid indicates whether the value is a known member of the EvaluatorResponseTypescriptType enum.
+func (e EvaluatorResponseTypescriptType) Valid() bool {
+	switch e {
+	case EvaluatorResponseTypescriptTypeTypescriptEval:
 		return true
 	default:
 		return false
@@ -161,6 +1371,1977 @@ func (e TokenLimitPeriod) Valid() bool {
 	case TokenLimitPeriodMonth:
 		return true
 	case TokenLimitPeriodWeek:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody00GuardrailConfig0Type.
+const (
+	CreateEvalJSONBody00GuardrailConfig0TypeBoolean CreateEvalJSONBody00GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody00GuardrailConfig0Type enum.
+func (e CreateEvalJSONBody00GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody00GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody00GuardrailConfig1Type.
+const (
+	CreateEvalJSONBody00GuardrailConfig1TypeCategorical CreateEvalJSONBody00GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody00GuardrailConfig1Type enum.
+func (e CreateEvalJSONBody00GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody00GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody00GuardrailConfig2Operator.
+const (
+	CreateEvalJSONBody00GuardrailConfig2OperatorEq  CreateEvalJSONBody00GuardrailConfig2Operator = "eq"
+	CreateEvalJSONBody00GuardrailConfig2OperatorGt  CreateEvalJSONBody00GuardrailConfig2Operator = "gt"
+	CreateEvalJSONBody00GuardrailConfig2OperatorGte CreateEvalJSONBody00GuardrailConfig2Operator = "gte"
+	CreateEvalJSONBody00GuardrailConfig2OperatorLt  CreateEvalJSONBody00GuardrailConfig2Operator = "lt"
+	CreateEvalJSONBody00GuardrailConfig2OperatorLte CreateEvalJSONBody00GuardrailConfig2Operator = "lte"
+	CreateEvalJSONBody00GuardrailConfig2OperatorNe  CreateEvalJSONBody00GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody00GuardrailConfig2Operator enum.
+func (e CreateEvalJSONBody00GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody00GuardrailConfig2OperatorEq:
+		return true
+	case CreateEvalJSONBody00GuardrailConfig2OperatorGt:
+		return true
+	case CreateEvalJSONBody00GuardrailConfig2OperatorGte:
+		return true
+	case CreateEvalJSONBody00GuardrailConfig2OperatorLt:
+		return true
+	case CreateEvalJSONBody00GuardrailConfig2OperatorLte:
+		return true
+	case CreateEvalJSONBody00GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody00GuardrailConfig2Type.
+const (
+	CreateEvalJSONBody00GuardrailConfig2TypeNumber CreateEvalJSONBody00GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody00GuardrailConfig2Type enum.
+func (e CreateEvalJSONBody00GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody00GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody00Mode.
+const (
+	CreateEvalJSONBody00ModeSingle CreateEvalJSONBody00Mode = "single"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody00Mode enum.
+func (e CreateEvalJSONBody00Mode) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody00ModeSingle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody00OutputType.
+const (
+	CreateEvalJSONBody00OutputTypeBoolean     CreateEvalJSONBody00OutputType = "boolean"
+	CreateEvalJSONBody00OutputTypeCategorical CreateEvalJSONBody00OutputType = "categorical"
+	CreateEvalJSONBody00OutputTypeNumber      CreateEvalJSONBody00OutputType = "number"
+	CreateEvalJSONBody00OutputTypeString      CreateEvalJSONBody00OutputType = "string"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody00OutputType enum.
+func (e CreateEvalJSONBody00OutputType) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody00OutputTypeBoolean:
+		return true
+	case CreateEvalJSONBody00OutputTypeCategorical:
+		return true
+	case CreateEvalJSONBody00OutputTypeNumber:
+		return true
+	case CreateEvalJSONBody00OutputTypeString:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody00Type.
+const (
+	CreateEvalJSONBody00TypeLlmEval CreateEvalJSONBody00Type = "llm_eval"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody00Type enum.
+func (e CreateEvalJSONBody00Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody00TypeLlmEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody01GuardrailConfig0Type.
+const (
+	CreateEvalJSONBody01GuardrailConfig0TypeBoolean CreateEvalJSONBody01GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody01GuardrailConfig0Type enum.
+func (e CreateEvalJSONBody01GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody01GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody01GuardrailConfig1Type.
+const (
+	CreateEvalJSONBody01GuardrailConfig1TypeCategorical CreateEvalJSONBody01GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody01GuardrailConfig1Type enum.
+func (e CreateEvalJSONBody01GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody01GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody01GuardrailConfig2Operator.
+const (
+	CreateEvalJSONBody01GuardrailConfig2OperatorEq  CreateEvalJSONBody01GuardrailConfig2Operator = "eq"
+	CreateEvalJSONBody01GuardrailConfig2OperatorGt  CreateEvalJSONBody01GuardrailConfig2Operator = "gt"
+	CreateEvalJSONBody01GuardrailConfig2OperatorGte CreateEvalJSONBody01GuardrailConfig2Operator = "gte"
+	CreateEvalJSONBody01GuardrailConfig2OperatorLt  CreateEvalJSONBody01GuardrailConfig2Operator = "lt"
+	CreateEvalJSONBody01GuardrailConfig2OperatorLte CreateEvalJSONBody01GuardrailConfig2Operator = "lte"
+	CreateEvalJSONBody01GuardrailConfig2OperatorNe  CreateEvalJSONBody01GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody01GuardrailConfig2Operator enum.
+func (e CreateEvalJSONBody01GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody01GuardrailConfig2OperatorEq:
+		return true
+	case CreateEvalJSONBody01GuardrailConfig2OperatorGt:
+		return true
+	case CreateEvalJSONBody01GuardrailConfig2OperatorGte:
+		return true
+	case CreateEvalJSONBody01GuardrailConfig2OperatorLt:
+		return true
+	case CreateEvalJSONBody01GuardrailConfig2OperatorLte:
+		return true
+	case CreateEvalJSONBody01GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody01GuardrailConfig2Type.
+const (
+	CreateEvalJSONBody01GuardrailConfig2TypeNumber CreateEvalJSONBody01GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody01GuardrailConfig2Type enum.
+func (e CreateEvalJSONBody01GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody01GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody01JuryTieValue.
+const (
+	CreateEvalJSONBody01JuryTieValueTie CreateEvalJSONBody01JuryTieValue = "Tie"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody01JuryTieValue enum.
+func (e CreateEvalJSONBody01JuryTieValue) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody01JuryTieValueTie:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody01Mode.
+const (
+	CreateEvalJSONBody01ModeJury CreateEvalJSONBody01Mode = "jury"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody01Mode enum.
+func (e CreateEvalJSONBody01Mode) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody01ModeJury:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody01OutputType.
+const (
+	CreateEvalJSONBody01OutputTypeBoolean     CreateEvalJSONBody01OutputType = "boolean"
+	CreateEvalJSONBody01OutputTypeCategorical CreateEvalJSONBody01OutputType = "categorical"
+	CreateEvalJSONBody01OutputTypeNumber      CreateEvalJSONBody01OutputType = "number"
+	CreateEvalJSONBody01OutputTypeString      CreateEvalJSONBody01OutputType = "string"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody01OutputType enum.
+func (e CreateEvalJSONBody01OutputType) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody01OutputTypeBoolean:
+		return true
+	case CreateEvalJSONBody01OutputTypeCategorical:
+		return true
+	case CreateEvalJSONBody01OutputTypeNumber:
+		return true
+	case CreateEvalJSONBody01OutputTypeString:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody01Type.
+const (
+	CreateEvalJSONBody01TypeLlmEval CreateEvalJSONBody01Type = "llm_eval"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody01Type enum.
+func (e CreateEvalJSONBody01Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody01TypeLlmEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody1GuardrailConfig0Type.
+const (
+	CreateEvalJSONBody1GuardrailConfig0TypeBoolean CreateEvalJSONBody1GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody1GuardrailConfig0Type enum.
+func (e CreateEvalJSONBody1GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody1GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody1GuardrailConfig1Type.
+const (
+	CreateEvalJSONBody1GuardrailConfig1TypeCategorical CreateEvalJSONBody1GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody1GuardrailConfig1Type enum.
+func (e CreateEvalJSONBody1GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody1GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody1GuardrailConfig2Operator.
+const (
+	CreateEvalJSONBody1GuardrailConfig2OperatorEq  CreateEvalJSONBody1GuardrailConfig2Operator = "eq"
+	CreateEvalJSONBody1GuardrailConfig2OperatorGt  CreateEvalJSONBody1GuardrailConfig2Operator = "gt"
+	CreateEvalJSONBody1GuardrailConfig2OperatorGte CreateEvalJSONBody1GuardrailConfig2Operator = "gte"
+	CreateEvalJSONBody1GuardrailConfig2OperatorLt  CreateEvalJSONBody1GuardrailConfig2Operator = "lt"
+	CreateEvalJSONBody1GuardrailConfig2OperatorLte CreateEvalJSONBody1GuardrailConfig2Operator = "lte"
+	CreateEvalJSONBody1GuardrailConfig2OperatorNe  CreateEvalJSONBody1GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody1GuardrailConfig2Operator enum.
+func (e CreateEvalJSONBody1GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody1GuardrailConfig2OperatorEq:
+		return true
+	case CreateEvalJSONBody1GuardrailConfig2OperatorGt:
+		return true
+	case CreateEvalJSONBody1GuardrailConfig2OperatorGte:
+		return true
+	case CreateEvalJSONBody1GuardrailConfig2OperatorLt:
+		return true
+	case CreateEvalJSONBody1GuardrailConfig2OperatorLte:
+		return true
+	case CreateEvalJSONBody1GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody1GuardrailConfig2Type.
+const (
+	CreateEvalJSONBody1GuardrailConfig2TypeNumber CreateEvalJSONBody1GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody1GuardrailConfig2Type enum.
+func (e CreateEvalJSONBody1GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody1GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody1OutputType.
+const (
+	CreateEvalJSONBody1OutputTypeBoolean CreateEvalJSONBody1OutputType = "boolean"
+	CreateEvalJSONBody1OutputTypeNumber  CreateEvalJSONBody1OutputType = "number"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody1OutputType enum.
+func (e CreateEvalJSONBody1OutputType) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody1OutputTypeBoolean:
+		return true
+	case CreateEvalJSONBody1OutputTypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateEvalJSONBody1Type.
+const (
+	CreateEvalJSONBody1TypePythonEval CreateEvalJSONBody1Type = "python_eval"
+)
+
+// Valid indicates whether the value is a known member of the CreateEvalJSONBody1Type enum.
+func (e CreateEvalJSONBody1Type) Valid() bool {
+	switch e {
+	case CreateEvalJSONBody1TypePythonEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody0GuardrailConfig0Type.
+const (
+	GetEval200JSONResponseBody0GuardrailConfig0TypeBoolean GetEval200JSONResponseBody0GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody0GuardrailConfig0Type enum.
+func (e GetEval200JSONResponseBody0GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody0GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody0GuardrailConfig1Type.
+const (
+	GetEval200JSONResponseBody0GuardrailConfig1TypeCategorical GetEval200JSONResponseBody0GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody0GuardrailConfig1Type enum.
+func (e GetEval200JSONResponseBody0GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody0GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody0GuardrailConfig2Operator.
+const (
+	GetEval200JSONResponseBody0GuardrailConfig2OperatorEq  GetEval200JSONResponseBody0GuardrailConfig2Operator = "eq"
+	GetEval200JSONResponseBody0GuardrailConfig2OperatorGt  GetEval200JSONResponseBody0GuardrailConfig2Operator = "gt"
+	GetEval200JSONResponseBody0GuardrailConfig2OperatorGte GetEval200JSONResponseBody0GuardrailConfig2Operator = "gte"
+	GetEval200JSONResponseBody0GuardrailConfig2OperatorLt  GetEval200JSONResponseBody0GuardrailConfig2Operator = "lt"
+	GetEval200JSONResponseBody0GuardrailConfig2OperatorLte GetEval200JSONResponseBody0GuardrailConfig2Operator = "lte"
+	GetEval200JSONResponseBody0GuardrailConfig2OperatorNe  GetEval200JSONResponseBody0GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody0GuardrailConfig2Operator enum.
+func (e GetEval200JSONResponseBody0GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody0GuardrailConfig2OperatorEq:
+		return true
+	case GetEval200JSONResponseBody0GuardrailConfig2OperatorGt:
+		return true
+	case GetEval200JSONResponseBody0GuardrailConfig2OperatorGte:
+		return true
+	case GetEval200JSONResponseBody0GuardrailConfig2OperatorLt:
+		return true
+	case GetEval200JSONResponseBody0GuardrailConfig2OperatorLte:
+		return true
+	case GetEval200JSONResponseBody0GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody0GuardrailConfig2Type.
+const (
+	GetEval200JSONResponseBody0GuardrailConfig2TypeNumber GetEval200JSONResponseBody0GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody0GuardrailConfig2Type enum.
+func (e GetEval200JSONResponseBody0GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody0GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody0JuryTieValue.
+const (
+	GetEval200JSONResponseBody0JuryTieValueTie GetEval200JSONResponseBody0JuryTieValue = "Tie"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody0JuryTieValue enum.
+func (e GetEval200JSONResponseBody0JuryTieValue) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody0JuryTieValueTie:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody0Mode.
+const (
+	GetEval200JSONResponseBody0ModeJury        GetEval200JSONResponseBody0Mode = "jury"
+	GetEval200JSONResponseBody0ModeLessThannil GetEval200JSONResponseBody0Mode = "<nil>"
+	GetEval200JSONResponseBody0ModeSingle      GetEval200JSONResponseBody0Mode = "single"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody0Mode enum.
+func (e GetEval200JSONResponseBody0Mode) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody0ModeJury:
+		return true
+	case GetEval200JSONResponseBody0ModeLessThannil:
+		return true
+	case GetEval200JSONResponseBody0ModeSingle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody0OutputType.
+const (
+	GetEval200JSONResponseBody0OutputTypeBoolean     GetEval200JSONResponseBody0OutputType = "boolean"
+	GetEval200JSONResponseBody0OutputTypeCategorical GetEval200JSONResponseBody0OutputType = "categorical"
+	GetEval200JSONResponseBody0OutputTypeNumber      GetEval200JSONResponseBody0OutputType = "number"
+	GetEval200JSONResponseBody0OutputTypeString      GetEval200JSONResponseBody0OutputType = "string"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody0OutputType enum.
+func (e GetEval200JSONResponseBody0OutputType) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody0OutputTypeBoolean:
+		return true
+	case GetEval200JSONResponseBody0OutputTypeCategorical:
+		return true
+	case GetEval200JSONResponseBody0OutputTypeNumber:
+		return true
+	case GetEval200JSONResponseBody0OutputTypeString:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody0Type.
+const (
+	GetEval200JSONResponseBody0TypeLlmEval GetEval200JSONResponseBody0Type = "llm_eval"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody0Type enum.
+func (e GetEval200JSONResponseBody0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody0TypeLlmEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams0Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams0TypeContains GetEval200JSONResponseBody1FunctionParams0Type = "contains"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams0Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams0TypeContains:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams1Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams1TypeContainsNone GetEval200JSONResponseBody1FunctionParams1Type = "contains_none"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams1Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams1TypeContainsNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams2Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams2TypeContainsAll GetEval200JSONResponseBody1FunctionParams2Type = "contains_all"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams2Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams2TypeContainsAll:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams3Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams3TypeContainsAny GetEval200JSONResponseBody1FunctionParams3Type = "contains_any"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams3Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams3Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams3TypeContainsAny:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams4Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams4TypeContainsEmail GetEval200JSONResponseBody1FunctionParams4Type = "contains_email"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams4Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams4Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams4TypeContainsEmail:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams5Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams5TypeContainsUrl GetEval200JSONResponseBody1FunctionParams5Type = "contains_url"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams5Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams5Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams5TypeContainsUrl:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams6Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams6TypeContainsValidLink GetEval200JSONResponseBody1FunctionParams6Type = "contains_valid_link"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams6Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams6Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams6TypeContainsValidLink:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams7Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams7TypeStartWith GetEval200JSONResponseBody1FunctionParams7Type = "start_with"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams7Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams7Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams7TypeStartWith:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams8Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams8TypeEndsWith GetEval200JSONResponseBody1FunctionParams8Type = "ends_with"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams8Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams8Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams8TypeEndsWith:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams9Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams9TypeExactMatch GetEval200JSONResponseBody1FunctionParams9Type = "exact_match"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams9Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams9Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams9TypeExactMatch:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams10Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams10TypeLengthLessThan GetEval200JSONResponseBody1FunctionParams10Type = "length_less_than"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams10Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams10Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams10TypeLengthLessThan:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams11Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams11TypeLengthBetween GetEval200JSONResponseBody1FunctionParams11Type = "length_between"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams11Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams11Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams11TypeLengthBetween:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams12Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams12TypeLengthGreaterThan GetEval200JSONResponseBody1FunctionParams12Type = "length_greater_than"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams12Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams12Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams12TypeLengthGreaterThan:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams13Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams13TypeOneLine GetEval200JSONResponseBody1FunctionParams13Type = "one_line"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams13Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams13Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams13TypeOneLine:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams14Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams14TypeRegex GetEval200JSONResponseBody1FunctionParams14Type = "regex"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams14Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams14Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams14TypeRegex:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams15Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams15TypeIsValidJson GetEval200JSONResponseBody1FunctionParams15Type = "is_valid_json"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams15Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams15Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams15TypeIsValidJson:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams16Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams16TypeModerationsOpenai GetEval200JSONResponseBody1FunctionParams16Type = "moderations_openai"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams16Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams16Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams16TypeModerationsOpenai:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams17Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams17TypeModerationsGoogle GetEval200JSONResponseBody1FunctionParams17Type = "moderations_google"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams17Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams17Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams17TypeModerationsGoogle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams18Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams18TypeBertScore GetEval200JSONResponseBody1FunctionParams18Type = "bert_score"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams18Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams18Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams18TypeBertScore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams19Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams19TypeBleuScore GetEval200JSONResponseBody1FunctionParams19Type = "bleu_score"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams19Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams19Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams19TypeBleuScore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams20Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams20TypeRougeN GetEval200JSONResponseBody1FunctionParams20Type = "rouge_n"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams20Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams20Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams20TypeRougeN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams21Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams21TypeMeteorScore GetEval200JSONResponseBody1FunctionParams21Type = "meteor_score"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams21Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams21Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams21TypeMeteorScore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams22Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams22TypeCosineSimilarity GetEval200JSONResponseBody1FunctionParams22Type = "cosine_similarity"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams22Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams22Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams22TypeCosineSimilarity:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams23Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams23TypeLevenshteinDistance GetEval200JSONResponseBody1FunctionParams23Type = "levenshtein_distance"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams23Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams23Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams23TypeLevenshteinDistance:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams24Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams24TypeKeywordsMatch GetEval200JSONResponseBody1FunctionParams24Type = "keywords_match"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams24Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams24Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams24TypeKeywordsMatch:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams25Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams25TypeMostRepeatedWords GetEval200JSONResponseBody1FunctionParams25Type = "most_repeated_words"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams25Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams25Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams25TypeMostRepeatedWords:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams26Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams26TypeFleschReadingEase GetEval200JSONResponseBody1FunctionParams26Type = "flesch_reading_ease"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams26Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams26Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams26TypeFleschReadingEase:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams27Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams27TypeGseEnglishLevel GetEval200JSONResponseBody1FunctionParams27Type = "gse_english_level"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams27Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams27Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams27TypeGseEnglishLevel:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams28Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams28TypeWordsCount GetEval200JSONResponseBody1FunctionParams28Type = "words_count"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams28Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams28Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams28TypeWordsCount:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams29Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams29TypeSentencesCount GetEval200JSONResponseBody1FunctionParams29Type = "sentences_count"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams29Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams29Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams29TypeSentencesCount:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams30Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams30TypeLexicalRepetition GetEval200JSONResponseBody1FunctionParams30Type = "lexical_repetition"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams30Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams30Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams30TypeLexicalRepetition:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1FunctionParams31Type.
+const (
+	GetEval200JSONResponseBody1FunctionParams31TypeGrammarDiversity GetEval200JSONResponseBody1FunctionParams31Type = "grammar_diversity"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1FunctionParams31Type enum.
+func (e GetEval200JSONResponseBody1FunctionParams31Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1FunctionParams31TypeGrammarDiversity:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1GuardrailConfig0Type.
+const (
+	GetEval200JSONResponseBody1GuardrailConfig0TypeBoolean GetEval200JSONResponseBody1GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1GuardrailConfig0Type enum.
+func (e GetEval200JSONResponseBody1GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1GuardrailConfig1Type.
+const (
+	GetEval200JSONResponseBody1GuardrailConfig1TypeCategorical GetEval200JSONResponseBody1GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1GuardrailConfig1Type enum.
+func (e GetEval200JSONResponseBody1GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1GuardrailConfig2Operator.
+const (
+	GetEval200JSONResponseBody1GuardrailConfig2OperatorEq  GetEval200JSONResponseBody1GuardrailConfig2Operator = "eq"
+	GetEval200JSONResponseBody1GuardrailConfig2OperatorGt  GetEval200JSONResponseBody1GuardrailConfig2Operator = "gt"
+	GetEval200JSONResponseBody1GuardrailConfig2OperatorGte GetEval200JSONResponseBody1GuardrailConfig2Operator = "gte"
+	GetEval200JSONResponseBody1GuardrailConfig2OperatorLt  GetEval200JSONResponseBody1GuardrailConfig2Operator = "lt"
+	GetEval200JSONResponseBody1GuardrailConfig2OperatorLte GetEval200JSONResponseBody1GuardrailConfig2Operator = "lte"
+	GetEval200JSONResponseBody1GuardrailConfig2OperatorNe  GetEval200JSONResponseBody1GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1GuardrailConfig2Operator enum.
+func (e GetEval200JSONResponseBody1GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1GuardrailConfig2OperatorEq:
+		return true
+	case GetEval200JSONResponseBody1GuardrailConfig2OperatorGt:
+		return true
+	case GetEval200JSONResponseBody1GuardrailConfig2OperatorGte:
+		return true
+	case GetEval200JSONResponseBody1GuardrailConfig2OperatorLt:
+		return true
+	case GetEval200JSONResponseBody1GuardrailConfig2OperatorLte:
+		return true
+	case GetEval200JSONResponseBody1GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1GuardrailConfig2Type.
+const (
+	GetEval200JSONResponseBody1GuardrailConfig2TypeNumber GetEval200JSONResponseBody1GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1GuardrailConfig2Type enum.
+func (e GetEval200JSONResponseBody1GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1OutputType.
+const (
+	GetEval200JSONResponseBody1OutputTypeBoolean     GetEval200JSONResponseBody1OutputType = "boolean"
+	GetEval200JSONResponseBody1OutputTypeCategorical GetEval200JSONResponseBody1OutputType = "categorical"
+	GetEval200JSONResponseBody1OutputTypeNumber      GetEval200JSONResponseBody1OutputType = "number"
+	GetEval200JSONResponseBody1OutputTypeString      GetEval200JSONResponseBody1OutputType = "string"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1OutputType enum.
+func (e GetEval200JSONResponseBody1OutputType) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1OutputTypeBoolean:
+		return true
+	case GetEval200JSONResponseBody1OutputTypeCategorical:
+		return true
+	case GetEval200JSONResponseBody1OutputTypeNumber:
+		return true
+	case GetEval200JSONResponseBody1OutputTypeString:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody1Type.
+const (
+	GetEval200JSONResponseBody1TypeFunctionEval GetEval200JSONResponseBody1Type = "function_eval"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody1Type enum.
+func (e GetEval200JSONResponseBody1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody1TypeFunctionEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody2GuardrailConfig0Type.
+const (
+	GetEval200JSONResponseBody2GuardrailConfig0TypeBoolean GetEval200JSONResponseBody2GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody2GuardrailConfig0Type enum.
+func (e GetEval200JSONResponseBody2GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody2GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody2GuardrailConfig1Type.
+const (
+	GetEval200JSONResponseBody2GuardrailConfig1TypeCategorical GetEval200JSONResponseBody2GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody2GuardrailConfig1Type enum.
+func (e GetEval200JSONResponseBody2GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody2GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody2GuardrailConfig2Operator.
+const (
+	GetEval200JSONResponseBody2GuardrailConfig2OperatorEq  GetEval200JSONResponseBody2GuardrailConfig2Operator = "eq"
+	GetEval200JSONResponseBody2GuardrailConfig2OperatorGt  GetEval200JSONResponseBody2GuardrailConfig2Operator = "gt"
+	GetEval200JSONResponseBody2GuardrailConfig2OperatorGte GetEval200JSONResponseBody2GuardrailConfig2Operator = "gte"
+	GetEval200JSONResponseBody2GuardrailConfig2OperatorLt  GetEval200JSONResponseBody2GuardrailConfig2Operator = "lt"
+	GetEval200JSONResponseBody2GuardrailConfig2OperatorLte GetEval200JSONResponseBody2GuardrailConfig2Operator = "lte"
+	GetEval200JSONResponseBody2GuardrailConfig2OperatorNe  GetEval200JSONResponseBody2GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody2GuardrailConfig2Operator enum.
+func (e GetEval200JSONResponseBody2GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody2GuardrailConfig2OperatorEq:
+		return true
+	case GetEval200JSONResponseBody2GuardrailConfig2OperatorGt:
+		return true
+	case GetEval200JSONResponseBody2GuardrailConfig2OperatorGte:
+		return true
+	case GetEval200JSONResponseBody2GuardrailConfig2OperatorLt:
+		return true
+	case GetEval200JSONResponseBody2GuardrailConfig2OperatorLte:
+		return true
+	case GetEval200JSONResponseBody2GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody2GuardrailConfig2Type.
+const (
+	GetEval200JSONResponseBody2GuardrailConfig2TypeNumber GetEval200JSONResponseBody2GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody2GuardrailConfig2Type enum.
+func (e GetEval200JSONResponseBody2GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody2GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody2OutputType.
+const (
+	GetEval200JSONResponseBody2OutputTypeNumber GetEval200JSONResponseBody2OutputType = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody2OutputType enum.
+func (e GetEval200JSONResponseBody2OutputType) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody2OutputTypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody2RagasMetric.
+const (
+	GetEval200JSONResponseBody2RagasMetricCoherence             GetEval200JSONResponseBody2RagasMetric = "coherence"
+	GetEval200JSONResponseBody2RagasMetricConciseness           GetEval200JSONResponseBody2RagasMetric = "conciseness"
+	GetEval200JSONResponseBody2RagasMetricContextEntitiesRecall GetEval200JSONResponseBody2RagasMetric = "context_entities_recall"
+	GetEval200JSONResponseBody2RagasMetricContextPrecision      GetEval200JSONResponseBody2RagasMetric = "context_precision"
+	GetEval200JSONResponseBody2RagasMetricContextRecall         GetEval200JSONResponseBody2RagasMetric = "context_recall"
+	GetEval200JSONResponseBody2RagasMetricCorrectness           GetEval200JSONResponseBody2RagasMetric = "correctness"
+	GetEval200JSONResponseBody2RagasMetricFaithfulness          GetEval200JSONResponseBody2RagasMetric = "faithfulness"
+	GetEval200JSONResponseBody2RagasMetricHarmfulness           GetEval200JSONResponseBody2RagasMetric = "harmfulness"
+	GetEval200JSONResponseBody2RagasMetricMaliciousness         GetEval200JSONResponseBody2RagasMetric = "maliciousness"
+	GetEval200JSONResponseBody2RagasMetricNoiseSensitivity      GetEval200JSONResponseBody2RagasMetric = "noise_sensitivity"
+	GetEval200JSONResponseBody2RagasMetricResponseRelevancy     GetEval200JSONResponseBody2RagasMetric = "response_relevancy"
+	GetEval200JSONResponseBody2RagasMetricSummarization         GetEval200JSONResponseBody2RagasMetric = "summarization"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody2RagasMetric enum.
+func (e GetEval200JSONResponseBody2RagasMetric) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody2RagasMetricCoherence:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricConciseness:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricContextEntitiesRecall:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricContextPrecision:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricContextRecall:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricCorrectness:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricFaithfulness:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricHarmfulness:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricMaliciousness:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricNoiseSensitivity:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricResponseRelevancy:
+		return true
+	case GetEval200JSONResponseBody2RagasMetricSummarization:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody2Type.
+const (
+	GetEval200JSONResponseBody2TypeRagas GetEval200JSONResponseBody2Type = "ragas"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody2Type enum.
+func (e GetEval200JSONResponseBody2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody2TypeRagas:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody3GuardrailConfig0Type.
+const (
+	GetEval200JSONResponseBody3GuardrailConfig0TypeBoolean GetEval200JSONResponseBody3GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody3GuardrailConfig0Type enum.
+func (e GetEval200JSONResponseBody3GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody3GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody3GuardrailConfig1Type.
+const (
+	GetEval200JSONResponseBody3GuardrailConfig1TypeCategorical GetEval200JSONResponseBody3GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody3GuardrailConfig1Type enum.
+func (e GetEval200JSONResponseBody3GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody3GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody3GuardrailConfig2Operator.
+const (
+	GetEval200JSONResponseBody3GuardrailConfig2OperatorEq  GetEval200JSONResponseBody3GuardrailConfig2Operator = "eq"
+	GetEval200JSONResponseBody3GuardrailConfig2OperatorGt  GetEval200JSONResponseBody3GuardrailConfig2Operator = "gt"
+	GetEval200JSONResponseBody3GuardrailConfig2OperatorGte GetEval200JSONResponseBody3GuardrailConfig2Operator = "gte"
+	GetEval200JSONResponseBody3GuardrailConfig2OperatorLt  GetEval200JSONResponseBody3GuardrailConfig2Operator = "lt"
+	GetEval200JSONResponseBody3GuardrailConfig2OperatorLte GetEval200JSONResponseBody3GuardrailConfig2Operator = "lte"
+	GetEval200JSONResponseBody3GuardrailConfig2OperatorNe  GetEval200JSONResponseBody3GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody3GuardrailConfig2Operator enum.
+func (e GetEval200JSONResponseBody3GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody3GuardrailConfig2OperatorEq:
+		return true
+	case GetEval200JSONResponseBody3GuardrailConfig2OperatorGt:
+		return true
+	case GetEval200JSONResponseBody3GuardrailConfig2OperatorGte:
+		return true
+	case GetEval200JSONResponseBody3GuardrailConfig2OperatorLt:
+		return true
+	case GetEval200JSONResponseBody3GuardrailConfig2OperatorLte:
+		return true
+	case GetEval200JSONResponseBody3GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody3GuardrailConfig2Type.
+const (
+	GetEval200JSONResponseBody3GuardrailConfig2TypeNumber GetEval200JSONResponseBody3GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody3GuardrailConfig2Type enum.
+func (e GetEval200JSONResponseBody3GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody3GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody3OutputType.
+const (
+	GetEval200JSONResponseBody3OutputTypeBoolean GetEval200JSONResponseBody3OutputType = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody3OutputType enum.
+func (e GetEval200JSONResponseBody3OutputType) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody3OutputTypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody3Type.
+const (
+	GetEval200JSONResponseBody3TypeJsonSchema GetEval200JSONResponseBody3Type = "json_schema"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody3Type enum.
+func (e GetEval200JSONResponseBody3Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody3TypeJsonSchema:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody4GuardrailConfig0Type.
+const (
+	GetEval200JSONResponseBody4GuardrailConfig0TypeBoolean GetEval200JSONResponseBody4GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody4GuardrailConfig0Type enum.
+func (e GetEval200JSONResponseBody4GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody4GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody4GuardrailConfig1Type.
+const (
+	GetEval200JSONResponseBody4GuardrailConfig1TypeCategorical GetEval200JSONResponseBody4GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody4GuardrailConfig1Type enum.
+func (e GetEval200JSONResponseBody4GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody4GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody4GuardrailConfig2Operator.
+const (
+	GetEval200JSONResponseBody4GuardrailConfig2OperatorEq  GetEval200JSONResponseBody4GuardrailConfig2Operator = "eq"
+	GetEval200JSONResponseBody4GuardrailConfig2OperatorGt  GetEval200JSONResponseBody4GuardrailConfig2Operator = "gt"
+	GetEval200JSONResponseBody4GuardrailConfig2OperatorGte GetEval200JSONResponseBody4GuardrailConfig2Operator = "gte"
+	GetEval200JSONResponseBody4GuardrailConfig2OperatorLt  GetEval200JSONResponseBody4GuardrailConfig2Operator = "lt"
+	GetEval200JSONResponseBody4GuardrailConfig2OperatorLte GetEval200JSONResponseBody4GuardrailConfig2Operator = "lte"
+	GetEval200JSONResponseBody4GuardrailConfig2OperatorNe  GetEval200JSONResponseBody4GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody4GuardrailConfig2Operator enum.
+func (e GetEval200JSONResponseBody4GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody4GuardrailConfig2OperatorEq:
+		return true
+	case GetEval200JSONResponseBody4GuardrailConfig2OperatorGt:
+		return true
+	case GetEval200JSONResponseBody4GuardrailConfig2OperatorGte:
+		return true
+	case GetEval200JSONResponseBody4GuardrailConfig2OperatorLt:
+		return true
+	case GetEval200JSONResponseBody4GuardrailConfig2OperatorLte:
+		return true
+	case GetEval200JSONResponseBody4GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody4GuardrailConfig2Type.
+const (
+	GetEval200JSONResponseBody4GuardrailConfig2TypeNumber GetEval200JSONResponseBody4GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody4GuardrailConfig2Type enum.
+func (e GetEval200JSONResponseBody4GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody4GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody4Method.
+const (
+	GetEval200JSONResponseBody4MethodGET  GetEval200JSONResponseBody4Method = "GET"
+	GetEval200JSONResponseBody4MethodPOST GetEval200JSONResponseBody4Method = "POST"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody4Method enum.
+func (e GetEval200JSONResponseBody4Method) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody4MethodGET:
+		return true
+	case GetEval200JSONResponseBody4MethodPOST:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody4OutputType.
+const (
+	GetEval200JSONResponseBody4OutputTypeBoolean     GetEval200JSONResponseBody4OutputType = "boolean"
+	GetEval200JSONResponseBody4OutputTypeCategorical GetEval200JSONResponseBody4OutputType = "categorical"
+	GetEval200JSONResponseBody4OutputTypeNumber      GetEval200JSONResponseBody4OutputType = "number"
+	GetEval200JSONResponseBody4OutputTypeString      GetEval200JSONResponseBody4OutputType = "string"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody4OutputType enum.
+func (e GetEval200JSONResponseBody4OutputType) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody4OutputTypeBoolean:
+		return true
+	case GetEval200JSONResponseBody4OutputTypeCategorical:
+		return true
+	case GetEval200JSONResponseBody4OutputTypeNumber:
+		return true
+	case GetEval200JSONResponseBody4OutputTypeString:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody4Type.
+const (
+	GetEval200JSONResponseBody4TypeHttpEval GetEval200JSONResponseBody4Type = "http_eval"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody4Type enum.
+func (e GetEval200JSONResponseBody4Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody4TypeHttpEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody5GuardrailConfig0Type.
+const (
+	GetEval200JSONResponseBody5GuardrailConfig0TypeBoolean GetEval200JSONResponseBody5GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody5GuardrailConfig0Type enum.
+func (e GetEval200JSONResponseBody5GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody5GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody5GuardrailConfig1Type.
+const (
+	GetEval200JSONResponseBody5GuardrailConfig1TypeCategorical GetEval200JSONResponseBody5GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody5GuardrailConfig1Type enum.
+func (e GetEval200JSONResponseBody5GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody5GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody5GuardrailConfig2Operator.
+const (
+	GetEval200JSONResponseBody5GuardrailConfig2OperatorEq  GetEval200JSONResponseBody5GuardrailConfig2Operator = "eq"
+	GetEval200JSONResponseBody5GuardrailConfig2OperatorGt  GetEval200JSONResponseBody5GuardrailConfig2Operator = "gt"
+	GetEval200JSONResponseBody5GuardrailConfig2OperatorGte GetEval200JSONResponseBody5GuardrailConfig2Operator = "gte"
+	GetEval200JSONResponseBody5GuardrailConfig2OperatorLt  GetEval200JSONResponseBody5GuardrailConfig2Operator = "lt"
+	GetEval200JSONResponseBody5GuardrailConfig2OperatorLte GetEval200JSONResponseBody5GuardrailConfig2Operator = "lte"
+	GetEval200JSONResponseBody5GuardrailConfig2OperatorNe  GetEval200JSONResponseBody5GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody5GuardrailConfig2Operator enum.
+func (e GetEval200JSONResponseBody5GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody5GuardrailConfig2OperatorEq:
+		return true
+	case GetEval200JSONResponseBody5GuardrailConfig2OperatorGt:
+		return true
+	case GetEval200JSONResponseBody5GuardrailConfig2OperatorGte:
+		return true
+	case GetEval200JSONResponseBody5GuardrailConfig2OperatorLt:
+		return true
+	case GetEval200JSONResponseBody5GuardrailConfig2OperatorLte:
+		return true
+	case GetEval200JSONResponseBody5GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody5GuardrailConfig2Type.
+const (
+	GetEval200JSONResponseBody5GuardrailConfig2TypeNumber GetEval200JSONResponseBody5GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody5GuardrailConfig2Type enum.
+func (e GetEval200JSONResponseBody5GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody5GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody5OutputType.
+const (
+	GetEval200JSONResponseBody5OutputTypeBoolean GetEval200JSONResponseBody5OutputType = "boolean"
+	GetEval200JSONResponseBody5OutputTypeNumber  GetEval200JSONResponseBody5OutputType = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody5OutputType enum.
+func (e GetEval200JSONResponseBody5OutputType) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody5OutputTypeBoolean:
+		return true
+	case GetEval200JSONResponseBody5OutputTypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody5Type.
+const (
+	GetEval200JSONResponseBody5TypePythonEval GetEval200JSONResponseBody5Type = "python_eval"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody5Type enum.
+func (e GetEval200JSONResponseBody5Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody5TypePythonEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody6GuardrailConfig0Type.
+const (
+	GetEval200JSONResponseBody6GuardrailConfig0TypeBoolean GetEval200JSONResponseBody6GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody6GuardrailConfig0Type enum.
+func (e GetEval200JSONResponseBody6GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody6GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody6GuardrailConfig1Type.
+const (
+	GetEval200JSONResponseBody6GuardrailConfig1TypeCategorical GetEval200JSONResponseBody6GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody6GuardrailConfig1Type enum.
+func (e GetEval200JSONResponseBody6GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody6GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody6GuardrailConfig2Operator.
+const (
+	GetEval200JSONResponseBody6GuardrailConfig2OperatorEq  GetEval200JSONResponseBody6GuardrailConfig2Operator = "eq"
+	GetEval200JSONResponseBody6GuardrailConfig2OperatorGt  GetEval200JSONResponseBody6GuardrailConfig2Operator = "gt"
+	GetEval200JSONResponseBody6GuardrailConfig2OperatorGte GetEval200JSONResponseBody6GuardrailConfig2Operator = "gte"
+	GetEval200JSONResponseBody6GuardrailConfig2OperatorLt  GetEval200JSONResponseBody6GuardrailConfig2Operator = "lt"
+	GetEval200JSONResponseBody6GuardrailConfig2OperatorLte GetEval200JSONResponseBody6GuardrailConfig2Operator = "lte"
+	GetEval200JSONResponseBody6GuardrailConfig2OperatorNe  GetEval200JSONResponseBody6GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody6GuardrailConfig2Operator enum.
+func (e GetEval200JSONResponseBody6GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody6GuardrailConfig2OperatorEq:
+		return true
+	case GetEval200JSONResponseBody6GuardrailConfig2OperatorGt:
+		return true
+	case GetEval200JSONResponseBody6GuardrailConfig2OperatorGte:
+		return true
+	case GetEval200JSONResponseBody6GuardrailConfig2OperatorLt:
+		return true
+	case GetEval200JSONResponseBody6GuardrailConfig2OperatorLte:
+		return true
+	case GetEval200JSONResponseBody6GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody6GuardrailConfig2Type.
+const (
+	GetEval200JSONResponseBody6GuardrailConfig2TypeNumber GetEval200JSONResponseBody6GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody6GuardrailConfig2Type enum.
+func (e GetEval200JSONResponseBody6GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody6GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody6OutputType.
+const (
+	GetEval200JSONResponseBody6OutputTypeBoolean     GetEval200JSONResponseBody6OutputType = "boolean"
+	GetEval200JSONResponseBody6OutputTypeCategorical GetEval200JSONResponseBody6OutputType = "categorical"
+	GetEval200JSONResponseBody6OutputTypeNumber      GetEval200JSONResponseBody6OutputType = "number"
+	GetEval200JSONResponseBody6OutputTypeString      GetEval200JSONResponseBody6OutputType = "string"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody6OutputType enum.
+func (e GetEval200JSONResponseBody6OutputType) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody6OutputTypeBoolean:
+		return true
+	case GetEval200JSONResponseBody6OutputTypeCategorical:
+		return true
+	case GetEval200JSONResponseBody6OutputTypeNumber:
+		return true
+	case GetEval200JSONResponseBody6OutputTypeString:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody6Type.
+const (
+	GetEval200JSONResponseBody6TypeTypescriptEval GetEval200JSONResponseBody6Type = "typescript_eval"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody6Type enum.
+func (e GetEval200JSONResponseBody6Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody6TypeTypescriptEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody7GuardrailConfig0Type.
+const (
+	GetEval200JSONResponseBody7GuardrailConfig0TypeBoolean GetEval200JSONResponseBody7GuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody7GuardrailConfig0Type enum.
+func (e GetEval200JSONResponseBody7GuardrailConfig0Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody7GuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody7GuardrailConfig1Type.
+const (
+	GetEval200JSONResponseBody7GuardrailConfig1TypeCategorical GetEval200JSONResponseBody7GuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody7GuardrailConfig1Type enum.
+func (e GetEval200JSONResponseBody7GuardrailConfig1Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody7GuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody7GuardrailConfig2Operator.
+const (
+	GetEval200JSONResponseBody7GuardrailConfig2OperatorEq  GetEval200JSONResponseBody7GuardrailConfig2Operator = "eq"
+	GetEval200JSONResponseBody7GuardrailConfig2OperatorGt  GetEval200JSONResponseBody7GuardrailConfig2Operator = "gt"
+	GetEval200JSONResponseBody7GuardrailConfig2OperatorGte GetEval200JSONResponseBody7GuardrailConfig2Operator = "gte"
+	GetEval200JSONResponseBody7GuardrailConfig2OperatorLt  GetEval200JSONResponseBody7GuardrailConfig2Operator = "lt"
+	GetEval200JSONResponseBody7GuardrailConfig2OperatorLte GetEval200JSONResponseBody7GuardrailConfig2Operator = "lte"
+	GetEval200JSONResponseBody7GuardrailConfig2OperatorNe  GetEval200JSONResponseBody7GuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody7GuardrailConfig2Operator enum.
+func (e GetEval200JSONResponseBody7GuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody7GuardrailConfig2OperatorEq:
+		return true
+	case GetEval200JSONResponseBody7GuardrailConfig2OperatorGt:
+		return true
+	case GetEval200JSONResponseBody7GuardrailConfig2OperatorGte:
+		return true
+	case GetEval200JSONResponseBody7GuardrailConfig2OperatorLt:
+		return true
+	case GetEval200JSONResponseBody7GuardrailConfig2OperatorLte:
+		return true
+	case GetEval200JSONResponseBody7GuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody7GuardrailConfig2Type.
+const (
+	GetEval200JSONResponseBody7GuardrailConfig2TypeNumber GetEval200JSONResponseBody7GuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody7GuardrailConfig2Type enum.
+func (e GetEval200JSONResponseBody7GuardrailConfig2Type) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody7GuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody7OutputType.
+const (
+	GetEval200JSONResponseBody7OutputTypeBoolean GetEval200JSONResponseBody7OutputType = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody7OutputType enum.
+func (e GetEval200JSONResponseBody7OutputType) Valid() bool {
+	switch e {
+	case GetEval200JSONResponseBody7OutputTypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetEval200JSONResponseBody7Type.
+const (
+	BedrockEval GetEval200JSONResponseBody7Type = "bedrock_eval"
+)
+
+// Valid indicates whether the value is a known member of the GetEval200JSONResponseBody7Type enum.
+func (e GetEval200JSONResponseBody7Type) Valid() bool {
+	switch e {
+	case BedrockEval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateEvalJSONBodyGuardrailConfig0Type.
+const (
+	UpdateEvalJSONBodyGuardrailConfig0TypeBoolean UpdateEvalJSONBodyGuardrailConfig0Type = "boolean"
+)
+
+// Valid indicates whether the value is a known member of the UpdateEvalJSONBodyGuardrailConfig0Type enum.
+func (e UpdateEvalJSONBodyGuardrailConfig0Type) Valid() bool {
+	switch e {
+	case UpdateEvalJSONBodyGuardrailConfig0TypeBoolean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateEvalJSONBodyGuardrailConfig1Type.
+const (
+	UpdateEvalJSONBodyGuardrailConfig1TypeCategorical UpdateEvalJSONBodyGuardrailConfig1Type = "categorical"
+)
+
+// Valid indicates whether the value is a known member of the UpdateEvalJSONBodyGuardrailConfig1Type enum.
+func (e UpdateEvalJSONBodyGuardrailConfig1Type) Valid() bool {
+	switch e {
+	case UpdateEvalJSONBodyGuardrailConfig1TypeCategorical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateEvalJSONBodyGuardrailConfig2Operator.
+const (
+	UpdateEvalJSONBodyGuardrailConfig2OperatorEq  UpdateEvalJSONBodyGuardrailConfig2Operator = "eq"
+	UpdateEvalJSONBodyGuardrailConfig2OperatorGt  UpdateEvalJSONBodyGuardrailConfig2Operator = "gt"
+	UpdateEvalJSONBodyGuardrailConfig2OperatorGte UpdateEvalJSONBodyGuardrailConfig2Operator = "gte"
+	UpdateEvalJSONBodyGuardrailConfig2OperatorLt  UpdateEvalJSONBodyGuardrailConfig2Operator = "lt"
+	UpdateEvalJSONBodyGuardrailConfig2OperatorLte UpdateEvalJSONBodyGuardrailConfig2Operator = "lte"
+	UpdateEvalJSONBodyGuardrailConfig2OperatorNe  UpdateEvalJSONBodyGuardrailConfig2Operator = "ne"
+)
+
+// Valid indicates whether the value is a known member of the UpdateEvalJSONBodyGuardrailConfig2Operator enum.
+func (e UpdateEvalJSONBodyGuardrailConfig2Operator) Valid() bool {
+	switch e {
+	case UpdateEvalJSONBodyGuardrailConfig2OperatorEq:
+		return true
+	case UpdateEvalJSONBodyGuardrailConfig2OperatorGt:
+		return true
+	case UpdateEvalJSONBodyGuardrailConfig2OperatorGte:
+		return true
+	case UpdateEvalJSONBodyGuardrailConfig2OperatorLt:
+		return true
+	case UpdateEvalJSONBodyGuardrailConfig2OperatorLte:
+		return true
+	case UpdateEvalJSONBodyGuardrailConfig2OperatorNe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateEvalJSONBodyGuardrailConfig2Type.
+const (
+	UpdateEvalJSONBodyGuardrailConfig2TypeNumber UpdateEvalJSONBodyGuardrailConfig2Type = "number"
+)
+
+// Valid indicates whether the value is a known member of the UpdateEvalJSONBodyGuardrailConfig2Type enum.
+func (e UpdateEvalJSONBodyGuardrailConfig2Type) Valid() bool {
+	switch e {
+	case UpdateEvalJSONBodyGuardrailConfig2TypeNumber:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateEvalJSONBodyJuryTieValue.
+const (
+	UpdateEvalJSONBodyJuryTieValueTie UpdateEvalJSONBodyJuryTieValue = "Tie"
+)
+
+// Valid indicates whether the value is a known member of the UpdateEvalJSONBodyJuryTieValue enum.
+func (e UpdateEvalJSONBodyJuryTieValue) Valid() bool {
+	switch e {
+	case UpdateEvalJSONBodyJuryTieValueTie:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateEvalJSONBodyMode.
+const (
+	UpdateEvalJSONBodyModeJury   UpdateEvalJSONBodyMode = "jury"
+	UpdateEvalJSONBodyModeSingle UpdateEvalJSONBodyMode = "single"
+)
+
+// Valid indicates whether the value is a known member of the UpdateEvalJSONBodyMode enum.
+func (e UpdateEvalJSONBodyMode) Valid() bool {
+	switch e {
+	case UpdateEvalJSONBodyModeJury:
+		return true
+	case UpdateEvalJSONBodyModeSingle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateEvalJSONBodyVersionIncrement.
+const (
+	Major UpdateEvalJSONBodyVersionIncrement = "major"
+	Minor UpdateEvalJSONBodyVersionIncrement = "minor"
+	Patch UpdateEvalJSONBodyVersionIncrement = "patch"
+)
+
+// Valid indicates whether the value is a known member of the UpdateEvalJSONBodyVersionIncrement enum.
+func (e UpdateEvalJSONBodyVersionIncrement) Valid() bool {
+	switch e {
+	case Major:
+		return true
+	case Minor:
+		return true
+	case Patch:
 		return true
 	default:
 		return false
@@ -272,6 +3453,734 @@ type EvaluatorRef struct {
 
 // EvaluatorRefExecuteOn defines model for EvaluatorRef.ExecuteOn.
 type EvaluatorRefExecuteOn string
+
+// EvaluatorResponseFunction defines model for EvaluatorResponseFunction.
+type EvaluatorResponseFunction struct {
+	UnderscoreId    string                                     `json:"_id"`
+	Created         *string                                    `json:"created,omitempty"`
+	Description     string                                     `json:"description"`
+	FunctionParams  EvaluatorResponseFunction_FunctionParams   `json:"function_params"`
+	GuardrailConfig *EvaluatorResponseFunction_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Key             string                                     `json:"key"`
+	Type            EvaluatorResponseFunctionType              `json:"type"`
+	Updated         *string                                    `json:"updated,omitempty"`
+	UpdatedById     *string                                    `json:"updated_by_id,omitempty"`
+}
+
+// EvaluatorResponseFunctionFunctionParams0 defines model for EvaluatorResponseFunction.FunctionParams.0.
+type EvaluatorResponseFunctionFunctionParams0 struct {
+	Type  EvaluatorResponseFunctionFunctionParams0Type `json:"type"`
+	Value string                                       `json:"value"`
+}
+
+// EvaluatorResponseFunctionFunctionParams0Type defines model for EvaluatorResponseFunction.FunctionParams.0.Type.
+type EvaluatorResponseFunctionFunctionParams0Type string
+
+// EvaluatorResponseFunctionFunctionParams1 defines model for EvaluatorResponseFunction.FunctionParams.1.
+type EvaluatorResponseFunctionFunctionParams1 struct {
+	Keywords []string                                     `json:"keywords"`
+	Type     EvaluatorResponseFunctionFunctionParams1Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams1Type defines model for EvaluatorResponseFunction.FunctionParams.1.Type.
+type EvaluatorResponseFunctionFunctionParams1Type string
+
+// EvaluatorResponseFunctionFunctionParams2 defines model for EvaluatorResponseFunction.FunctionParams.2.
+type EvaluatorResponseFunctionFunctionParams2 struct {
+	Keywords []string                                     `json:"keywords"`
+	Type     EvaluatorResponseFunctionFunctionParams2Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams2Type defines model for EvaluatorResponseFunction.FunctionParams.2.Type.
+type EvaluatorResponseFunctionFunctionParams2Type string
+
+// EvaluatorResponseFunctionFunctionParams3 defines model for EvaluatorResponseFunction.FunctionParams.3.
+type EvaluatorResponseFunctionFunctionParams3 struct {
+	Keywords []string                                     `json:"keywords"`
+	Type     EvaluatorResponseFunctionFunctionParams3Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams3Type defines model for EvaluatorResponseFunction.FunctionParams.3.Type.
+type EvaluatorResponseFunctionFunctionParams3Type string
+
+// EvaluatorResponseFunctionFunctionParams4 defines model for EvaluatorResponseFunction.FunctionParams.4.
+type EvaluatorResponseFunctionFunctionParams4 struct {
+	Type EvaluatorResponseFunctionFunctionParams4Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams4Type defines model for EvaluatorResponseFunction.FunctionParams.4.Type.
+type EvaluatorResponseFunctionFunctionParams4Type string
+
+// EvaluatorResponseFunctionFunctionParams5 defines model for EvaluatorResponseFunction.FunctionParams.5.
+type EvaluatorResponseFunctionFunctionParams5 struct {
+	Type EvaluatorResponseFunctionFunctionParams5Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams5Type defines model for EvaluatorResponseFunction.FunctionParams.5.Type.
+type EvaluatorResponseFunctionFunctionParams5Type string
+
+// EvaluatorResponseFunctionFunctionParams6 defines model for EvaluatorResponseFunction.FunctionParams.6.
+type EvaluatorResponseFunctionFunctionParams6 struct {
+	Type EvaluatorResponseFunctionFunctionParams6Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams6Type defines model for EvaluatorResponseFunction.FunctionParams.6.Type.
+type EvaluatorResponseFunctionFunctionParams6Type string
+
+// EvaluatorResponseFunctionFunctionParams7 defines model for EvaluatorResponseFunction.FunctionParams.7.
+type EvaluatorResponseFunctionFunctionParams7 struct {
+	Type  EvaluatorResponseFunctionFunctionParams7Type `json:"type"`
+	Value string                                       `json:"value"`
+}
+
+// EvaluatorResponseFunctionFunctionParams7Type defines model for EvaluatorResponseFunction.FunctionParams.7.Type.
+type EvaluatorResponseFunctionFunctionParams7Type string
+
+// EvaluatorResponseFunctionFunctionParams8 defines model for EvaluatorResponseFunction.FunctionParams.8.
+type EvaluatorResponseFunctionFunctionParams8 struct {
+	Type  EvaluatorResponseFunctionFunctionParams8Type `json:"type"`
+	Value string                                       `json:"value"`
+}
+
+// EvaluatorResponseFunctionFunctionParams8Type defines model for EvaluatorResponseFunction.FunctionParams.8.Type.
+type EvaluatorResponseFunctionFunctionParams8Type string
+
+// EvaluatorResponseFunctionFunctionParams9 defines model for EvaluatorResponseFunction.FunctionParams.9.
+type EvaluatorResponseFunctionFunctionParams9 struct {
+	Type EvaluatorResponseFunctionFunctionParams9Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams9Type defines model for EvaluatorResponseFunction.FunctionParams.9.Type.
+type EvaluatorResponseFunctionFunctionParams9Type string
+
+// EvaluatorResponseFunctionFunctionParams10 defines model for EvaluatorResponseFunction.FunctionParams.10.
+type EvaluatorResponseFunctionFunctionParams10 struct {
+	Type  EvaluatorResponseFunctionFunctionParams10Type `json:"type"`
+	Value float32                                       `json:"value"`
+}
+
+// EvaluatorResponseFunctionFunctionParams10Type defines model for EvaluatorResponseFunction.FunctionParams.10.Type.
+type EvaluatorResponseFunctionFunctionParams10Type string
+
+// EvaluatorResponseFunctionFunctionParams11 defines model for EvaluatorResponseFunction.FunctionParams.11.
+type EvaluatorResponseFunctionFunctionParams11 struct {
+	Max  float32                                       `json:"max"`
+	Min  float32                                       `json:"min"`
+	Type EvaluatorResponseFunctionFunctionParams11Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams11Type defines model for EvaluatorResponseFunction.FunctionParams.11.Type.
+type EvaluatorResponseFunctionFunctionParams11Type string
+
+// EvaluatorResponseFunctionFunctionParams12 defines model for EvaluatorResponseFunction.FunctionParams.12.
+type EvaluatorResponseFunctionFunctionParams12 struct {
+	Type  EvaluatorResponseFunctionFunctionParams12Type `json:"type"`
+	Value float32                                       `json:"value"`
+}
+
+// EvaluatorResponseFunctionFunctionParams12Type defines model for EvaluatorResponseFunction.FunctionParams.12.Type.
+type EvaluatorResponseFunctionFunctionParams12Type string
+
+// EvaluatorResponseFunctionFunctionParams13 defines model for EvaluatorResponseFunction.FunctionParams.13.
+type EvaluatorResponseFunctionFunctionParams13 struct {
+	Type EvaluatorResponseFunctionFunctionParams13Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams13Type defines model for EvaluatorResponseFunction.FunctionParams.13.Type.
+type EvaluatorResponseFunctionFunctionParams13Type string
+
+// EvaluatorResponseFunctionFunctionParams14 defines model for EvaluatorResponseFunction.FunctionParams.14.
+type EvaluatorResponseFunctionFunctionParams14 struct {
+	Pattern string                                        `json:"pattern"`
+	Type    EvaluatorResponseFunctionFunctionParams14Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams14Type defines model for EvaluatorResponseFunction.FunctionParams.14.Type.
+type EvaluatorResponseFunctionFunctionParams14Type string
+
+// EvaluatorResponseFunctionFunctionParams15 defines model for EvaluatorResponseFunction.FunctionParams.15.
+type EvaluatorResponseFunctionFunctionParams15 struct {
+	Type EvaluatorResponseFunctionFunctionParams15Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams15Type defines model for EvaluatorResponseFunction.FunctionParams.15.Type.
+type EvaluatorResponseFunctionFunctionParams15Type string
+
+// EvaluatorResponseFunctionFunctionParams16 defines model for EvaluatorResponseFunction.FunctionParams.16.
+type EvaluatorResponseFunctionFunctionParams16 struct {
+	Type EvaluatorResponseFunctionFunctionParams16Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams16Type defines model for EvaluatorResponseFunction.FunctionParams.16.Type.
+type EvaluatorResponseFunctionFunctionParams16Type string
+
+// EvaluatorResponseFunctionFunctionParams17 defines model for EvaluatorResponseFunction.FunctionParams.17.
+type EvaluatorResponseFunctionFunctionParams17 struct {
+	Type EvaluatorResponseFunctionFunctionParams17Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams17Type defines model for EvaluatorResponseFunction.FunctionParams.17.Type.
+type EvaluatorResponseFunctionFunctionParams17Type string
+
+// EvaluatorResponseFunctionFunctionParams18 defines model for EvaluatorResponseFunction.FunctionParams.18.
+type EvaluatorResponseFunctionFunctionParams18 struct {
+	Type EvaluatorResponseFunctionFunctionParams18Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams18Type defines model for EvaluatorResponseFunction.FunctionParams.18.Type.
+type EvaluatorResponseFunctionFunctionParams18Type string
+
+// EvaluatorResponseFunctionFunctionParams19 defines model for EvaluatorResponseFunction.FunctionParams.19.
+type EvaluatorResponseFunctionFunctionParams19 struct {
+	Type EvaluatorResponseFunctionFunctionParams19Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams19Type defines model for EvaluatorResponseFunction.FunctionParams.19.Type.
+type EvaluatorResponseFunctionFunctionParams19Type string
+
+// EvaluatorResponseFunctionFunctionParams20 defines model for EvaluatorResponseFunction.FunctionParams.20.
+type EvaluatorResponseFunctionFunctionParams20 struct {
+	Type EvaluatorResponseFunctionFunctionParams20Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams20Type defines model for EvaluatorResponseFunction.FunctionParams.20.Type.
+type EvaluatorResponseFunctionFunctionParams20Type string
+
+// EvaluatorResponseFunctionFunctionParams21 defines model for EvaluatorResponseFunction.FunctionParams.21.
+type EvaluatorResponseFunctionFunctionParams21 struct {
+	Type EvaluatorResponseFunctionFunctionParams21Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams21Type defines model for EvaluatorResponseFunction.FunctionParams.21.Type.
+type EvaluatorResponseFunctionFunctionParams21Type string
+
+// EvaluatorResponseFunctionFunctionParams22 defines model for EvaluatorResponseFunction.FunctionParams.22.
+type EvaluatorResponseFunctionFunctionParams22 struct {
+	Type EvaluatorResponseFunctionFunctionParams22Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams22Type defines model for EvaluatorResponseFunction.FunctionParams.22.Type.
+type EvaluatorResponseFunctionFunctionParams22Type string
+
+// EvaluatorResponseFunctionFunctionParams23 defines model for EvaluatorResponseFunction.FunctionParams.23.
+type EvaluatorResponseFunctionFunctionParams23 struct {
+	Type EvaluatorResponseFunctionFunctionParams23Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams23Type defines model for EvaluatorResponseFunction.FunctionParams.23.Type.
+type EvaluatorResponseFunctionFunctionParams23Type string
+
+// EvaluatorResponseFunctionFunctionParams24 defines model for EvaluatorResponseFunction.FunctionParams.24.
+type EvaluatorResponseFunctionFunctionParams24 struct {
+	Keywords []string                                      `json:"keywords"`
+	Type     EvaluatorResponseFunctionFunctionParams24Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams24Type defines model for EvaluatorResponseFunction.FunctionParams.24.Type.
+type EvaluatorResponseFunctionFunctionParams24Type string
+
+// EvaluatorResponseFunctionFunctionParams25 defines model for EvaluatorResponseFunction.FunctionParams.25.
+type EvaluatorResponseFunctionFunctionParams25 struct {
+	Type EvaluatorResponseFunctionFunctionParams25Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams25Type defines model for EvaluatorResponseFunction.FunctionParams.25.Type.
+type EvaluatorResponseFunctionFunctionParams25Type string
+
+// EvaluatorResponseFunctionFunctionParams26 defines model for EvaluatorResponseFunction.FunctionParams.26.
+type EvaluatorResponseFunctionFunctionParams26 struct {
+	Type EvaluatorResponseFunctionFunctionParams26Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams26Type defines model for EvaluatorResponseFunction.FunctionParams.26.Type.
+type EvaluatorResponseFunctionFunctionParams26Type string
+
+// EvaluatorResponseFunctionFunctionParams27 defines model for EvaluatorResponseFunction.FunctionParams.27.
+type EvaluatorResponseFunctionFunctionParams27 struct {
+	Type EvaluatorResponseFunctionFunctionParams27Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams27Type defines model for EvaluatorResponseFunction.FunctionParams.27.Type.
+type EvaluatorResponseFunctionFunctionParams27Type string
+
+// EvaluatorResponseFunctionFunctionParams28 defines model for EvaluatorResponseFunction.FunctionParams.28.
+type EvaluatorResponseFunctionFunctionParams28 struct {
+	Type EvaluatorResponseFunctionFunctionParams28Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams28Type defines model for EvaluatorResponseFunction.FunctionParams.28.Type.
+type EvaluatorResponseFunctionFunctionParams28Type string
+
+// EvaluatorResponseFunctionFunctionParams29 defines model for EvaluatorResponseFunction.FunctionParams.29.
+type EvaluatorResponseFunctionFunctionParams29 struct {
+	Type EvaluatorResponseFunctionFunctionParams29Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams29Type defines model for EvaluatorResponseFunction.FunctionParams.29.Type.
+type EvaluatorResponseFunctionFunctionParams29Type string
+
+// EvaluatorResponseFunctionFunctionParams30 defines model for EvaluatorResponseFunction.FunctionParams.30.
+type EvaluatorResponseFunctionFunctionParams30 struct {
+	Type EvaluatorResponseFunctionFunctionParams30Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams30Type defines model for EvaluatorResponseFunction.FunctionParams.30.Type.
+type EvaluatorResponseFunctionFunctionParams30Type string
+
+// EvaluatorResponseFunctionFunctionParams31 defines model for EvaluatorResponseFunction.FunctionParams.31.
+type EvaluatorResponseFunctionFunctionParams31 struct {
+	Type EvaluatorResponseFunctionFunctionParams31Type `json:"type"`
+}
+
+// EvaluatorResponseFunctionFunctionParams31Type defines model for EvaluatorResponseFunction.FunctionParams.31.Type.
+type EvaluatorResponseFunctionFunctionParams31Type string
+
+// EvaluatorResponseFunction_FunctionParams defines model for EvaluatorResponseFunction.FunctionParams.
+type EvaluatorResponseFunction_FunctionParams struct {
+	union json.RawMessage
+}
+
+// EvaluatorResponseFunctionGuardrailConfig0 defines model for EvaluatorResponseFunction.GuardrailConfig.0.
+type EvaluatorResponseFunctionGuardrailConfig0 struct {
+	AlertOnFailure *bool                                         `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                         `json:"enabled,omitempty"`
+	Type           EvaluatorResponseFunctionGuardrailConfig0Type `json:"type"`
+	Value          bool                                          `json:"value"`
+}
+
+// EvaluatorResponseFunctionGuardrailConfig0Type defines model for EvaluatorResponseFunction.GuardrailConfig.0.Type.
+type EvaluatorResponseFunctionGuardrailConfig0Type string
+
+// EvaluatorResponseFunctionGuardrailConfig1 defines model for EvaluatorResponseFunction.GuardrailConfig.1.
+type EvaluatorResponseFunctionGuardrailConfig1 struct {
+	AlertOnFailure *bool                                         `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                         `json:"enabled,omitempty"`
+	Type           EvaluatorResponseFunctionGuardrailConfig1Type `json:"type"`
+	Values         []string                                      `json:"values"`
+}
+
+// EvaluatorResponseFunctionGuardrailConfig1Type defines model for EvaluatorResponseFunction.GuardrailConfig.1.Type.
+type EvaluatorResponseFunctionGuardrailConfig1Type string
+
+// EvaluatorResponseFunctionGuardrailConfig2 defines model for EvaluatorResponseFunction.GuardrailConfig.2.
+type EvaluatorResponseFunctionGuardrailConfig2 struct {
+	AlertOnFailure *bool                                             `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                             `json:"enabled,omitempty"`
+	Operator       EvaluatorResponseFunctionGuardrailConfig2Operator `json:"operator"`
+	Type           EvaluatorResponseFunctionGuardrailConfig2Type     `json:"type"`
+	Value          float32                                           `json:"value"`
+}
+
+// EvaluatorResponseFunctionGuardrailConfig2Operator defines model for EvaluatorResponseFunction.GuardrailConfig.2.Operator.
+type EvaluatorResponseFunctionGuardrailConfig2Operator string
+
+// EvaluatorResponseFunctionGuardrailConfig2Type defines model for EvaluatorResponseFunction.GuardrailConfig.2.Type.
+type EvaluatorResponseFunctionGuardrailConfig2Type string
+
+// EvaluatorResponseFunction_GuardrailConfig defines model for EvaluatorResponseFunction.GuardrailConfig.
+type EvaluatorResponseFunction_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// EvaluatorResponseFunctionType defines model for EvaluatorResponseFunction.Type.
+type EvaluatorResponseFunctionType string
+
+// EvaluatorResponseHttp defines model for EvaluatorResponseHttp.
+type EvaluatorResponseHttp struct {
+	UnderscoreId    string                                 `json:"_id"`
+	Created         *string                                `json:"created,omitempty"`
+	Description     string                                 `json:"description"`
+	GuardrailConfig *EvaluatorResponseHttp_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Headers         map[string]string                      `json:"headers"`
+	Key             string                                 `json:"key"`
+	Method          EvaluatorResponseHttpMethod            `json:"method"`
+	Payload         map[string]interface{}                 `json:"payload"`
+	Type            EvaluatorResponseHttpType              `json:"type"`
+	Updated         *string                                `json:"updated,omitempty"`
+	UpdatedById     *string                                `json:"updated_by_id,omitempty"`
+	Url             string                                 `json:"url"`
+}
+
+// EvaluatorResponseHttpGuardrailConfig0 defines model for EvaluatorResponseHttp.GuardrailConfig.0.
+type EvaluatorResponseHttpGuardrailConfig0 struct {
+	AlertOnFailure *bool                                     `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                     `json:"enabled,omitempty"`
+	Type           EvaluatorResponseHttpGuardrailConfig0Type `json:"type"`
+	Value          bool                                      `json:"value"`
+}
+
+// EvaluatorResponseHttpGuardrailConfig0Type defines model for EvaluatorResponseHttp.GuardrailConfig.0.Type.
+type EvaluatorResponseHttpGuardrailConfig0Type string
+
+// EvaluatorResponseHttpGuardrailConfig1 defines model for EvaluatorResponseHttp.GuardrailConfig.1.
+type EvaluatorResponseHttpGuardrailConfig1 struct {
+	AlertOnFailure *bool                                     `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                     `json:"enabled,omitempty"`
+	Type           EvaluatorResponseHttpGuardrailConfig1Type `json:"type"`
+	Values         []string                                  `json:"values"`
+}
+
+// EvaluatorResponseHttpGuardrailConfig1Type defines model for EvaluatorResponseHttp.GuardrailConfig.1.Type.
+type EvaluatorResponseHttpGuardrailConfig1Type string
+
+// EvaluatorResponseHttpGuardrailConfig2 defines model for EvaluatorResponseHttp.GuardrailConfig.2.
+type EvaluatorResponseHttpGuardrailConfig2 struct {
+	AlertOnFailure *bool                                         `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                         `json:"enabled,omitempty"`
+	Operator       EvaluatorResponseHttpGuardrailConfig2Operator `json:"operator"`
+	Type           EvaluatorResponseHttpGuardrailConfig2Type     `json:"type"`
+	Value          float32                                       `json:"value"`
+}
+
+// EvaluatorResponseHttpGuardrailConfig2Operator defines model for EvaluatorResponseHttp.GuardrailConfig.2.Operator.
+type EvaluatorResponseHttpGuardrailConfig2Operator string
+
+// EvaluatorResponseHttpGuardrailConfig2Type defines model for EvaluatorResponseHttp.GuardrailConfig.2.Type.
+type EvaluatorResponseHttpGuardrailConfig2Type string
+
+// EvaluatorResponseHttp_GuardrailConfig defines model for EvaluatorResponseHttp.GuardrailConfig.
+type EvaluatorResponseHttp_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// EvaluatorResponseHttpMethod defines model for EvaluatorResponseHttp.Method.
+type EvaluatorResponseHttpMethod string
+
+// EvaluatorResponseHttpType defines model for EvaluatorResponseHttp.Type.
+type EvaluatorResponseHttpType string
+
+// EvaluatorResponseJsonSchema defines model for EvaluatorResponseJsonSchema.
+type EvaluatorResponseJsonSchema struct {
+	UnderscoreId    string                                       `json:"_id"`
+	Created         *string                                      `json:"created,omitempty"`
+	Description     string                                       `json:"description"`
+	GuardrailConfig *EvaluatorResponseJsonSchema_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Key             string                                       `json:"key"`
+	Schema          string                                       `json:"schema"`
+	Type            EvaluatorResponseJsonSchemaType              `json:"type"`
+	Updated         *string                                      `json:"updated,omitempty"`
+	UpdatedById     *string                                      `json:"updated_by_id,omitempty"`
+}
+
+// EvaluatorResponseJsonSchemaGuardrailConfig0 defines model for EvaluatorResponseJsonSchema.GuardrailConfig.0.
+type EvaluatorResponseJsonSchemaGuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           EvaluatorResponseJsonSchemaGuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// EvaluatorResponseJsonSchemaGuardrailConfig0Type defines model for EvaluatorResponseJsonSchema.GuardrailConfig.0.Type.
+type EvaluatorResponseJsonSchemaGuardrailConfig0Type string
+
+// EvaluatorResponseJsonSchemaGuardrailConfig1 defines model for EvaluatorResponseJsonSchema.GuardrailConfig.1.
+type EvaluatorResponseJsonSchemaGuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           EvaluatorResponseJsonSchemaGuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// EvaluatorResponseJsonSchemaGuardrailConfig1Type defines model for EvaluatorResponseJsonSchema.GuardrailConfig.1.Type.
+type EvaluatorResponseJsonSchemaGuardrailConfig1Type string
+
+// EvaluatorResponseJsonSchemaGuardrailConfig2 defines model for EvaluatorResponseJsonSchema.GuardrailConfig.2.
+type EvaluatorResponseJsonSchemaGuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       EvaluatorResponseJsonSchemaGuardrailConfig2Operator `json:"operator"`
+	Type           EvaluatorResponseJsonSchemaGuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// EvaluatorResponseJsonSchemaGuardrailConfig2Operator defines model for EvaluatorResponseJsonSchema.GuardrailConfig.2.Operator.
+type EvaluatorResponseJsonSchemaGuardrailConfig2Operator string
+
+// EvaluatorResponseJsonSchemaGuardrailConfig2Type defines model for EvaluatorResponseJsonSchema.GuardrailConfig.2.Type.
+type EvaluatorResponseJsonSchemaGuardrailConfig2Type string
+
+// EvaluatorResponseJsonSchema_GuardrailConfig defines model for EvaluatorResponseJsonSchema.GuardrailConfig.
+type EvaluatorResponseJsonSchema_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// EvaluatorResponseJsonSchemaType defines model for EvaluatorResponseJsonSchema.Type.
+type EvaluatorResponseJsonSchemaType string
+
+// EvaluatorResponseLlm defines model for EvaluatorResponseLlm.
+type EvaluatorResponseLlm struct {
+	UnderscoreId      string `json:"_id"`
+	CategoricalLabels *[]struct {
+		Description *string `json:"description,omitempty"`
+		Value       string  `json:"value"`
+	} `json:"categorical_labels,omitempty"`
+	Categories      *[]string                             `json:"categories,omitempty"`
+	Created         *string                               `json:"created,omitempty"`
+	DatasetId       *string                               `json:"dataset_id,omitempty"`
+	Description     string                                `json:"description"`
+	GuardrailConfig *EvaluatorResponseLlm_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Jury            *struct {
+		Judges []struct {
+			Fallbacks *[]struct {
+				Model string `json:"model"`
+			} `json:"fallbacks,omitempty"`
+			Model string `json:"model"`
+			Retry *struct {
+				Count   *int   `json:"count,omitempty"`
+				OnCodes *[]int `json:"on_codes,omitempty"`
+			} `json:"retry,omitempty"`
+		} `json:"judges"`
+		MinSuccessfulJudges *int `json:"min_successful_judges,omitempty"`
+		ReplacementJudges   *[]struct {
+			Fallbacks *[]struct {
+				Model string `json:"model"`
+			} `json:"fallbacks,omitempty"`
+			Model string `json:"model"`
+			Retry *struct {
+				Count   *int   `json:"count,omitempty"`
+				OnCodes *[]int `json:"on_codes,omitempty"`
+			} `json:"retry,omitempty"`
+		} `json:"replacement_judges,omitempty"`
+		TieValue *EvaluatorResponseLlmJuryTieValue `json:"tie_value,omitempty"`
+	} `json:"jury,omitempty"`
+	Key         string                   `json:"key"`
+	Mode        EvaluatorResponseLlmMode `json:"mode"`
+	Model       *string                  `json:"model,omitempty"`
+	Prompt      string                   `json:"prompt"`
+	Repetitions *int                     `json:"repetitions,omitempty"`
+	Type        EvaluatorResponseLlmType `json:"type"`
+	Updated     *string                  `json:"updated,omitempty"`
+	UpdatedById *string                  `json:"updated_by_id,omitempty"`
+}
+
+// EvaluatorResponseLlmGuardrailConfig0 defines model for EvaluatorResponseLlm.GuardrailConfig.0.
+type EvaluatorResponseLlmGuardrailConfig0 struct {
+	AlertOnFailure *bool                                    `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                    `json:"enabled,omitempty"`
+	Type           EvaluatorResponseLlmGuardrailConfig0Type `json:"type"`
+	Value          bool                                     `json:"value"`
+}
+
+// EvaluatorResponseLlmGuardrailConfig0Type defines model for EvaluatorResponseLlm.GuardrailConfig.0.Type.
+type EvaluatorResponseLlmGuardrailConfig0Type string
+
+// EvaluatorResponseLlmGuardrailConfig1 defines model for EvaluatorResponseLlm.GuardrailConfig.1.
+type EvaluatorResponseLlmGuardrailConfig1 struct {
+	AlertOnFailure *bool                                    `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                    `json:"enabled,omitempty"`
+	Type           EvaluatorResponseLlmGuardrailConfig1Type `json:"type"`
+	Values         []string                                 `json:"values"`
+}
+
+// EvaluatorResponseLlmGuardrailConfig1Type defines model for EvaluatorResponseLlm.GuardrailConfig.1.Type.
+type EvaluatorResponseLlmGuardrailConfig1Type string
+
+// EvaluatorResponseLlmGuardrailConfig2 defines model for EvaluatorResponseLlm.GuardrailConfig.2.
+type EvaluatorResponseLlmGuardrailConfig2 struct {
+	AlertOnFailure *bool                                        `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                        `json:"enabled,omitempty"`
+	Operator       EvaluatorResponseLlmGuardrailConfig2Operator `json:"operator"`
+	Type           EvaluatorResponseLlmGuardrailConfig2Type     `json:"type"`
+	Value          float32                                      `json:"value"`
+}
+
+// EvaluatorResponseLlmGuardrailConfig2Operator defines model for EvaluatorResponseLlm.GuardrailConfig.2.Operator.
+type EvaluatorResponseLlmGuardrailConfig2Operator string
+
+// EvaluatorResponseLlmGuardrailConfig2Type defines model for EvaluatorResponseLlm.GuardrailConfig.2.Type.
+type EvaluatorResponseLlmGuardrailConfig2Type string
+
+// EvaluatorResponseLlm_GuardrailConfig defines model for EvaluatorResponseLlm.GuardrailConfig.
+type EvaluatorResponseLlm_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// EvaluatorResponseLlmJuryTieValue defines model for EvaluatorResponseLlm.Jury.TieValue.
+type EvaluatorResponseLlmJuryTieValue string
+
+// EvaluatorResponseLlmMode defines model for EvaluatorResponseLlm.Mode.
+type EvaluatorResponseLlmMode string
+
+// EvaluatorResponseLlmType defines model for EvaluatorResponseLlm.Type.
+type EvaluatorResponseLlmType string
+
+// EvaluatorResponsePython defines model for EvaluatorResponsePython.
+type EvaluatorResponsePython struct {
+	UnderscoreId    string                                   `json:"_id"`
+	Code            string                                   `json:"code"`
+	Created         *string                                  `json:"created,omitempty"`
+	Description     string                                   `json:"description"`
+	GuardrailConfig *EvaluatorResponsePython_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Key             string                                   `json:"key"`
+	Type            EvaluatorResponsePythonType              `json:"type"`
+	Updated         *string                                  `json:"updated,omitempty"`
+	UpdatedById     *string                                  `json:"updated_by_id,omitempty"`
+}
+
+// EvaluatorResponsePythonGuardrailConfig0 defines model for EvaluatorResponsePython.GuardrailConfig.0.
+type EvaluatorResponsePythonGuardrailConfig0 struct {
+	AlertOnFailure *bool                                       `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                       `json:"enabled,omitempty"`
+	Type           EvaluatorResponsePythonGuardrailConfig0Type `json:"type"`
+	Value          bool                                        `json:"value"`
+}
+
+// EvaluatorResponsePythonGuardrailConfig0Type defines model for EvaluatorResponsePython.GuardrailConfig.0.Type.
+type EvaluatorResponsePythonGuardrailConfig0Type string
+
+// EvaluatorResponsePythonGuardrailConfig1 defines model for EvaluatorResponsePython.GuardrailConfig.1.
+type EvaluatorResponsePythonGuardrailConfig1 struct {
+	AlertOnFailure *bool                                       `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                       `json:"enabled,omitempty"`
+	Type           EvaluatorResponsePythonGuardrailConfig1Type `json:"type"`
+	Values         []string                                    `json:"values"`
+}
+
+// EvaluatorResponsePythonGuardrailConfig1Type defines model for EvaluatorResponsePython.GuardrailConfig.1.Type.
+type EvaluatorResponsePythonGuardrailConfig1Type string
+
+// EvaluatorResponsePythonGuardrailConfig2 defines model for EvaluatorResponsePython.GuardrailConfig.2.
+type EvaluatorResponsePythonGuardrailConfig2 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Operator       EvaluatorResponsePythonGuardrailConfig2Operator `json:"operator"`
+	Type           EvaluatorResponsePythonGuardrailConfig2Type     `json:"type"`
+	Value          float32                                         `json:"value"`
+}
+
+// EvaluatorResponsePythonGuardrailConfig2Operator defines model for EvaluatorResponsePython.GuardrailConfig.2.Operator.
+type EvaluatorResponsePythonGuardrailConfig2Operator string
+
+// EvaluatorResponsePythonGuardrailConfig2Type defines model for EvaluatorResponsePython.GuardrailConfig.2.Type.
+type EvaluatorResponsePythonGuardrailConfig2Type string
+
+// EvaluatorResponsePython_GuardrailConfig defines model for EvaluatorResponsePython.GuardrailConfig.
+type EvaluatorResponsePython_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// EvaluatorResponsePythonType defines model for EvaluatorResponsePython.Type.
+type EvaluatorResponsePythonType string
+
+// EvaluatorResponseRagas defines model for EvaluatorResponseRagas.
+type EvaluatorResponseRagas struct {
+	UnderscoreId    string                                  `json:"_id"`
+	Created         *string                                 `json:"created,omitempty"`
+	Description     string                                  `json:"description"`
+	GuardrailConfig *EvaluatorResponseRagas_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Key             string                                  `json:"key"`
+	Model           string                                  `json:"model"`
+	RagasMetric     EvaluatorResponseRagasRagasMetric       `json:"ragas_metric"`
+	Type            EvaluatorResponseRagasType              `json:"type"`
+	Updated         *string                                 `json:"updated,omitempty"`
+	UpdatedById     *string                                 `json:"updated_by_id,omitempty"`
+}
+
+// EvaluatorResponseRagasGuardrailConfig0 defines model for EvaluatorResponseRagas.GuardrailConfig.0.
+type EvaluatorResponseRagasGuardrailConfig0 struct {
+	AlertOnFailure *bool                                      `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                      `json:"enabled,omitempty"`
+	Type           EvaluatorResponseRagasGuardrailConfig0Type `json:"type"`
+	Value          bool                                       `json:"value"`
+}
+
+// EvaluatorResponseRagasGuardrailConfig0Type defines model for EvaluatorResponseRagas.GuardrailConfig.0.Type.
+type EvaluatorResponseRagasGuardrailConfig0Type string
+
+// EvaluatorResponseRagasGuardrailConfig1 defines model for EvaluatorResponseRagas.GuardrailConfig.1.
+type EvaluatorResponseRagasGuardrailConfig1 struct {
+	AlertOnFailure *bool                                      `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                      `json:"enabled,omitempty"`
+	Type           EvaluatorResponseRagasGuardrailConfig1Type `json:"type"`
+	Values         []string                                   `json:"values"`
+}
+
+// EvaluatorResponseRagasGuardrailConfig1Type defines model for EvaluatorResponseRagas.GuardrailConfig.1.Type.
+type EvaluatorResponseRagasGuardrailConfig1Type string
+
+// EvaluatorResponseRagasGuardrailConfig2 defines model for EvaluatorResponseRagas.GuardrailConfig.2.
+type EvaluatorResponseRagasGuardrailConfig2 struct {
+	AlertOnFailure *bool                                          `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                          `json:"enabled,omitempty"`
+	Operator       EvaluatorResponseRagasGuardrailConfig2Operator `json:"operator"`
+	Type           EvaluatorResponseRagasGuardrailConfig2Type     `json:"type"`
+	Value          float32                                        `json:"value"`
+}
+
+// EvaluatorResponseRagasGuardrailConfig2Operator defines model for EvaluatorResponseRagas.GuardrailConfig.2.Operator.
+type EvaluatorResponseRagasGuardrailConfig2Operator string
+
+// EvaluatorResponseRagasGuardrailConfig2Type defines model for EvaluatorResponseRagas.GuardrailConfig.2.Type.
+type EvaluatorResponseRagasGuardrailConfig2Type string
+
+// EvaluatorResponseRagas_GuardrailConfig defines model for EvaluatorResponseRagas.GuardrailConfig.
+type EvaluatorResponseRagas_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// EvaluatorResponseRagasRagasMetric defines model for EvaluatorResponseRagas.RagasMetric.
+type EvaluatorResponseRagasRagasMetric string
+
+// EvaluatorResponseRagasType defines model for EvaluatorResponseRagas.Type.
+type EvaluatorResponseRagasType string
+
+// EvaluatorResponseTypescript defines model for EvaluatorResponseTypescript.
+type EvaluatorResponseTypescript struct {
+	UnderscoreId    string                                       `json:"_id"`
+	Code            string                                       `json:"code"`
+	Created         *string                                      `json:"created,omitempty"`
+	Description     string                                       `json:"description"`
+	GuardrailConfig *EvaluatorResponseTypescript_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Key             string                                       `json:"key"`
+	Type            EvaluatorResponseTypescriptType              `json:"type"`
+	Updated         *string                                      `json:"updated,omitempty"`
+	UpdatedById     *string                                      `json:"updated_by_id,omitempty"`
+}
+
+// EvaluatorResponseTypescriptGuardrailConfig0 defines model for EvaluatorResponseTypescript.GuardrailConfig.0.
+type EvaluatorResponseTypescriptGuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           EvaluatorResponseTypescriptGuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// EvaluatorResponseTypescriptGuardrailConfig0Type defines model for EvaluatorResponseTypescript.GuardrailConfig.0.Type.
+type EvaluatorResponseTypescriptGuardrailConfig0Type string
+
+// EvaluatorResponseTypescriptGuardrailConfig1 defines model for EvaluatorResponseTypescript.GuardrailConfig.1.
+type EvaluatorResponseTypescriptGuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           EvaluatorResponseTypescriptGuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// EvaluatorResponseTypescriptGuardrailConfig1Type defines model for EvaluatorResponseTypescript.GuardrailConfig.1.Type.
+type EvaluatorResponseTypescriptGuardrailConfig1Type string
+
+// EvaluatorResponseTypescriptGuardrailConfig2 defines model for EvaluatorResponseTypescript.GuardrailConfig.2.
+type EvaluatorResponseTypescriptGuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       EvaluatorResponseTypescriptGuardrailConfig2Operator `json:"operator"`
+	Type           EvaluatorResponseTypescriptGuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// EvaluatorResponseTypescriptGuardrailConfig2Operator defines model for EvaluatorResponseTypescript.GuardrailConfig.2.Operator.
+type EvaluatorResponseTypescriptGuardrailConfig2Operator string
+
+// EvaluatorResponseTypescriptGuardrailConfig2Type defines model for EvaluatorResponseTypescript.GuardrailConfig.2.Type.
+type EvaluatorResponseTypescriptGuardrailConfig2Type string
+
+// EvaluatorResponseTypescript_GuardrailConfig defines model for EvaluatorResponseTypescript.GuardrailConfig.
+type EvaluatorResponseTypescript_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// EvaluatorResponseTypescriptType defines model for EvaluatorResponseTypescript.Type.
+type EvaluatorResponseTypescriptType string
 
 // Expression defines model for Expression.
 type Expression struct {
@@ -725,6 +4634,1377 @@ type VertexParameters struct {
 	TopP        VertexParamRange    `json:"topP"`
 }
 
+// CreateEvalJSONBody defines parameters for CreateEval.
+type CreateEvalJSONBody struct {
+	union json.RawMessage
+}
+
+// CreateEvalJSONBody0 defines parameters for CreateEval.
+type CreateEvalJSONBody0 struct {
+	union json.RawMessage
+}
+
+// CreateEvalJSONBody00 defines parameters for CreateEval.
+type CreateEvalJSONBody00 struct {
+	CategoricalLabels *[]struct {
+		Description *string `json:"description,omitempty"`
+		Value       string  `json:"value"`
+	} `json:"categorical_labels,omitempty"`
+	Categories      *[]string                               `json:"categories,omitempty"`
+	DatasetId       *string                                 `json:"dataset_id,omitempty"`
+	Description     *string                                 `json:"description,omitempty"`
+	GuardrailConfig *CreateEvalJSONBody_0_0_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Key             string                                  `json:"key"`
+	Mode            CreateEvalJSONBody00Mode                `json:"mode"`
+	Model           string                                  `json:"model"`
+
+	// OutputType The type of output expected from the evaluator
+	OutputType *CreateEvalJSONBody00OutputType `json:"output_type,omitempty"`
+
+	// Path Entity storage path.
+	//
+	// With workspace-level API keys, use the format `project/folder/subfolder/...`. The first element identifies the project, followed by nested folders (auto-created as needed). Example: `Default/agents`.
+	//
+	// With project-level API keys, the project is predetermined by the API key, so the path is relative to that project. Example: `agents`. For backward compatibility, a leading project name is ignored when it matches the scoped project.
+	Path        string                   `json:"path"`
+	Prompt      string                   `json:"prompt"`
+	Repetitions *int                     `json:"repetitions,omitempty"`
+	Type        CreateEvalJSONBody00Type `json:"type"`
+}
+
+// CreateEvalJSONBody00GuardrailConfig0 defines parameters for CreateEval.
+type CreateEvalJSONBody00GuardrailConfig0 struct {
+	AlertOnFailure *bool                                    `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                    `json:"enabled,omitempty"`
+	Type           CreateEvalJSONBody00GuardrailConfig0Type `json:"type"`
+	Value          bool                                     `json:"value"`
+}
+
+// CreateEvalJSONBody00GuardrailConfig0Type defines parameters for CreateEval.
+type CreateEvalJSONBody00GuardrailConfig0Type string
+
+// CreateEvalJSONBody00GuardrailConfig1 defines parameters for CreateEval.
+type CreateEvalJSONBody00GuardrailConfig1 struct {
+	AlertOnFailure *bool                                    `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                    `json:"enabled,omitempty"`
+	Type           CreateEvalJSONBody00GuardrailConfig1Type `json:"type"`
+	Values         []string                                 `json:"values"`
+}
+
+// CreateEvalJSONBody00GuardrailConfig1Type defines parameters for CreateEval.
+type CreateEvalJSONBody00GuardrailConfig1Type string
+
+// CreateEvalJSONBody00GuardrailConfig2 defines parameters for CreateEval.
+type CreateEvalJSONBody00GuardrailConfig2 struct {
+	AlertOnFailure *bool                                        `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                        `json:"enabled,omitempty"`
+	Operator       CreateEvalJSONBody00GuardrailConfig2Operator `json:"operator"`
+	Type           CreateEvalJSONBody00GuardrailConfig2Type     `json:"type"`
+	Value          float32                                      `json:"value"`
+}
+
+// CreateEvalJSONBody00GuardrailConfig2Operator defines parameters for CreateEval.
+type CreateEvalJSONBody00GuardrailConfig2Operator string
+
+// CreateEvalJSONBody00GuardrailConfig2Type defines parameters for CreateEval.
+type CreateEvalJSONBody00GuardrailConfig2Type string
+
+// CreateEvalJSONBody_0_0_GuardrailConfig defines parameters for CreateEval.
+type CreateEvalJSONBody_0_0_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// CreateEvalJSONBody00Mode defines parameters for CreateEval.
+type CreateEvalJSONBody00Mode string
+
+// CreateEvalJSONBody00OutputType defines parameters for CreateEval.
+type CreateEvalJSONBody00OutputType string
+
+// CreateEvalJSONBody00Type defines parameters for CreateEval.
+type CreateEvalJSONBody00Type string
+
+// CreateEvalJSONBody01 defines parameters for CreateEval.
+type CreateEvalJSONBody01 struct {
+	CategoricalLabels *[]struct {
+		Description *string `json:"description,omitempty"`
+		Value       string  `json:"value"`
+	} `json:"categorical_labels,omitempty"`
+	Categories      *[]string                               `json:"categories,omitempty"`
+	DatasetId       *string                                 `json:"dataset_id,omitempty"`
+	Description     *string                                 `json:"description,omitempty"`
+	GuardrailConfig *CreateEvalJSONBody_0_1_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Jury            struct {
+		Judges []struct {
+			Fallbacks *[]struct {
+				Model string `json:"model"`
+			} `json:"fallbacks,omitempty"`
+			Model string `json:"model"`
+			Retry *struct {
+				Count   *int   `json:"count,omitempty"`
+				OnCodes *[]int `json:"on_codes,omitempty"`
+			} `json:"retry,omitempty"`
+		} `json:"judges"`
+		MinSuccessfulJudges *int `json:"min_successful_judges,omitempty"`
+		ReplacementJudges   *[]struct {
+			Fallbacks *[]struct {
+				Model string `json:"model"`
+			} `json:"fallbacks,omitempty"`
+			Model string `json:"model"`
+			Retry *struct {
+				Count   *int   `json:"count,omitempty"`
+				OnCodes *[]int `json:"on_codes,omitempty"`
+			} `json:"retry,omitempty"`
+		} `json:"replacement_judges,omitempty"`
+		TieValue *CreateEvalJSONBody01JuryTieValue `json:"tie_value,omitempty"`
+	} `json:"jury"`
+	Key  string                   `json:"key"`
+	Mode CreateEvalJSONBody01Mode `json:"mode"`
+
+	// OutputType The type of output expected from the evaluator
+	OutputType *CreateEvalJSONBody01OutputType `json:"output_type,omitempty"`
+
+	// Path Entity storage path.
+	//
+	// With workspace-level API keys, use the format `project/folder/subfolder/...`. The first element identifies the project, followed by nested folders (auto-created as needed). Example: `Default/agents`.
+	//
+	// With project-level API keys, the project is predetermined by the API key, so the path is relative to that project. Example: `agents`. For backward compatibility, a leading project name is ignored when it matches the scoped project.
+	Path        string                   `json:"path"`
+	Prompt      string                   `json:"prompt"`
+	Repetitions *int                     `json:"repetitions,omitempty"`
+	Type        CreateEvalJSONBody01Type `json:"type"`
+}
+
+// CreateEvalJSONBody01GuardrailConfig0 defines parameters for CreateEval.
+type CreateEvalJSONBody01GuardrailConfig0 struct {
+	AlertOnFailure *bool                                    `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                    `json:"enabled,omitempty"`
+	Type           CreateEvalJSONBody01GuardrailConfig0Type `json:"type"`
+	Value          bool                                     `json:"value"`
+}
+
+// CreateEvalJSONBody01GuardrailConfig0Type defines parameters for CreateEval.
+type CreateEvalJSONBody01GuardrailConfig0Type string
+
+// CreateEvalJSONBody01GuardrailConfig1 defines parameters for CreateEval.
+type CreateEvalJSONBody01GuardrailConfig1 struct {
+	AlertOnFailure *bool                                    `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                    `json:"enabled,omitempty"`
+	Type           CreateEvalJSONBody01GuardrailConfig1Type `json:"type"`
+	Values         []string                                 `json:"values"`
+}
+
+// CreateEvalJSONBody01GuardrailConfig1Type defines parameters for CreateEval.
+type CreateEvalJSONBody01GuardrailConfig1Type string
+
+// CreateEvalJSONBody01GuardrailConfig2 defines parameters for CreateEval.
+type CreateEvalJSONBody01GuardrailConfig2 struct {
+	AlertOnFailure *bool                                        `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                        `json:"enabled,omitempty"`
+	Operator       CreateEvalJSONBody01GuardrailConfig2Operator `json:"operator"`
+	Type           CreateEvalJSONBody01GuardrailConfig2Type     `json:"type"`
+	Value          float32                                      `json:"value"`
+}
+
+// CreateEvalJSONBody01GuardrailConfig2Operator defines parameters for CreateEval.
+type CreateEvalJSONBody01GuardrailConfig2Operator string
+
+// CreateEvalJSONBody01GuardrailConfig2Type defines parameters for CreateEval.
+type CreateEvalJSONBody01GuardrailConfig2Type string
+
+// CreateEvalJSONBody_0_1_GuardrailConfig defines parameters for CreateEval.
+type CreateEvalJSONBody_0_1_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// CreateEvalJSONBody01JuryTieValue defines parameters for CreateEval.
+type CreateEvalJSONBody01JuryTieValue string
+
+// CreateEvalJSONBody01Mode defines parameters for CreateEval.
+type CreateEvalJSONBody01Mode string
+
+// CreateEvalJSONBody01OutputType defines parameters for CreateEval.
+type CreateEvalJSONBody01OutputType string
+
+// CreateEvalJSONBody01Type defines parameters for CreateEval.
+type CreateEvalJSONBody01Type string
+
+// CreateEvalJSONBody1 defines parameters for CreateEval.
+type CreateEvalJSONBody1 struct {
+	Code            string                                `json:"code"`
+	Description     *string                               `json:"description,omitempty"`
+	GuardrailConfig *CreateEvalJSONBody_1_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Key             string                                `json:"key"`
+	OutputType      *CreateEvalJSONBody1OutputType        `json:"output_type,omitempty"`
+
+	// Path Entity storage path.
+	//
+	// With workspace-level API keys, use the format `project/folder/subfolder/...`. The first element identifies the project, followed by nested folders (auto-created as needed). Example: `Default/agents`.
+	//
+	// With project-level API keys, the project is predetermined by the API key, so the path is relative to that project. Example: `agents`. For backward compatibility, a leading project name is ignored when it matches the scoped project.
+	Path string                  `json:"path"`
+	Type CreateEvalJSONBody1Type `json:"type"`
+}
+
+// CreateEvalJSONBody1GuardrailConfig0 defines parameters for CreateEval.
+type CreateEvalJSONBody1GuardrailConfig0 struct {
+	AlertOnFailure *bool                                   `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                   `json:"enabled,omitempty"`
+	Type           CreateEvalJSONBody1GuardrailConfig0Type `json:"type"`
+	Value          bool                                    `json:"value"`
+}
+
+// CreateEvalJSONBody1GuardrailConfig0Type defines parameters for CreateEval.
+type CreateEvalJSONBody1GuardrailConfig0Type string
+
+// CreateEvalJSONBody1GuardrailConfig1 defines parameters for CreateEval.
+type CreateEvalJSONBody1GuardrailConfig1 struct {
+	AlertOnFailure *bool                                   `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                   `json:"enabled,omitempty"`
+	Type           CreateEvalJSONBody1GuardrailConfig1Type `json:"type"`
+	Values         []string                                `json:"values"`
+}
+
+// CreateEvalJSONBody1GuardrailConfig1Type defines parameters for CreateEval.
+type CreateEvalJSONBody1GuardrailConfig1Type string
+
+// CreateEvalJSONBody1GuardrailConfig2 defines parameters for CreateEval.
+type CreateEvalJSONBody1GuardrailConfig2 struct {
+	AlertOnFailure *bool                                       `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                       `json:"enabled,omitempty"`
+	Operator       CreateEvalJSONBody1GuardrailConfig2Operator `json:"operator"`
+	Type           CreateEvalJSONBody1GuardrailConfig2Type     `json:"type"`
+	Value          float32                                     `json:"value"`
+}
+
+// CreateEvalJSONBody1GuardrailConfig2Operator defines parameters for CreateEval.
+type CreateEvalJSONBody1GuardrailConfig2Operator string
+
+// CreateEvalJSONBody1GuardrailConfig2Type defines parameters for CreateEval.
+type CreateEvalJSONBody1GuardrailConfig2Type string
+
+// CreateEvalJSONBody_1_GuardrailConfig defines parameters for CreateEval.
+type CreateEvalJSONBody_1_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// CreateEvalJSONBody1OutputType defines parameters for CreateEval.
+type CreateEvalJSONBody1OutputType string
+
+// CreateEvalJSONBody1Type defines parameters for CreateEval.
+type CreateEvalJSONBody1Type string
+
+// CreateEval200JSONResponseBody defines parameters for CreateEval.
+type CreateEval200JSONResponseBody struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody0 defines parameters for GetEval.
+type GetEval200JSONResponseBody0 struct {
+	UnderscoreId      string `json:"_id"`
+	CategoricalLabels *[]struct {
+		Description *string `json:"description,omitempty"`
+		Value       string  `json:"value"`
+	} `json:"categorical_labels,omitempty"`
+	Categories      *[]string                                     `json:"categories,omitempty"`
+	Created         *string                                       `json:"created,omitempty"`
+	CreatedById     *string                                       `json:"created_by_id,omitempty"`
+	DatasetId       *string                                       `json:"dataset_id,omitempty"`
+	Description     string                                        `json:"description"`
+	DisplayName     string                                        `json:"display_name"`
+	DomainId        string                                        `json:"domain_id"`
+	Enabled         *bool                                         `json:"enabled,omitempty"`
+	GuardrailConfig *GetEval200JSONResponseBody_0_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Jury            *struct {
+		Judges []struct {
+			Fallbacks *[]struct {
+				Model struct {
+					Id              string  `json:"id"`
+					IntegrationId   *string `json:"integration_id,omitempty"`
+					ModelParameters *struct {
+						BudgetTokens     *float32 `json:"budget_tokens,omitempty"`
+						FrequencyPenalty *float32 `json:"frequency_penalty,omitempty"`
+						MaxTokens        *float32 `json:"max_tokens,omitempty"`
+						PresencePenalty  *float32 `json:"presence_penalty,omitempty"`
+						ReasoningEffort  *string  `json:"reasoning_effort,omitempty"`
+						Temperature      *float32 `json:"temperature,omitempty"`
+						TopK             *float32 `json:"top_k,omitempty"`
+						TopP             *float32 `json:"top_p,omitempty"`
+					} `json:"model_parameters,omitempty"`
+				} `json:"model"`
+			} `json:"fallbacks,omitempty"`
+			Model struct {
+				Id              string  `json:"id"`
+				IntegrationId   *string `json:"integration_id,omitempty"`
+				ModelParameters *struct {
+					BudgetTokens     *float32 `json:"budget_tokens,omitempty"`
+					FrequencyPenalty *float32 `json:"frequency_penalty,omitempty"`
+					MaxTokens        *float32 `json:"max_tokens,omitempty"`
+					PresencePenalty  *float32 `json:"presence_penalty,omitempty"`
+					ReasoningEffort  *string  `json:"reasoning_effort,omitempty"`
+					Temperature      *float32 `json:"temperature,omitempty"`
+					TopK             *float32 `json:"top_k,omitempty"`
+					TopP             *float32 `json:"top_p,omitempty"`
+				} `json:"model_parameters,omitempty"`
+			} `json:"model"`
+			Retry *struct {
+				Count   *int   `json:"count,omitempty"`
+				OnCodes *[]int `json:"on_codes,omitempty"`
+			} `json:"retry,omitempty"`
+		} `json:"judges"`
+		MinSuccessfulJudges *int `json:"min_successful_judges,omitempty"`
+		ReplacementJudges   *[]struct {
+			Fallbacks *[]struct {
+				Model struct {
+					Id              string  `json:"id"`
+					IntegrationId   *string `json:"integration_id,omitempty"`
+					ModelParameters *struct {
+						BudgetTokens     *float32 `json:"budget_tokens,omitempty"`
+						FrequencyPenalty *float32 `json:"frequency_penalty,omitempty"`
+						MaxTokens        *float32 `json:"max_tokens,omitempty"`
+						PresencePenalty  *float32 `json:"presence_penalty,omitempty"`
+						ReasoningEffort  *string  `json:"reasoning_effort,omitempty"`
+						Temperature      *float32 `json:"temperature,omitempty"`
+						TopK             *float32 `json:"top_k,omitempty"`
+						TopP             *float32 `json:"top_p,omitempty"`
+					} `json:"model_parameters,omitempty"`
+				} `json:"model"`
+			} `json:"fallbacks,omitempty"`
+			Model struct {
+				Id              string  `json:"id"`
+				IntegrationId   *string `json:"integration_id,omitempty"`
+				ModelParameters *struct {
+					BudgetTokens     *float32 `json:"budget_tokens,omitempty"`
+					FrequencyPenalty *float32 `json:"frequency_penalty,omitempty"`
+					MaxTokens        *float32 `json:"max_tokens,omitempty"`
+					PresencePenalty  *float32 `json:"presence_penalty,omitempty"`
+					ReasoningEffort  *string  `json:"reasoning_effort,omitempty"`
+					Temperature      *float32 `json:"temperature,omitempty"`
+					TopK             *float32 `json:"top_k,omitempty"`
+					TopP             *float32 `json:"top_p,omitempty"`
+				} `json:"model_parameters,omitempty"`
+			} `json:"model"`
+			Retry *struct {
+				Count   *int   `json:"count,omitempty"`
+				OnCodes *[]int `json:"on_codes,omitempty"`
+			} `json:"retry,omitempty"`
+		} `json:"replacement_judges,omitempty"`
+		TieValue *GetEval200JSONResponseBody0JuryTieValue `json:"tie_value,omitempty"`
+	} `json:"jury,omitempty"`
+	Metadata struct {
+		RequiredExpectedOutput        *bool `json:"required_expected_output,omitempty"`
+		RequiredModelWithToolsSupport *bool `json:"required_model_with_tools_support,omitempty"`
+		RequiredRetrievalContext      *bool `json:"required_retrieval_context,omitempty"`
+		SupportUseAsGuardrail         *bool `json:"support_use_as_guardrail,omitempty"`
+		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
+		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
+	} `json:"metadata"`
+	Mode  *GetEval200JSONResponseBody0Mode `json:"mode,omitempty"`
+	Model *struct {
+		Id              string  `json:"id"`
+		IntegrationId   *string `json:"integration_id,omitempty"`
+		ModelParameters *struct {
+			BudgetTokens     *float32 `json:"budget_tokens,omitempty"`
+			FrequencyPenalty *float32 `json:"frequency_penalty,omitempty"`
+			MaxTokens        *float32 `json:"max_tokens,omitempty"`
+			PresencePenalty  *float32 `json:"presence_penalty,omitempty"`
+			ReasoningEffort  *string  `json:"reasoning_effort,omitempty"`
+			Temperature      *float32 `json:"temperature,omitempty"`
+			TopK             *float32 `json:"top_k,omitempty"`
+			TopP             *float32 `json:"top_p,omitempty"`
+		} `json:"model_parameters,omitempty"`
+	} `json:"model,omitempty"`
+
+	// OutputType The type of output expected from the evaluator
+	OutputType  *GetEval200JSONResponseBody0OutputType `json:"output_type,omitempty"`
+	Owner       string                                 `json:"owner"`
+	Prompt      string                                 `json:"prompt"`
+	Repetitions *int                                   `json:"repetitions,omitempty"`
+	Type        GetEval200JSONResponseBody0Type        `json:"type"`
+	Updated     *string                                `json:"updated,omitempty"`
+	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+}
+
+// GetEval200JSONResponseBody0GuardrailConfig0 defines parameters for GetEval.
+type GetEval200JSONResponseBody0GuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody0GuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// GetEval200JSONResponseBody0GuardrailConfig0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody0GuardrailConfig0Type string
+
+// GetEval200JSONResponseBody0GuardrailConfig1 defines parameters for GetEval.
+type GetEval200JSONResponseBody0GuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody0GuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// GetEval200JSONResponseBody0GuardrailConfig1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody0GuardrailConfig1Type string
+
+// GetEval200JSONResponseBody0GuardrailConfig2 defines parameters for GetEval.
+type GetEval200JSONResponseBody0GuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       GetEval200JSONResponseBody0GuardrailConfig2Operator `json:"operator"`
+	Type           GetEval200JSONResponseBody0GuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// GetEval200JSONResponseBody0GuardrailConfig2Operator defines parameters for GetEval.
+type GetEval200JSONResponseBody0GuardrailConfig2Operator string
+
+// GetEval200JSONResponseBody0GuardrailConfig2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody0GuardrailConfig2Type string
+
+// GetEval200JSONResponseBody_0_GuardrailConfig defines parameters for GetEval.
+type GetEval200JSONResponseBody_0_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody0JuryTieValue defines parameters for GetEval.
+type GetEval200JSONResponseBody0JuryTieValue string
+
+// GetEval200JSONResponseBody0Mode defines parameters for GetEval.
+type GetEval200JSONResponseBody0Mode string
+
+// GetEval200JSONResponseBody0OutputType defines parameters for GetEval.
+type GetEval200JSONResponseBody0OutputType string
+
+// GetEval200JSONResponseBody0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody0Type string
+
+// GetEval200JSONResponseBody1 defines parameters for GetEval.
+type GetEval200JSONResponseBody1 struct {
+	UnderscoreId    string                                        `json:"_id"`
+	Created         *string                                       `json:"created,omitempty"`
+	CreatedById     *string                                       `json:"created_by_id,omitempty"`
+	Description     string                                        `json:"description"`
+	DisplayName     string                                        `json:"display_name"`
+	DomainId        string                                        `json:"domain_id"`
+	Enabled         *bool                                         `json:"enabled,omitempty"`
+	FunctionParams  GetEval200JSONResponseBody_1_FunctionParams   `json:"function_params"`
+	GuardrailConfig *GetEval200JSONResponseBody_1_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Metadata        struct {
+		RequiredExpectedOutput        *bool `json:"required_expected_output,omitempty"`
+		RequiredModelWithToolsSupport *bool `json:"required_model_with_tools_support,omitempty"`
+		RequiredRetrievalContext      *bool `json:"required_retrieval_context,omitempty"`
+		SupportUseAsGuardrail         *bool `json:"support_use_as_guardrail,omitempty"`
+		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
+		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
+	} `json:"metadata"`
+	OutputType  GetEval200JSONResponseBody1OutputType `json:"output_type"`
+	Owner       string                                `json:"owner"`
+	Type        GetEval200JSONResponseBody1Type       `json:"type"`
+	Updated     *string                               `json:"updated,omitempty"`
+	UpdatedById *string                               `json:"updated_by_id,omitempty"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams0 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams0 struct {
+	Type  GetEval200JSONResponseBody1FunctionParams0Type `json:"type"`
+	Value string                                         `json:"value"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams0Type string
+
+// GetEval200JSONResponseBody1FunctionParams1 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams1 struct {
+	Keywords []string                                       `json:"keywords"`
+	Type     GetEval200JSONResponseBody1FunctionParams1Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams1Type string
+
+// GetEval200JSONResponseBody1FunctionParams2 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams2 struct {
+	Keywords []string                                       `json:"keywords"`
+	Type     GetEval200JSONResponseBody1FunctionParams2Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams2Type string
+
+// GetEval200JSONResponseBody1FunctionParams3 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams3 struct {
+	Keywords []string                                       `json:"keywords"`
+	Type     GetEval200JSONResponseBody1FunctionParams3Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams3Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams3Type string
+
+// GetEval200JSONResponseBody1FunctionParams4 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams4 struct {
+	Type GetEval200JSONResponseBody1FunctionParams4Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams4Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams4Type string
+
+// GetEval200JSONResponseBody1FunctionParams5 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams5 struct {
+	Type GetEval200JSONResponseBody1FunctionParams5Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams5Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams5Type string
+
+// GetEval200JSONResponseBody1FunctionParams6 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams6 struct {
+	Type GetEval200JSONResponseBody1FunctionParams6Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams6Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams6Type string
+
+// GetEval200JSONResponseBody1FunctionParams7 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams7 struct {
+	Type  GetEval200JSONResponseBody1FunctionParams7Type `json:"type"`
+	Value string                                         `json:"value"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams7Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams7Type string
+
+// GetEval200JSONResponseBody1FunctionParams8 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams8 struct {
+	Type  GetEval200JSONResponseBody1FunctionParams8Type `json:"type"`
+	Value string                                         `json:"value"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams8Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams8Type string
+
+// GetEval200JSONResponseBody1FunctionParams9 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams9 struct {
+	Type GetEval200JSONResponseBody1FunctionParams9Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams9Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams9Type string
+
+// GetEval200JSONResponseBody1FunctionParams10 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams10 struct {
+	Type  GetEval200JSONResponseBody1FunctionParams10Type `json:"type"`
+	Value float32                                         `json:"value"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams10Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams10Type string
+
+// GetEval200JSONResponseBody1FunctionParams11 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams11 struct {
+	Max  float32                                         `json:"max"`
+	Min  float32                                         `json:"min"`
+	Type GetEval200JSONResponseBody1FunctionParams11Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams11Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams11Type string
+
+// GetEval200JSONResponseBody1FunctionParams12 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams12 struct {
+	Type  GetEval200JSONResponseBody1FunctionParams12Type `json:"type"`
+	Value float32                                         `json:"value"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams12Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams12Type string
+
+// GetEval200JSONResponseBody1FunctionParams13 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams13 struct {
+	Type GetEval200JSONResponseBody1FunctionParams13Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams13Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams13Type string
+
+// GetEval200JSONResponseBody1FunctionParams14 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams14 struct {
+	Pattern string                                          `json:"pattern"`
+	Type    GetEval200JSONResponseBody1FunctionParams14Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams14Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams14Type string
+
+// GetEval200JSONResponseBody1FunctionParams15 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams15 struct {
+	Type GetEval200JSONResponseBody1FunctionParams15Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams15Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams15Type string
+
+// GetEval200JSONResponseBody1FunctionParams16 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams16 struct {
+	Type GetEval200JSONResponseBody1FunctionParams16Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams16Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams16Type string
+
+// GetEval200JSONResponseBody1FunctionParams17 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams17 struct {
+	Type GetEval200JSONResponseBody1FunctionParams17Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams17Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams17Type string
+
+// GetEval200JSONResponseBody1FunctionParams18 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams18 struct {
+	Type GetEval200JSONResponseBody1FunctionParams18Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams18Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams18Type string
+
+// GetEval200JSONResponseBody1FunctionParams19 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams19 struct {
+	Type GetEval200JSONResponseBody1FunctionParams19Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams19Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams19Type string
+
+// GetEval200JSONResponseBody1FunctionParams20 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams20 struct {
+	Type GetEval200JSONResponseBody1FunctionParams20Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams20Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams20Type string
+
+// GetEval200JSONResponseBody1FunctionParams21 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams21 struct {
+	Type GetEval200JSONResponseBody1FunctionParams21Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams21Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams21Type string
+
+// GetEval200JSONResponseBody1FunctionParams22 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams22 struct {
+	Type GetEval200JSONResponseBody1FunctionParams22Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams22Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams22Type string
+
+// GetEval200JSONResponseBody1FunctionParams23 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams23 struct {
+	Type GetEval200JSONResponseBody1FunctionParams23Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams23Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams23Type string
+
+// GetEval200JSONResponseBody1FunctionParams24 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams24 struct {
+	Keywords []string                                        `json:"keywords"`
+	Type     GetEval200JSONResponseBody1FunctionParams24Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams24Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams24Type string
+
+// GetEval200JSONResponseBody1FunctionParams25 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams25 struct {
+	Type GetEval200JSONResponseBody1FunctionParams25Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams25Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams25Type string
+
+// GetEval200JSONResponseBody1FunctionParams26 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams26 struct {
+	Type GetEval200JSONResponseBody1FunctionParams26Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams26Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams26Type string
+
+// GetEval200JSONResponseBody1FunctionParams27 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams27 struct {
+	Type GetEval200JSONResponseBody1FunctionParams27Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams27Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams27Type string
+
+// GetEval200JSONResponseBody1FunctionParams28 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams28 struct {
+	Type GetEval200JSONResponseBody1FunctionParams28Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams28Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams28Type string
+
+// GetEval200JSONResponseBody1FunctionParams29 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams29 struct {
+	Type GetEval200JSONResponseBody1FunctionParams29Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams29Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams29Type string
+
+// GetEval200JSONResponseBody1FunctionParams30 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams30 struct {
+	Type GetEval200JSONResponseBody1FunctionParams30Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams30Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams30Type string
+
+// GetEval200JSONResponseBody1FunctionParams31 defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams31 struct {
+	Type GetEval200JSONResponseBody1FunctionParams31Type `json:"type"`
+}
+
+// GetEval200JSONResponseBody1FunctionParams31Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1FunctionParams31Type string
+
+// GetEval200JSONResponseBody_1_FunctionParams defines parameters for GetEval.
+type GetEval200JSONResponseBody_1_FunctionParams struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody1GuardrailConfig0 defines parameters for GetEval.
+type GetEval200JSONResponseBody1GuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody1GuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// GetEval200JSONResponseBody1GuardrailConfig0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1GuardrailConfig0Type string
+
+// GetEval200JSONResponseBody1GuardrailConfig1 defines parameters for GetEval.
+type GetEval200JSONResponseBody1GuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody1GuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// GetEval200JSONResponseBody1GuardrailConfig1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1GuardrailConfig1Type string
+
+// GetEval200JSONResponseBody1GuardrailConfig2 defines parameters for GetEval.
+type GetEval200JSONResponseBody1GuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       GetEval200JSONResponseBody1GuardrailConfig2Operator `json:"operator"`
+	Type           GetEval200JSONResponseBody1GuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// GetEval200JSONResponseBody1GuardrailConfig2Operator defines parameters for GetEval.
+type GetEval200JSONResponseBody1GuardrailConfig2Operator string
+
+// GetEval200JSONResponseBody1GuardrailConfig2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1GuardrailConfig2Type string
+
+// GetEval200JSONResponseBody_1_GuardrailConfig defines parameters for GetEval.
+type GetEval200JSONResponseBody_1_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody1OutputType defines parameters for GetEval.
+type GetEval200JSONResponseBody1OutputType string
+
+// GetEval200JSONResponseBody1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody1Type string
+
+// GetEval200JSONResponseBody2 defines parameters for GetEval.
+type GetEval200JSONResponseBody2 struct {
+	UnderscoreId    string                                        `json:"_id"`
+	Created         *string                                       `json:"created,omitempty"`
+	CreatedById     *string                                       `json:"created_by_id,omitempty"`
+	Description     string                                        `json:"description"`
+	DisplayName     string                                        `json:"display_name"`
+	DomainId        string                                        `json:"domain_id"`
+	Enabled         *bool                                         `json:"enabled,omitempty"`
+	GuardrailConfig *GetEval200JSONResponseBody_2_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Metadata        struct {
+		RequiredExpectedOutput        *bool `json:"required_expected_output,omitempty"`
+		RequiredModelWithToolsSupport *bool `json:"required_model_with_tools_support,omitempty"`
+		RequiredRetrievalContext      *bool `json:"required_retrieval_context,omitempty"`
+		SupportUseAsGuardrail         *bool `json:"support_use_as_guardrail,omitempty"`
+		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
+		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
+	} `json:"metadata"`
+	Model struct {
+		Id            string  `json:"id"`
+		IntegrationId *string `json:"integration_id,omitempty"`
+	} `json:"model"`
+	OutputType  *GetEval200JSONResponseBody2OutputType `json:"output_type,omitempty"`
+	Owner       string                                 `json:"owner"`
+	RagasMetric GetEval200JSONResponseBody2RagasMetric `json:"ragas_metric"`
+	Type        GetEval200JSONResponseBody2Type        `json:"type"`
+	Updated     *string                                `json:"updated,omitempty"`
+	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+}
+
+// GetEval200JSONResponseBody2GuardrailConfig0 defines parameters for GetEval.
+type GetEval200JSONResponseBody2GuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody2GuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// GetEval200JSONResponseBody2GuardrailConfig0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody2GuardrailConfig0Type string
+
+// GetEval200JSONResponseBody2GuardrailConfig1 defines parameters for GetEval.
+type GetEval200JSONResponseBody2GuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody2GuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// GetEval200JSONResponseBody2GuardrailConfig1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody2GuardrailConfig1Type string
+
+// GetEval200JSONResponseBody2GuardrailConfig2 defines parameters for GetEval.
+type GetEval200JSONResponseBody2GuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       GetEval200JSONResponseBody2GuardrailConfig2Operator `json:"operator"`
+	Type           GetEval200JSONResponseBody2GuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// GetEval200JSONResponseBody2GuardrailConfig2Operator defines parameters for GetEval.
+type GetEval200JSONResponseBody2GuardrailConfig2Operator string
+
+// GetEval200JSONResponseBody2GuardrailConfig2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody2GuardrailConfig2Type string
+
+// GetEval200JSONResponseBody_2_GuardrailConfig defines parameters for GetEval.
+type GetEval200JSONResponseBody_2_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody2OutputType defines parameters for GetEval.
+type GetEval200JSONResponseBody2OutputType string
+
+// GetEval200JSONResponseBody2RagasMetric defines parameters for GetEval.
+type GetEval200JSONResponseBody2RagasMetric string
+
+// GetEval200JSONResponseBody2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody2Type string
+
+// GetEval200JSONResponseBody3 defines parameters for GetEval.
+type GetEval200JSONResponseBody3 struct {
+	UnderscoreId    string                                        `json:"_id"`
+	Created         *string                                       `json:"created,omitempty"`
+	CreatedById     *string                                       `json:"created_by_id,omitempty"`
+	Description     string                                        `json:"description"`
+	DisplayName     string                                        `json:"display_name"`
+	DomainId        string                                        `json:"domain_id"`
+	Enabled         *bool                                         `json:"enabled,omitempty"`
+	GuardrailConfig *GetEval200JSONResponseBody_3_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Metadata        struct {
+		RequiredExpectedOutput        *bool `json:"required_expected_output,omitempty"`
+		RequiredModelWithToolsSupport *bool `json:"required_model_with_tools_support,omitempty"`
+		RequiredRetrievalContext      *bool `json:"required_retrieval_context,omitempty"`
+		SupportUseAsGuardrail         *bool `json:"support_use_as_guardrail,omitempty"`
+		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
+		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
+	} `json:"metadata"`
+	OutputType  *GetEval200JSONResponseBody3OutputType `json:"output_type,omitempty"`
+	Owner       string                                 `json:"owner"`
+	Schema      string                                 `json:"schema"`
+	Type        GetEval200JSONResponseBody3Type        `json:"type"`
+	Updated     *string                                `json:"updated,omitempty"`
+	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+}
+
+// GetEval200JSONResponseBody3GuardrailConfig0 defines parameters for GetEval.
+type GetEval200JSONResponseBody3GuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody3GuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// GetEval200JSONResponseBody3GuardrailConfig0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody3GuardrailConfig0Type string
+
+// GetEval200JSONResponseBody3GuardrailConfig1 defines parameters for GetEval.
+type GetEval200JSONResponseBody3GuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody3GuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// GetEval200JSONResponseBody3GuardrailConfig1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody3GuardrailConfig1Type string
+
+// GetEval200JSONResponseBody3GuardrailConfig2 defines parameters for GetEval.
+type GetEval200JSONResponseBody3GuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       GetEval200JSONResponseBody3GuardrailConfig2Operator `json:"operator"`
+	Type           GetEval200JSONResponseBody3GuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// GetEval200JSONResponseBody3GuardrailConfig2Operator defines parameters for GetEval.
+type GetEval200JSONResponseBody3GuardrailConfig2Operator string
+
+// GetEval200JSONResponseBody3GuardrailConfig2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody3GuardrailConfig2Type string
+
+// GetEval200JSONResponseBody_3_GuardrailConfig defines parameters for GetEval.
+type GetEval200JSONResponseBody_3_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody3OutputType defines parameters for GetEval.
+type GetEval200JSONResponseBody3OutputType string
+
+// GetEval200JSONResponseBody3Type defines parameters for GetEval.
+type GetEval200JSONResponseBody3Type string
+
+// GetEval200JSONResponseBody4 defines parameters for GetEval.
+type GetEval200JSONResponseBody4 struct {
+	UnderscoreId    string                                        `json:"_id"`
+	Created         *string                                       `json:"created,omitempty"`
+	CreatedById     *string                                       `json:"created_by_id,omitempty"`
+	Description     string                                        `json:"description"`
+	DisplayName     string                                        `json:"display_name"`
+	DomainId        string                                        `json:"domain_id"`
+	Enabled         *bool                                         `json:"enabled,omitempty"`
+	GuardrailConfig *GetEval200JSONResponseBody_4_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Headers         map[string]string                             `json:"headers"`
+	Metadata        struct {
+		RequiredExpectedOutput        *bool `json:"required_expected_output,omitempty"`
+		RequiredModelWithToolsSupport *bool `json:"required_model_with_tools_support,omitempty"`
+		RequiredRetrievalContext      *bool `json:"required_retrieval_context,omitempty"`
+		SupportUseAsGuardrail         *bool `json:"support_use_as_guardrail,omitempty"`
+		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
+		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
+	} `json:"metadata"`
+	Method GetEval200JSONResponseBody4Method `json:"method"`
+
+	// OutputType The type of output expected from the evaluator
+	OutputType  *GetEval200JSONResponseBody4OutputType `json:"output_type,omitempty"`
+	Owner       string                                 `json:"owner"`
+	Payload     map[string]interface{}                 `json:"payload"`
+	Type        GetEval200JSONResponseBody4Type        `json:"type"`
+	Updated     *string                                `json:"updated,omitempty"`
+	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+	Url         string                                 `json:"url"`
+}
+
+// GetEval200JSONResponseBody4GuardrailConfig0 defines parameters for GetEval.
+type GetEval200JSONResponseBody4GuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody4GuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// GetEval200JSONResponseBody4GuardrailConfig0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody4GuardrailConfig0Type string
+
+// GetEval200JSONResponseBody4GuardrailConfig1 defines parameters for GetEval.
+type GetEval200JSONResponseBody4GuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody4GuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// GetEval200JSONResponseBody4GuardrailConfig1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody4GuardrailConfig1Type string
+
+// GetEval200JSONResponseBody4GuardrailConfig2 defines parameters for GetEval.
+type GetEval200JSONResponseBody4GuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       GetEval200JSONResponseBody4GuardrailConfig2Operator `json:"operator"`
+	Type           GetEval200JSONResponseBody4GuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// GetEval200JSONResponseBody4GuardrailConfig2Operator defines parameters for GetEval.
+type GetEval200JSONResponseBody4GuardrailConfig2Operator string
+
+// GetEval200JSONResponseBody4GuardrailConfig2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody4GuardrailConfig2Type string
+
+// GetEval200JSONResponseBody_4_GuardrailConfig defines parameters for GetEval.
+type GetEval200JSONResponseBody_4_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody4Method defines parameters for GetEval.
+type GetEval200JSONResponseBody4Method string
+
+// GetEval200JSONResponseBody4OutputType defines parameters for GetEval.
+type GetEval200JSONResponseBody4OutputType string
+
+// GetEval200JSONResponseBody4Type defines parameters for GetEval.
+type GetEval200JSONResponseBody4Type string
+
+// GetEval200JSONResponseBody5 defines parameters for GetEval.
+type GetEval200JSONResponseBody5 struct {
+	UnderscoreId    string                                        `json:"_id"`
+	Code            string                                        `json:"code"`
+	Created         *string                                       `json:"created,omitempty"`
+	CreatedById     *string                                       `json:"created_by_id,omitempty"`
+	Description     string                                        `json:"description"`
+	DisplayName     string                                        `json:"display_name"`
+	DomainId        string                                        `json:"domain_id"`
+	Enabled         *bool                                         `json:"enabled,omitempty"`
+	GuardrailConfig *GetEval200JSONResponseBody_5_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Metadata        struct {
+		RequiredExpectedOutput        *bool `json:"required_expected_output,omitempty"`
+		RequiredModelWithToolsSupport *bool `json:"required_model_with_tools_support,omitempty"`
+		RequiredRetrievalContext      *bool `json:"required_retrieval_context,omitempty"`
+		SupportUseAsGuardrail         *bool `json:"support_use_as_guardrail,omitempty"`
+		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
+		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
+	} `json:"metadata"`
+	OutputType  *GetEval200JSONResponseBody5OutputType `json:"output_type,omitempty"`
+	Owner       string                                 `json:"owner"`
+	Type        GetEval200JSONResponseBody5Type        `json:"type"`
+	Updated     *string                                `json:"updated,omitempty"`
+	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+}
+
+// GetEval200JSONResponseBody5GuardrailConfig0 defines parameters for GetEval.
+type GetEval200JSONResponseBody5GuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody5GuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// GetEval200JSONResponseBody5GuardrailConfig0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody5GuardrailConfig0Type string
+
+// GetEval200JSONResponseBody5GuardrailConfig1 defines parameters for GetEval.
+type GetEval200JSONResponseBody5GuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody5GuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// GetEval200JSONResponseBody5GuardrailConfig1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody5GuardrailConfig1Type string
+
+// GetEval200JSONResponseBody5GuardrailConfig2 defines parameters for GetEval.
+type GetEval200JSONResponseBody5GuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       GetEval200JSONResponseBody5GuardrailConfig2Operator `json:"operator"`
+	Type           GetEval200JSONResponseBody5GuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// GetEval200JSONResponseBody5GuardrailConfig2Operator defines parameters for GetEval.
+type GetEval200JSONResponseBody5GuardrailConfig2Operator string
+
+// GetEval200JSONResponseBody5GuardrailConfig2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody5GuardrailConfig2Type string
+
+// GetEval200JSONResponseBody_5_GuardrailConfig defines parameters for GetEval.
+type GetEval200JSONResponseBody_5_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody5OutputType defines parameters for GetEval.
+type GetEval200JSONResponseBody5OutputType string
+
+// GetEval200JSONResponseBody5Type defines parameters for GetEval.
+type GetEval200JSONResponseBody5Type string
+
+// GetEval200JSONResponseBody6 defines parameters for GetEval.
+type GetEval200JSONResponseBody6 struct {
+	UnderscoreId    string                                        `json:"_id"`
+	Code            string                                        `json:"code"`
+	Created         *string                                       `json:"created,omitempty"`
+	CreatedById     *string                                       `json:"created_by_id,omitempty"`
+	Description     string                                        `json:"description"`
+	DisplayName     string                                        `json:"display_name"`
+	DomainId        string                                        `json:"domain_id"`
+	Enabled         *bool                                         `json:"enabled,omitempty"`
+	GuardrailConfig *GetEval200JSONResponseBody_6_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Metadata        struct {
+		RequiredExpectedOutput        *bool `json:"required_expected_output,omitempty"`
+		RequiredModelWithToolsSupport *bool `json:"required_model_with_tools_support,omitempty"`
+		RequiredRetrievalContext      *bool `json:"required_retrieval_context,omitempty"`
+		SupportUseAsGuardrail         *bool `json:"support_use_as_guardrail,omitempty"`
+		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
+		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
+	} `json:"metadata"`
+
+	// OutputType The type of output expected from the evaluator
+	OutputType  *GetEval200JSONResponseBody6OutputType `json:"output_type,omitempty"`
+	Owner       string                                 `json:"owner"`
+	Type        GetEval200JSONResponseBody6Type        `json:"type"`
+	Updated     *string                                `json:"updated,omitempty"`
+	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+}
+
+// GetEval200JSONResponseBody6GuardrailConfig0 defines parameters for GetEval.
+type GetEval200JSONResponseBody6GuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody6GuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// GetEval200JSONResponseBody6GuardrailConfig0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody6GuardrailConfig0Type string
+
+// GetEval200JSONResponseBody6GuardrailConfig1 defines parameters for GetEval.
+type GetEval200JSONResponseBody6GuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody6GuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// GetEval200JSONResponseBody6GuardrailConfig1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody6GuardrailConfig1Type string
+
+// GetEval200JSONResponseBody6GuardrailConfig2 defines parameters for GetEval.
+type GetEval200JSONResponseBody6GuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       GetEval200JSONResponseBody6GuardrailConfig2Operator `json:"operator"`
+	Type           GetEval200JSONResponseBody6GuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// GetEval200JSONResponseBody6GuardrailConfig2Operator defines parameters for GetEval.
+type GetEval200JSONResponseBody6GuardrailConfig2Operator string
+
+// GetEval200JSONResponseBody6GuardrailConfig2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody6GuardrailConfig2Type string
+
+// GetEval200JSONResponseBody_6_GuardrailConfig defines parameters for GetEval.
+type GetEval200JSONResponseBody_6_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody6OutputType defines parameters for GetEval.
+type GetEval200JSONResponseBody6OutputType string
+
+// GetEval200JSONResponseBody6Type defines parameters for GetEval.
+type GetEval200JSONResponseBody6Type string
+
+// GetEval200JSONResponseBody7 defines parameters for GetEval.
+type GetEval200JSONResponseBody7 struct {
+	UnderscoreId        string                                        `json:"_id"`
+	Created             *string                                       `json:"created,omitempty"`
+	CreatedById         *string                                       `json:"created_by_id,omitempty"`
+	Description         string                                        `json:"description"`
+	DisplayName         string                                        `json:"display_name"`
+	DomainId            string                                        `json:"domain_id"`
+	Enabled             *bool                                         `json:"enabled,omitempty"`
+	GuardrailConfig     *GetEval200JSONResponseBody_7_GuardrailConfig `json:"guardrail_config,omitempty"`
+	GuardrailIdentifier string                                        `json:"guardrail_identifier"`
+	GuardrailRegion     *string                                       `json:"guardrail_region,omitempty"`
+	GuardrailVersion    *string                                       `json:"guardrail_version,omitempty"`
+	IntegrationId       *string                                       `json:"integration_id,omitempty"`
+	Metadata            struct {
+		RequiredExpectedOutput        *bool `json:"required_expected_output,omitempty"`
+		RequiredModelWithToolsSupport *bool `json:"required_model_with_tools_support,omitempty"`
+		RequiredRetrievalContext      *bool `json:"required_retrieval_context,omitempty"`
+		SupportUseAsGuardrail         *bool `json:"support_use_as_guardrail,omitempty"`
+		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
+		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
+	} `json:"metadata"`
+	OutputType  *GetEval200JSONResponseBody7OutputType `json:"output_type,omitempty"`
+	Owner       string                                 `json:"owner"`
+	Type        GetEval200JSONResponseBody7Type        `json:"type"`
+	Updated     *string                                `json:"updated,omitempty"`
+	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+}
+
+// GetEval200JSONResponseBody7GuardrailConfig0 defines parameters for GetEval.
+type GetEval200JSONResponseBody7GuardrailConfig0 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody7GuardrailConfig0Type `json:"type"`
+	Value          bool                                            `json:"value"`
+}
+
+// GetEval200JSONResponseBody7GuardrailConfig0Type defines parameters for GetEval.
+type GetEval200JSONResponseBody7GuardrailConfig0Type string
+
+// GetEval200JSONResponseBody7GuardrailConfig1 defines parameters for GetEval.
+type GetEval200JSONResponseBody7GuardrailConfig1 struct {
+	AlertOnFailure *bool                                           `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                           `json:"enabled,omitempty"`
+	Type           GetEval200JSONResponseBody7GuardrailConfig1Type `json:"type"`
+	Values         []string                                        `json:"values"`
+}
+
+// GetEval200JSONResponseBody7GuardrailConfig1Type defines parameters for GetEval.
+type GetEval200JSONResponseBody7GuardrailConfig1Type string
+
+// GetEval200JSONResponseBody7GuardrailConfig2 defines parameters for GetEval.
+type GetEval200JSONResponseBody7GuardrailConfig2 struct {
+	AlertOnFailure *bool                                               `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                               `json:"enabled,omitempty"`
+	Operator       GetEval200JSONResponseBody7GuardrailConfig2Operator `json:"operator"`
+	Type           GetEval200JSONResponseBody7GuardrailConfig2Type     `json:"type"`
+	Value          float32                                             `json:"value"`
+}
+
+// GetEval200JSONResponseBody7GuardrailConfig2Operator defines parameters for GetEval.
+type GetEval200JSONResponseBody7GuardrailConfig2Operator string
+
+// GetEval200JSONResponseBody7GuardrailConfig2Type defines parameters for GetEval.
+type GetEval200JSONResponseBody7GuardrailConfig2Type string
+
+// GetEval200JSONResponseBody_7_GuardrailConfig defines parameters for GetEval.
+type GetEval200JSONResponseBody_7_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// GetEval200JSONResponseBody7OutputType defines parameters for GetEval.
+type GetEval200JSONResponseBody7OutputType string
+
+// GetEval200JSONResponseBody7Type defines parameters for GetEval.
+type GetEval200JSONResponseBody7Type string
+
+// GetEval200JSONResponseBody defines parameters for GetEval.
+type GetEval200JSONResponseBody struct {
+	union json.RawMessage
+}
+
+// UpdateEvalJSONBody defines parameters for UpdateEval.
+type UpdateEvalJSONBody struct {
+	CategoricalLabels *[]struct {
+		Description *string `json:"description,omitempty"`
+		Value       string  `json:"value"`
+	} `json:"categorical_labels,omitempty"`
+	Categories      *[]string                           `json:"categories,omitempty"`
+	Code            *string                             `json:"code,omitempty"`
+	Description     *string                             `json:"description,omitempty"`
+	GuardrailConfig *UpdateEvalJSONBody_GuardrailConfig `json:"guardrail_config,omitempty"`
+	Headers         *map[string]string                  `json:"headers,omitempty"`
+	Jury            *struct {
+		Judges []struct {
+			Fallbacks *[]struct {
+				Model string `json:"model"`
+			} `json:"fallbacks,omitempty"`
+			Model string `json:"model"`
+			Retry *struct {
+				Count   *int   `json:"count,omitempty"`
+				OnCodes *[]int `json:"on_codes,omitempty"`
+			} `json:"retry,omitempty"`
+		} `json:"judges"`
+		MinSuccessfulJudges *int `json:"min_successful_judges,omitempty"`
+		ReplacementJudges   *[]struct {
+			Fallbacks *[]struct {
+				Model string `json:"model"`
+			} `json:"fallbacks,omitempty"`
+			Model string `json:"model"`
+			Retry *struct {
+				Count   *int   `json:"count,omitempty"`
+				OnCodes *[]int `json:"on_codes,omitempty"`
+			} `json:"retry,omitempty"`
+		} `json:"replacement_judges,omitempty"`
+		TieValue *UpdateEvalJSONBodyJuryTieValue `json:"tie_value,omitempty"`
+	} `json:"jury,omitempty"`
+	Key        *string                 `json:"key,omitempty"`
+	Method     *string                 `json:"method,omitempty"`
+	Mode       *UpdateEvalJSONBodyMode `json:"mode,omitempty"`
+	Model      *string                 `json:"model,omitempty"`
+	OutputType *string                 `json:"output_type,omitempty"`
+
+	// Path Project path. Optional on update — uses existing project if omitted.
+	Path        *string                 `json:"path,omitempty"`
+	Payload     *map[string]interface{} `json:"payload,omitempty"`
+	Prompt      *string                 `json:"prompt,omitempty"`
+	Repetitions *float32                `json:"repetitions,omitempty"`
+	Schema      *string                 `json:"schema,omitempty"`
+
+	// Type Evaluator type. Optional on update — inferred from existing evaluator.
+	Type               *string                             `json:"type,omitempty"`
+	Url                *string                             `json:"url,omitempty"`
+	VersionDescription *string                             `json:"versionDescription,omitempty"`
+	VersionIncrement   *UpdateEvalJSONBodyVersionIncrement `json:"versionIncrement,omitempty"`
+}
+
+// UpdateEvalJSONBodyGuardrailConfig0 defines parameters for UpdateEval.
+type UpdateEvalJSONBodyGuardrailConfig0 struct {
+	AlertOnFailure *bool                                  `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                  `json:"enabled,omitempty"`
+	Type           UpdateEvalJSONBodyGuardrailConfig0Type `json:"type"`
+	Value          bool                                   `json:"value"`
+}
+
+// UpdateEvalJSONBodyGuardrailConfig0Type defines parameters for UpdateEval.
+type UpdateEvalJSONBodyGuardrailConfig0Type string
+
+// UpdateEvalJSONBodyGuardrailConfig1 defines parameters for UpdateEval.
+type UpdateEvalJSONBodyGuardrailConfig1 struct {
+	AlertOnFailure *bool                                  `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                  `json:"enabled,omitempty"`
+	Type           UpdateEvalJSONBodyGuardrailConfig1Type `json:"type"`
+	Values         []string                               `json:"values"`
+}
+
+// UpdateEvalJSONBodyGuardrailConfig1Type defines parameters for UpdateEval.
+type UpdateEvalJSONBodyGuardrailConfig1Type string
+
+// UpdateEvalJSONBodyGuardrailConfig2 defines parameters for UpdateEval.
+type UpdateEvalJSONBodyGuardrailConfig2 struct {
+	AlertOnFailure *bool                                      `json:"alert_on_failure,omitempty"`
+	Enabled        *bool                                      `json:"enabled,omitempty"`
+	Operator       UpdateEvalJSONBodyGuardrailConfig2Operator `json:"operator"`
+	Type           UpdateEvalJSONBodyGuardrailConfig2Type     `json:"type"`
+	Value          float32                                    `json:"value"`
+}
+
+// UpdateEvalJSONBodyGuardrailConfig2Operator defines parameters for UpdateEval.
+type UpdateEvalJSONBodyGuardrailConfig2Operator string
+
+// UpdateEvalJSONBodyGuardrailConfig2Type defines parameters for UpdateEval.
+type UpdateEvalJSONBodyGuardrailConfig2Type string
+
+// UpdateEvalJSONBody_GuardrailConfig defines parameters for UpdateEval.
+type UpdateEvalJSONBody_GuardrailConfig struct {
+	union json.RawMessage
+}
+
+// UpdateEvalJSONBodyJuryTieValue defines parameters for UpdateEval.
+type UpdateEvalJSONBodyJuryTieValue string
+
+// UpdateEvalJSONBodyMode defines parameters for UpdateEval.
+type UpdateEvalJSONBodyMode string
+
+// UpdateEvalJSONBodyVersionIncrement defines parameters for UpdateEval.
+type UpdateEvalJSONBodyVersionIncrement string
+
+// UpdateEval200JSONResponseBody defines parameters for UpdateEval.
+type UpdateEval200JSONResponseBody struct {
+	union json.RawMessage
+}
+
 // GuardrailRuleListParams defines parameters for GuardrailRuleList.
 type GuardrailRuleListParams struct {
 	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
@@ -1051,6 +6331,12 @@ type ModelEnableJSONBody struct {
 	ModelId string `json:"model_id"`
 }
 
+// CreateEvalJSONRequestBody defines body for CreateEval for application/json ContentType.
+type CreateEvalJSONRequestBody CreateEvalJSONBody
+
+// UpdateEvalJSONRequestBody defines body for UpdateEval for application/json ContentType.
+type UpdateEvalJSONRequestBody UpdateEvalJSONBody
+
 // GuardrailRuleCreateJSONRequestBody defines body for GuardrailRuleCreate for application/json ContentType.
 type GuardrailRuleCreateJSONRequestBody GuardrailRuleCreateJSONBody
 
@@ -1110,6 +6396,4266 @@ type RoutingRuleUpdateJSONRequestBody RoutingRuleUpdateJSONBody
 
 // ModelEnableJSONRequestBody defines body for ModelEnable for application/json ContentType.
 type ModelEnableJSONRequestBody ModelEnableJSONBody
+
+// AsEvaluatorResponseFunctionFunctionParams0 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams0
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams0() (EvaluatorResponseFunctionFunctionParams0, error) {
+	var body EvaluatorResponseFunctionFunctionParams0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams0 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams0
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams0(v EvaluatorResponseFunctionFunctionParams0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams0 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams0
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams0(v EvaluatorResponseFunctionFunctionParams0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams1 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams1
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams1() (EvaluatorResponseFunctionFunctionParams1, error) {
+	var body EvaluatorResponseFunctionFunctionParams1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams1 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams1
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams1(v EvaluatorResponseFunctionFunctionParams1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams1 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams1
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams1(v EvaluatorResponseFunctionFunctionParams1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams2 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams2
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams2() (EvaluatorResponseFunctionFunctionParams2, error) {
+	var body EvaluatorResponseFunctionFunctionParams2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams2 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams2
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams2(v EvaluatorResponseFunctionFunctionParams2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams2 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams2
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams2(v EvaluatorResponseFunctionFunctionParams2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams3 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams3
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams3() (EvaluatorResponseFunctionFunctionParams3, error) {
+	var body EvaluatorResponseFunctionFunctionParams3
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams3 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams3
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams3(v EvaluatorResponseFunctionFunctionParams3) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams3 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams3
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams3(v EvaluatorResponseFunctionFunctionParams3) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams4 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams4
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams4() (EvaluatorResponseFunctionFunctionParams4, error) {
+	var body EvaluatorResponseFunctionFunctionParams4
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams4 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams4
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams4(v EvaluatorResponseFunctionFunctionParams4) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams4 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams4
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams4(v EvaluatorResponseFunctionFunctionParams4) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams5 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams5
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams5() (EvaluatorResponseFunctionFunctionParams5, error) {
+	var body EvaluatorResponseFunctionFunctionParams5
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams5 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams5
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams5(v EvaluatorResponseFunctionFunctionParams5) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams5 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams5
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams5(v EvaluatorResponseFunctionFunctionParams5) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams6 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams6
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams6() (EvaluatorResponseFunctionFunctionParams6, error) {
+	var body EvaluatorResponseFunctionFunctionParams6
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams6 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams6
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams6(v EvaluatorResponseFunctionFunctionParams6) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams6 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams6
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams6(v EvaluatorResponseFunctionFunctionParams6) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams7 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams7
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams7() (EvaluatorResponseFunctionFunctionParams7, error) {
+	var body EvaluatorResponseFunctionFunctionParams7
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams7 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams7
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams7(v EvaluatorResponseFunctionFunctionParams7) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams7 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams7
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams7(v EvaluatorResponseFunctionFunctionParams7) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams8 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams8
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams8() (EvaluatorResponseFunctionFunctionParams8, error) {
+	var body EvaluatorResponseFunctionFunctionParams8
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams8 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams8
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams8(v EvaluatorResponseFunctionFunctionParams8) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams8 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams8
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams8(v EvaluatorResponseFunctionFunctionParams8) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams9 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams9
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams9() (EvaluatorResponseFunctionFunctionParams9, error) {
+	var body EvaluatorResponseFunctionFunctionParams9
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams9 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams9
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams9(v EvaluatorResponseFunctionFunctionParams9) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams9 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams9
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams9(v EvaluatorResponseFunctionFunctionParams9) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams10 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams10
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams10() (EvaluatorResponseFunctionFunctionParams10, error) {
+	var body EvaluatorResponseFunctionFunctionParams10
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams10 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams10
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams10(v EvaluatorResponseFunctionFunctionParams10) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams10 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams10
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams10(v EvaluatorResponseFunctionFunctionParams10) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams11 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams11
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams11() (EvaluatorResponseFunctionFunctionParams11, error) {
+	var body EvaluatorResponseFunctionFunctionParams11
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams11 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams11
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams11(v EvaluatorResponseFunctionFunctionParams11) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams11 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams11
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams11(v EvaluatorResponseFunctionFunctionParams11) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams12 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams12
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams12() (EvaluatorResponseFunctionFunctionParams12, error) {
+	var body EvaluatorResponseFunctionFunctionParams12
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams12 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams12
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams12(v EvaluatorResponseFunctionFunctionParams12) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams12 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams12
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams12(v EvaluatorResponseFunctionFunctionParams12) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams13 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams13
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams13() (EvaluatorResponseFunctionFunctionParams13, error) {
+	var body EvaluatorResponseFunctionFunctionParams13
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams13 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams13
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams13(v EvaluatorResponseFunctionFunctionParams13) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams13 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams13
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams13(v EvaluatorResponseFunctionFunctionParams13) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams14 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams14
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams14() (EvaluatorResponseFunctionFunctionParams14, error) {
+	var body EvaluatorResponseFunctionFunctionParams14
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams14 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams14
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams14(v EvaluatorResponseFunctionFunctionParams14) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams14 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams14
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams14(v EvaluatorResponseFunctionFunctionParams14) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams15 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams15
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams15() (EvaluatorResponseFunctionFunctionParams15, error) {
+	var body EvaluatorResponseFunctionFunctionParams15
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams15 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams15
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams15(v EvaluatorResponseFunctionFunctionParams15) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams15 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams15
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams15(v EvaluatorResponseFunctionFunctionParams15) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams16 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams16
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams16() (EvaluatorResponseFunctionFunctionParams16, error) {
+	var body EvaluatorResponseFunctionFunctionParams16
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams16 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams16
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams16(v EvaluatorResponseFunctionFunctionParams16) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams16 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams16
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams16(v EvaluatorResponseFunctionFunctionParams16) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams17 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams17
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams17() (EvaluatorResponseFunctionFunctionParams17, error) {
+	var body EvaluatorResponseFunctionFunctionParams17
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams17 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams17
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams17(v EvaluatorResponseFunctionFunctionParams17) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams17 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams17
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams17(v EvaluatorResponseFunctionFunctionParams17) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams18 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams18
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams18() (EvaluatorResponseFunctionFunctionParams18, error) {
+	var body EvaluatorResponseFunctionFunctionParams18
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams18 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams18
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams18(v EvaluatorResponseFunctionFunctionParams18) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams18 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams18
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams18(v EvaluatorResponseFunctionFunctionParams18) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams19 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams19
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams19() (EvaluatorResponseFunctionFunctionParams19, error) {
+	var body EvaluatorResponseFunctionFunctionParams19
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams19 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams19
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams19(v EvaluatorResponseFunctionFunctionParams19) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams19 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams19
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams19(v EvaluatorResponseFunctionFunctionParams19) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams20 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams20
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams20() (EvaluatorResponseFunctionFunctionParams20, error) {
+	var body EvaluatorResponseFunctionFunctionParams20
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams20 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams20
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams20(v EvaluatorResponseFunctionFunctionParams20) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams20 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams20
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams20(v EvaluatorResponseFunctionFunctionParams20) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams21 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams21
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams21() (EvaluatorResponseFunctionFunctionParams21, error) {
+	var body EvaluatorResponseFunctionFunctionParams21
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams21 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams21
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams21(v EvaluatorResponseFunctionFunctionParams21) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams21 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams21
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams21(v EvaluatorResponseFunctionFunctionParams21) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams22 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams22
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams22() (EvaluatorResponseFunctionFunctionParams22, error) {
+	var body EvaluatorResponseFunctionFunctionParams22
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams22 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams22
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams22(v EvaluatorResponseFunctionFunctionParams22) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams22 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams22
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams22(v EvaluatorResponseFunctionFunctionParams22) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams23 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams23
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams23() (EvaluatorResponseFunctionFunctionParams23, error) {
+	var body EvaluatorResponseFunctionFunctionParams23
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams23 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams23
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams23(v EvaluatorResponseFunctionFunctionParams23) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams23 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams23
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams23(v EvaluatorResponseFunctionFunctionParams23) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams24 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams24
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams24() (EvaluatorResponseFunctionFunctionParams24, error) {
+	var body EvaluatorResponseFunctionFunctionParams24
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams24 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams24
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams24(v EvaluatorResponseFunctionFunctionParams24) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams24 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams24
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams24(v EvaluatorResponseFunctionFunctionParams24) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams25 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams25
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams25() (EvaluatorResponseFunctionFunctionParams25, error) {
+	var body EvaluatorResponseFunctionFunctionParams25
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams25 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams25
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams25(v EvaluatorResponseFunctionFunctionParams25) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams25 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams25
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams25(v EvaluatorResponseFunctionFunctionParams25) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams26 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams26
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams26() (EvaluatorResponseFunctionFunctionParams26, error) {
+	var body EvaluatorResponseFunctionFunctionParams26
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams26 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams26
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams26(v EvaluatorResponseFunctionFunctionParams26) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams26 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams26
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams26(v EvaluatorResponseFunctionFunctionParams26) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams27 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams27
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams27() (EvaluatorResponseFunctionFunctionParams27, error) {
+	var body EvaluatorResponseFunctionFunctionParams27
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams27 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams27
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams27(v EvaluatorResponseFunctionFunctionParams27) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams27 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams27
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams27(v EvaluatorResponseFunctionFunctionParams27) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams28 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams28
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams28() (EvaluatorResponseFunctionFunctionParams28, error) {
+	var body EvaluatorResponseFunctionFunctionParams28
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams28 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams28
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams28(v EvaluatorResponseFunctionFunctionParams28) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams28 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams28
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams28(v EvaluatorResponseFunctionFunctionParams28) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams29 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams29
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams29() (EvaluatorResponseFunctionFunctionParams29, error) {
+	var body EvaluatorResponseFunctionFunctionParams29
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams29 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams29
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams29(v EvaluatorResponseFunctionFunctionParams29) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams29 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams29
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams29(v EvaluatorResponseFunctionFunctionParams29) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams30 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams30
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams30() (EvaluatorResponseFunctionFunctionParams30, error) {
+	var body EvaluatorResponseFunctionFunctionParams30
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams30 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams30
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams30(v EvaluatorResponseFunctionFunctionParams30) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams30 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams30
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams30(v EvaluatorResponseFunctionFunctionParams30) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionFunctionParams31 returns the union data inside the EvaluatorResponseFunction_FunctionParams as a EvaluatorResponseFunctionFunctionParams31
+func (t EvaluatorResponseFunction_FunctionParams) AsEvaluatorResponseFunctionFunctionParams31() (EvaluatorResponseFunctionFunctionParams31, error) {
+	var body EvaluatorResponseFunctionFunctionParams31
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionFunctionParams31 overwrites any union data inside the EvaluatorResponseFunction_FunctionParams as the provided EvaluatorResponseFunctionFunctionParams31
+func (t *EvaluatorResponseFunction_FunctionParams) FromEvaluatorResponseFunctionFunctionParams31(v EvaluatorResponseFunctionFunctionParams31) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionFunctionParams31 performs a merge with any union data inside the EvaluatorResponseFunction_FunctionParams, using the provided EvaluatorResponseFunctionFunctionParams31
+func (t *EvaluatorResponseFunction_FunctionParams) MergeEvaluatorResponseFunctionFunctionParams31(v EvaluatorResponseFunctionFunctionParams31) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EvaluatorResponseFunction_FunctionParams) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EvaluatorResponseFunction_FunctionParams) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsEvaluatorResponseFunctionGuardrailConfig0 returns the union data inside the EvaluatorResponseFunction_GuardrailConfig as a EvaluatorResponseFunctionGuardrailConfig0
+func (t EvaluatorResponseFunction_GuardrailConfig) AsEvaluatorResponseFunctionGuardrailConfig0() (EvaluatorResponseFunctionGuardrailConfig0, error) {
+	var body EvaluatorResponseFunctionGuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionGuardrailConfig0 overwrites any union data inside the EvaluatorResponseFunction_GuardrailConfig as the provided EvaluatorResponseFunctionGuardrailConfig0
+func (t *EvaluatorResponseFunction_GuardrailConfig) FromEvaluatorResponseFunctionGuardrailConfig0(v EvaluatorResponseFunctionGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionGuardrailConfig0 performs a merge with any union data inside the EvaluatorResponseFunction_GuardrailConfig, using the provided EvaluatorResponseFunctionGuardrailConfig0
+func (t *EvaluatorResponseFunction_GuardrailConfig) MergeEvaluatorResponseFunctionGuardrailConfig0(v EvaluatorResponseFunctionGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionGuardrailConfig1 returns the union data inside the EvaluatorResponseFunction_GuardrailConfig as a EvaluatorResponseFunctionGuardrailConfig1
+func (t EvaluatorResponseFunction_GuardrailConfig) AsEvaluatorResponseFunctionGuardrailConfig1() (EvaluatorResponseFunctionGuardrailConfig1, error) {
+	var body EvaluatorResponseFunctionGuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionGuardrailConfig1 overwrites any union data inside the EvaluatorResponseFunction_GuardrailConfig as the provided EvaluatorResponseFunctionGuardrailConfig1
+func (t *EvaluatorResponseFunction_GuardrailConfig) FromEvaluatorResponseFunctionGuardrailConfig1(v EvaluatorResponseFunctionGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionGuardrailConfig1 performs a merge with any union data inside the EvaluatorResponseFunction_GuardrailConfig, using the provided EvaluatorResponseFunctionGuardrailConfig1
+func (t *EvaluatorResponseFunction_GuardrailConfig) MergeEvaluatorResponseFunctionGuardrailConfig1(v EvaluatorResponseFunctionGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunctionGuardrailConfig2 returns the union data inside the EvaluatorResponseFunction_GuardrailConfig as a EvaluatorResponseFunctionGuardrailConfig2
+func (t EvaluatorResponseFunction_GuardrailConfig) AsEvaluatorResponseFunctionGuardrailConfig2() (EvaluatorResponseFunctionGuardrailConfig2, error) {
+	var body EvaluatorResponseFunctionGuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunctionGuardrailConfig2 overwrites any union data inside the EvaluatorResponseFunction_GuardrailConfig as the provided EvaluatorResponseFunctionGuardrailConfig2
+func (t *EvaluatorResponseFunction_GuardrailConfig) FromEvaluatorResponseFunctionGuardrailConfig2(v EvaluatorResponseFunctionGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunctionGuardrailConfig2 performs a merge with any union data inside the EvaluatorResponseFunction_GuardrailConfig, using the provided EvaluatorResponseFunctionGuardrailConfig2
+func (t *EvaluatorResponseFunction_GuardrailConfig) MergeEvaluatorResponseFunctionGuardrailConfig2(v EvaluatorResponseFunctionGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EvaluatorResponseFunction_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EvaluatorResponseFunction_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsEvaluatorResponseHttpGuardrailConfig0 returns the union data inside the EvaluatorResponseHttp_GuardrailConfig as a EvaluatorResponseHttpGuardrailConfig0
+func (t EvaluatorResponseHttp_GuardrailConfig) AsEvaluatorResponseHttpGuardrailConfig0() (EvaluatorResponseHttpGuardrailConfig0, error) {
+	var body EvaluatorResponseHttpGuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseHttpGuardrailConfig0 overwrites any union data inside the EvaluatorResponseHttp_GuardrailConfig as the provided EvaluatorResponseHttpGuardrailConfig0
+func (t *EvaluatorResponseHttp_GuardrailConfig) FromEvaluatorResponseHttpGuardrailConfig0(v EvaluatorResponseHttpGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseHttpGuardrailConfig0 performs a merge with any union data inside the EvaluatorResponseHttp_GuardrailConfig, using the provided EvaluatorResponseHttpGuardrailConfig0
+func (t *EvaluatorResponseHttp_GuardrailConfig) MergeEvaluatorResponseHttpGuardrailConfig0(v EvaluatorResponseHttpGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseHttpGuardrailConfig1 returns the union data inside the EvaluatorResponseHttp_GuardrailConfig as a EvaluatorResponseHttpGuardrailConfig1
+func (t EvaluatorResponseHttp_GuardrailConfig) AsEvaluatorResponseHttpGuardrailConfig1() (EvaluatorResponseHttpGuardrailConfig1, error) {
+	var body EvaluatorResponseHttpGuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseHttpGuardrailConfig1 overwrites any union data inside the EvaluatorResponseHttp_GuardrailConfig as the provided EvaluatorResponseHttpGuardrailConfig1
+func (t *EvaluatorResponseHttp_GuardrailConfig) FromEvaluatorResponseHttpGuardrailConfig1(v EvaluatorResponseHttpGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseHttpGuardrailConfig1 performs a merge with any union data inside the EvaluatorResponseHttp_GuardrailConfig, using the provided EvaluatorResponseHttpGuardrailConfig1
+func (t *EvaluatorResponseHttp_GuardrailConfig) MergeEvaluatorResponseHttpGuardrailConfig1(v EvaluatorResponseHttpGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseHttpGuardrailConfig2 returns the union data inside the EvaluatorResponseHttp_GuardrailConfig as a EvaluatorResponseHttpGuardrailConfig2
+func (t EvaluatorResponseHttp_GuardrailConfig) AsEvaluatorResponseHttpGuardrailConfig2() (EvaluatorResponseHttpGuardrailConfig2, error) {
+	var body EvaluatorResponseHttpGuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseHttpGuardrailConfig2 overwrites any union data inside the EvaluatorResponseHttp_GuardrailConfig as the provided EvaluatorResponseHttpGuardrailConfig2
+func (t *EvaluatorResponseHttp_GuardrailConfig) FromEvaluatorResponseHttpGuardrailConfig2(v EvaluatorResponseHttpGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseHttpGuardrailConfig2 performs a merge with any union data inside the EvaluatorResponseHttp_GuardrailConfig, using the provided EvaluatorResponseHttpGuardrailConfig2
+func (t *EvaluatorResponseHttp_GuardrailConfig) MergeEvaluatorResponseHttpGuardrailConfig2(v EvaluatorResponseHttpGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EvaluatorResponseHttp_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EvaluatorResponseHttp_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsEvaluatorResponseJsonSchemaGuardrailConfig0 returns the union data inside the EvaluatorResponseJsonSchema_GuardrailConfig as a EvaluatorResponseJsonSchemaGuardrailConfig0
+func (t EvaluatorResponseJsonSchema_GuardrailConfig) AsEvaluatorResponseJsonSchemaGuardrailConfig0() (EvaluatorResponseJsonSchemaGuardrailConfig0, error) {
+	var body EvaluatorResponseJsonSchemaGuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseJsonSchemaGuardrailConfig0 overwrites any union data inside the EvaluatorResponseJsonSchema_GuardrailConfig as the provided EvaluatorResponseJsonSchemaGuardrailConfig0
+func (t *EvaluatorResponseJsonSchema_GuardrailConfig) FromEvaluatorResponseJsonSchemaGuardrailConfig0(v EvaluatorResponseJsonSchemaGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseJsonSchemaGuardrailConfig0 performs a merge with any union data inside the EvaluatorResponseJsonSchema_GuardrailConfig, using the provided EvaluatorResponseJsonSchemaGuardrailConfig0
+func (t *EvaluatorResponseJsonSchema_GuardrailConfig) MergeEvaluatorResponseJsonSchemaGuardrailConfig0(v EvaluatorResponseJsonSchemaGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseJsonSchemaGuardrailConfig1 returns the union data inside the EvaluatorResponseJsonSchema_GuardrailConfig as a EvaluatorResponseJsonSchemaGuardrailConfig1
+func (t EvaluatorResponseJsonSchema_GuardrailConfig) AsEvaluatorResponseJsonSchemaGuardrailConfig1() (EvaluatorResponseJsonSchemaGuardrailConfig1, error) {
+	var body EvaluatorResponseJsonSchemaGuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseJsonSchemaGuardrailConfig1 overwrites any union data inside the EvaluatorResponseJsonSchema_GuardrailConfig as the provided EvaluatorResponseJsonSchemaGuardrailConfig1
+func (t *EvaluatorResponseJsonSchema_GuardrailConfig) FromEvaluatorResponseJsonSchemaGuardrailConfig1(v EvaluatorResponseJsonSchemaGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseJsonSchemaGuardrailConfig1 performs a merge with any union data inside the EvaluatorResponseJsonSchema_GuardrailConfig, using the provided EvaluatorResponseJsonSchemaGuardrailConfig1
+func (t *EvaluatorResponseJsonSchema_GuardrailConfig) MergeEvaluatorResponseJsonSchemaGuardrailConfig1(v EvaluatorResponseJsonSchemaGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseJsonSchemaGuardrailConfig2 returns the union data inside the EvaluatorResponseJsonSchema_GuardrailConfig as a EvaluatorResponseJsonSchemaGuardrailConfig2
+func (t EvaluatorResponseJsonSchema_GuardrailConfig) AsEvaluatorResponseJsonSchemaGuardrailConfig2() (EvaluatorResponseJsonSchemaGuardrailConfig2, error) {
+	var body EvaluatorResponseJsonSchemaGuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseJsonSchemaGuardrailConfig2 overwrites any union data inside the EvaluatorResponseJsonSchema_GuardrailConfig as the provided EvaluatorResponseJsonSchemaGuardrailConfig2
+func (t *EvaluatorResponseJsonSchema_GuardrailConfig) FromEvaluatorResponseJsonSchemaGuardrailConfig2(v EvaluatorResponseJsonSchemaGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseJsonSchemaGuardrailConfig2 performs a merge with any union data inside the EvaluatorResponseJsonSchema_GuardrailConfig, using the provided EvaluatorResponseJsonSchemaGuardrailConfig2
+func (t *EvaluatorResponseJsonSchema_GuardrailConfig) MergeEvaluatorResponseJsonSchemaGuardrailConfig2(v EvaluatorResponseJsonSchemaGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EvaluatorResponseJsonSchema_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EvaluatorResponseJsonSchema_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsEvaluatorResponseLlmGuardrailConfig0 returns the union data inside the EvaluatorResponseLlm_GuardrailConfig as a EvaluatorResponseLlmGuardrailConfig0
+func (t EvaluatorResponseLlm_GuardrailConfig) AsEvaluatorResponseLlmGuardrailConfig0() (EvaluatorResponseLlmGuardrailConfig0, error) {
+	var body EvaluatorResponseLlmGuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseLlmGuardrailConfig0 overwrites any union data inside the EvaluatorResponseLlm_GuardrailConfig as the provided EvaluatorResponseLlmGuardrailConfig0
+func (t *EvaluatorResponseLlm_GuardrailConfig) FromEvaluatorResponseLlmGuardrailConfig0(v EvaluatorResponseLlmGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseLlmGuardrailConfig0 performs a merge with any union data inside the EvaluatorResponseLlm_GuardrailConfig, using the provided EvaluatorResponseLlmGuardrailConfig0
+func (t *EvaluatorResponseLlm_GuardrailConfig) MergeEvaluatorResponseLlmGuardrailConfig0(v EvaluatorResponseLlmGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseLlmGuardrailConfig1 returns the union data inside the EvaluatorResponseLlm_GuardrailConfig as a EvaluatorResponseLlmGuardrailConfig1
+func (t EvaluatorResponseLlm_GuardrailConfig) AsEvaluatorResponseLlmGuardrailConfig1() (EvaluatorResponseLlmGuardrailConfig1, error) {
+	var body EvaluatorResponseLlmGuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseLlmGuardrailConfig1 overwrites any union data inside the EvaluatorResponseLlm_GuardrailConfig as the provided EvaluatorResponseLlmGuardrailConfig1
+func (t *EvaluatorResponseLlm_GuardrailConfig) FromEvaluatorResponseLlmGuardrailConfig1(v EvaluatorResponseLlmGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseLlmGuardrailConfig1 performs a merge with any union data inside the EvaluatorResponseLlm_GuardrailConfig, using the provided EvaluatorResponseLlmGuardrailConfig1
+func (t *EvaluatorResponseLlm_GuardrailConfig) MergeEvaluatorResponseLlmGuardrailConfig1(v EvaluatorResponseLlmGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseLlmGuardrailConfig2 returns the union data inside the EvaluatorResponseLlm_GuardrailConfig as a EvaluatorResponseLlmGuardrailConfig2
+func (t EvaluatorResponseLlm_GuardrailConfig) AsEvaluatorResponseLlmGuardrailConfig2() (EvaluatorResponseLlmGuardrailConfig2, error) {
+	var body EvaluatorResponseLlmGuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseLlmGuardrailConfig2 overwrites any union data inside the EvaluatorResponseLlm_GuardrailConfig as the provided EvaluatorResponseLlmGuardrailConfig2
+func (t *EvaluatorResponseLlm_GuardrailConfig) FromEvaluatorResponseLlmGuardrailConfig2(v EvaluatorResponseLlmGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseLlmGuardrailConfig2 performs a merge with any union data inside the EvaluatorResponseLlm_GuardrailConfig, using the provided EvaluatorResponseLlmGuardrailConfig2
+func (t *EvaluatorResponseLlm_GuardrailConfig) MergeEvaluatorResponseLlmGuardrailConfig2(v EvaluatorResponseLlmGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EvaluatorResponseLlm_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EvaluatorResponseLlm_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsEvaluatorResponsePythonGuardrailConfig0 returns the union data inside the EvaluatorResponsePython_GuardrailConfig as a EvaluatorResponsePythonGuardrailConfig0
+func (t EvaluatorResponsePython_GuardrailConfig) AsEvaluatorResponsePythonGuardrailConfig0() (EvaluatorResponsePythonGuardrailConfig0, error) {
+	var body EvaluatorResponsePythonGuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponsePythonGuardrailConfig0 overwrites any union data inside the EvaluatorResponsePython_GuardrailConfig as the provided EvaluatorResponsePythonGuardrailConfig0
+func (t *EvaluatorResponsePython_GuardrailConfig) FromEvaluatorResponsePythonGuardrailConfig0(v EvaluatorResponsePythonGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponsePythonGuardrailConfig0 performs a merge with any union data inside the EvaluatorResponsePython_GuardrailConfig, using the provided EvaluatorResponsePythonGuardrailConfig0
+func (t *EvaluatorResponsePython_GuardrailConfig) MergeEvaluatorResponsePythonGuardrailConfig0(v EvaluatorResponsePythonGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponsePythonGuardrailConfig1 returns the union data inside the EvaluatorResponsePython_GuardrailConfig as a EvaluatorResponsePythonGuardrailConfig1
+func (t EvaluatorResponsePython_GuardrailConfig) AsEvaluatorResponsePythonGuardrailConfig1() (EvaluatorResponsePythonGuardrailConfig1, error) {
+	var body EvaluatorResponsePythonGuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponsePythonGuardrailConfig1 overwrites any union data inside the EvaluatorResponsePython_GuardrailConfig as the provided EvaluatorResponsePythonGuardrailConfig1
+func (t *EvaluatorResponsePython_GuardrailConfig) FromEvaluatorResponsePythonGuardrailConfig1(v EvaluatorResponsePythonGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponsePythonGuardrailConfig1 performs a merge with any union data inside the EvaluatorResponsePython_GuardrailConfig, using the provided EvaluatorResponsePythonGuardrailConfig1
+func (t *EvaluatorResponsePython_GuardrailConfig) MergeEvaluatorResponsePythonGuardrailConfig1(v EvaluatorResponsePythonGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponsePythonGuardrailConfig2 returns the union data inside the EvaluatorResponsePython_GuardrailConfig as a EvaluatorResponsePythonGuardrailConfig2
+func (t EvaluatorResponsePython_GuardrailConfig) AsEvaluatorResponsePythonGuardrailConfig2() (EvaluatorResponsePythonGuardrailConfig2, error) {
+	var body EvaluatorResponsePythonGuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponsePythonGuardrailConfig2 overwrites any union data inside the EvaluatorResponsePython_GuardrailConfig as the provided EvaluatorResponsePythonGuardrailConfig2
+func (t *EvaluatorResponsePython_GuardrailConfig) FromEvaluatorResponsePythonGuardrailConfig2(v EvaluatorResponsePythonGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponsePythonGuardrailConfig2 performs a merge with any union data inside the EvaluatorResponsePython_GuardrailConfig, using the provided EvaluatorResponsePythonGuardrailConfig2
+func (t *EvaluatorResponsePython_GuardrailConfig) MergeEvaluatorResponsePythonGuardrailConfig2(v EvaluatorResponsePythonGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EvaluatorResponsePython_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EvaluatorResponsePython_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsEvaluatorResponseRagasGuardrailConfig0 returns the union data inside the EvaluatorResponseRagas_GuardrailConfig as a EvaluatorResponseRagasGuardrailConfig0
+func (t EvaluatorResponseRagas_GuardrailConfig) AsEvaluatorResponseRagasGuardrailConfig0() (EvaluatorResponseRagasGuardrailConfig0, error) {
+	var body EvaluatorResponseRagasGuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseRagasGuardrailConfig0 overwrites any union data inside the EvaluatorResponseRagas_GuardrailConfig as the provided EvaluatorResponseRagasGuardrailConfig0
+func (t *EvaluatorResponseRagas_GuardrailConfig) FromEvaluatorResponseRagasGuardrailConfig0(v EvaluatorResponseRagasGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseRagasGuardrailConfig0 performs a merge with any union data inside the EvaluatorResponseRagas_GuardrailConfig, using the provided EvaluatorResponseRagasGuardrailConfig0
+func (t *EvaluatorResponseRagas_GuardrailConfig) MergeEvaluatorResponseRagasGuardrailConfig0(v EvaluatorResponseRagasGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseRagasGuardrailConfig1 returns the union data inside the EvaluatorResponseRagas_GuardrailConfig as a EvaluatorResponseRagasGuardrailConfig1
+func (t EvaluatorResponseRagas_GuardrailConfig) AsEvaluatorResponseRagasGuardrailConfig1() (EvaluatorResponseRagasGuardrailConfig1, error) {
+	var body EvaluatorResponseRagasGuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseRagasGuardrailConfig1 overwrites any union data inside the EvaluatorResponseRagas_GuardrailConfig as the provided EvaluatorResponseRagasGuardrailConfig1
+func (t *EvaluatorResponseRagas_GuardrailConfig) FromEvaluatorResponseRagasGuardrailConfig1(v EvaluatorResponseRagasGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseRagasGuardrailConfig1 performs a merge with any union data inside the EvaluatorResponseRagas_GuardrailConfig, using the provided EvaluatorResponseRagasGuardrailConfig1
+func (t *EvaluatorResponseRagas_GuardrailConfig) MergeEvaluatorResponseRagasGuardrailConfig1(v EvaluatorResponseRagasGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseRagasGuardrailConfig2 returns the union data inside the EvaluatorResponseRagas_GuardrailConfig as a EvaluatorResponseRagasGuardrailConfig2
+func (t EvaluatorResponseRagas_GuardrailConfig) AsEvaluatorResponseRagasGuardrailConfig2() (EvaluatorResponseRagasGuardrailConfig2, error) {
+	var body EvaluatorResponseRagasGuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseRagasGuardrailConfig2 overwrites any union data inside the EvaluatorResponseRagas_GuardrailConfig as the provided EvaluatorResponseRagasGuardrailConfig2
+func (t *EvaluatorResponseRagas_GuardrailConfig) FromEvaluatorResponseRagasGuardrailConfig2(v EvaluatorResponseRagasGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseRagasGuardrailConfig2 performs a merge with any union data inside the EvaluatorResponseRagas_GuardrailConfig, using the provided EvaluatorResponseRagasGuardrailConfig2
+func (t *EvaluatorResponseRagas_GuardrailConfig) MergeEvaluatorResponseRagasGuardrailConfig2(v EvaluatorResponseRagasGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EvaluatorResponseRagas_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EvaluatorResponseRagas_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsEvaluatorResponseTypescriptGuardrailConfig0 returns the union data inside the EvaluatorResponseTypescript_GuardrailConfig as a EvaluatorResponseTypescriptGuardrailConfig0
+func (t EvaluatorResponseTypescript_GuardrailConfig) AsEvaluatorResponseTypescriptGuardrailConfig0() (EvaluatorResponseTypescriptGuardrailConfig0, error) {
+	var body EvaluatorResponseTypescriptGuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseTypescriptGuardrailConfig0 overwrites any union data inside the EvaluatorResponseTypescript_GuardrailConfig as the provided EvaluatorResponseTypescriptGuardrailConfig0
+func (t *EvaluatorResponseTypescript_GuardrailConfig) FromEvaluatorResponseTypescriptGuardrailConfig0(v EvaluatorResponseTypescriptGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseTypescriptGuardrailConfig0 performs a merge with any union data inside the EvaluatorResponseTypescript_GuardrailConfig, using the provided EvaluatorResponseTypescriptGuardrailConfig0
+func (t *EvaluatorResponseTypescript_GuardrailConfig) MergeEvaluatorResponseTypescriptGuardrailConfig0(v EvaluatorResponseTypescriptGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseTypescriptGuardrailConfig1 returns the union data inside the EvaluatorResponseTypescript_GuardrailConfig as a EvaluatorResponseTypescriptGuardrailConfig1
+func (t EvaluatorResponseTypescript_GuardrailConfig) AsEvaluatorResponseTypescriptGuardrailConfig1() (EvaluatorResponseTypescriptGuardrailConfig1, error) {
+	var body EvaluatorResponseTypescriptGuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseTypescriptGuardrailConfig1 overwrites any union data inside the EvaluatorResponseTypescript_GuardrailConfig as the provided EvaluatorResponseTypescriptGuardrailConfig1
+func (t *EvaluatorResponseTypescript_GuardrailConfig) FromEvaluatorResponseTypescriptGuardrailConfig1(v EvaluatorResponseTypescriptGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseTypescriptGuardrailConfig1 performs a merge with any union data inside the EvaluatorResponseTypescript_GuardrailConfig, using the provided EvaluatorResponseTypescriptGuardrailConfig1
+func (t *EvaluatorResponseTypescript_GuardrailConfig) MergeEvaluatorResponseTypescriptGuardrailConfig1(v EvaluatorResponseTypescriptGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseTypescriptGuardrailConfig2 returns the union data inside the EvaluatorResponseTypescript_GuardrailConfig as a EvaluatorResponseTypescriptGuardrailConfig2
+func (t EvaluatorResponseTypescript_GuardrailConfig) AsEvaluatorResponseTypescriptGuardrailConfig2() (EvaluatorResponseTypescriptGuardrailConfig2, error) {
+	var body EvaluatorResponseTypescriptGuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseTypescriptGuardrailConfig2 overwrites any union data inside the EvaluatorResponseTypescript_GuardrailConfig as the provided EvaluatorResponseTypescriptGuardrailConfig2
+func (t *EvaluatorResponseTypescript_GuardrailConfig) FromEvaluatorResponseTypescriptGuardrailConfig2(v EvaluatorResponseTypescriptGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseTypescriptGuardrailConfig2 performs a merge with any union data inside the EvaluatorResponseTypescript_GuardrailConfig, using the provided EvaluatorResponseTypescriptGuardrailConfig2
+func (t *EvaluatorResponseTypescript_GuardrailConfig) MergeEvaluatorResponseTypescriptGuardrailConfig2(v EvaluatorResponseTypescriptGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EvaluatorResponseTypescript_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EvaluatorResponseTypescript_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsCreateEvalJSONBody0 returns the union data inside the CreateEvalJSONBody as a CreateEvalJSONBody0
+func (t CreateEvalJSONBody) AsCreateEvalJSONBody0() (CreateEvalJSONBody0, error) {
+	var body CreateEvalJSONBody0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody0 overwrites any union data inside the CreateEvalJSONBody as the provided CreateEvalJSONBody0
+func (t *CreateEvalJSONBody) FromCreateEvalJSONBody0(v CreateEvalJSONBody0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody0 performs a merge with any union data inside the CreateEvalJSONBody, using the provided CreateEvalJSONBody0
+func (t *CreateEvalJSONBody) MergeCreateEvalJSONBody0(v CreateEvalJSONBody0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCreateEvalJSONBody1 returns the union data inside the CreateEvalJSONBody as a CreateEvalJSONBody1
+func (t CreateEvalJSONBody) AsCreateEvalJSONBody1() (CreateEvalJSONBody1, error) {
+	var body CreateEvalJSONBody1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody1 overwrites any union data inside the CreateEvalJSONBody as the provided CreateEvalJSONBody1
+func (t *CreateEvalJSONBody) FromCreateEvalJSONBody1(v CreateEvalJSONBody1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody1 performs a merge with any union data inside the CreateEvalJSONBody, using the provided CreateEvalJSONBody1
+func (t *CreateEvalJSONBody) MergeCreateEvalJSONBody1(v CreateEvalJSONBody1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t CreateEvalJSONBody) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *CreateEvalJSONBody) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsCreateEvalJSONBody00 returns the union data inside the CreateEvalJSONBody0 as a CreateEvalJSONBody00
+func (t CreateEvalJSONBody0) AsCreateEvalJSONBody00() (CreateEvalJSONBody00, error) {
+	var body CreateEvalJSONBody00
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody00 overwrites any union data inside the CreateEvalJSONBody0 as the provided CreateEvalJSONBody00
+func (t *CreateEvalJSONBody0) FromCreateEvalJSONBody00(v CreateEvalJSONBody00) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody00 performs a merge with any union data inside the CreateEvalJSONBody0, using the provided CreateEvalJSONBody00
+func (t *CreateEvalJSONBody0) MergeCreateEvalJSONBody00(v CreateEvalJSONBody00) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCreateEvalJSONBody01 returns the union data inside the CreateEvalJSONBody0 as a CreateEvalJSONBody01
+func (t CreateEvalJSONBody0) AsCreateEvalJSONBody01() (CreateEvalJSONBody01, error) {
+	var body CreateEvalJSONBody01
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody01 overwrites any union data inside the CreateEvalJSONBody0 as the provided CreateEvalJSONBody01
+func (t *CreateEvalJSONBody0) FromCreateEvalJSONBody01(v CreateEvalJSONBody01) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody01 performs a merge with any union data inside the CreateEvalJSONBody0, using the provided CreateEvalJSONBody01
+func (t *CreateEvalJSONBody0) MergeCreateEvalJSONBody01(v CreateEvalJSONBody01) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t CreateEvalJSONBody0) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *CreateEvalJSONBody0) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsCreateEvalJSONBody00GuardrailConfig0 returns the union data inside the CreateEvalJSONBody_0_0_GuardrailConfig as a CreateEvalJSONBody00GuardrailConfig0
+func (t CreateEvalJSONBody_0_0_GuardrailConfig) AsCreateEvalJSONBody00GuardrailConfig0() (CreateEvalJSONBody00GuardrailConfig0, error) {
+	var body CreateEvalJSONBody00GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody00GuardrailConfig0 overwrites any union data inside the CreateEvalJSONBody_0_0_GuardrailConfig as the provided CreateEvalJSONBody00GuardrailConfig0
+func (t *CreateEvalJSONBody_0_0_GuardrailConfig) FromCreateEvalJSONBody00GuardrailConfig0(v CreateEvalJSONBody00GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody00GuardrailConfig0 performs a merge with any union data inside the CreateEvalJSONBody_0_0_GuardrailConfig, using the provided CreateEvalJSONBody00GuardrailConfig0
+func (t *CreateEvalJSONBody_0_0_GuardrailConfig) MergeCreateEvalJSONBody00GuardrailConfig0(v CreateEvalJSONBody00GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCreateEvalJSONBody00GuardrailConfig1 returns the union data inside the CreateEvalJSONBody_0_0_GuardrailConfig as a CreateEvalJSONBody00GuardrailConfig1
+func (t CreateEvalJSONBody_0_0_GuardrailConfig) AsCreateEvalJSONBody00GuardrailConfig1() (CreateEvalJSONBody00GuardrailConfig1, error) {
+	var body CreateEvalJSONBody00GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody00GuardrailConfig1 overwrites any union data inside the CreateEvalJSONBody_0_0_GuardrailConfig as the provided CreateEvalJSONBody00GuardrailConfig1
+func (t *CreateEvalJSONBody_0_0_GuardrailConfig) FromCreateEvalJSONBody00GuardrailConfig1(v CreateEvalJSONBody00GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody00GuardrailConfig1 performs a merge with any union data inside the CreateEvalJSONBody_0_0_GuardrailConfig, using the provided CreateEvalJSONBody00GuardrailConfig1
+func (t *CreateEvalJSONBody_0_0_GuardrailConfig) MergeCreateEvalJSONBody00GuardrailConfig1(v CreateEvalJSONBody00GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCreateEvalJSONBody00GuardrailConfig2 returns the union data inside the CreateEvalJSONBody_0_0_GuardrailConfig as a CreateEvalJSONBody00GuardrailConfig2
+func (t CreateEvalJSONBody_0_0_GuardrailConfig) AsCreateEvalJSONBody00GuardrailConfig2() (CreateEvalJSONBody00GuardrailConfig2, error) {
+	var body CreateEvalJSONBody00GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody00GuardrailConfig2 overwrites any union data inside the CreateEvalJSONBody_0_0_GuardrailConfig as the provided CreateEvalJSONBody00GuardrailConfig2
+func (t *CreateEvalJSONBody_0_0_GuardrailConfig) FromCreateEvalJSONBody00GuardrailConfig2(v CreateEvalJSONBody00GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody00GuardrailConfig2 performs a merge with any union data inside the CreateEvalJSONBody_0_0_GuardrailConfig, using the provided CreateEvalJSONBody00GuardrailConfig2
+func (t *CreateEvalJSONBody_0_0_GuardrailConfig) MergeCreateEvalJSONBody00GuardrailConfig2(v CreateEvalJSONBody00GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t CreateEvalJSONBody_0_0_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *CreateEvalJSONBody_0_0_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsCreateEvalJSONBody01GuardrailConfig0 returns the union data inside the CreateEvalJSONBody_0_1_GuardrailConfig as a CreateEvalJSONBody01GuardrailConfig0
+func (t CreateEvalJSONBody_0_1_GuardrailConfig) AsCreateEvalJSONBody01GuardrailConfig0() (CreateEvalJSONBody01GuardrailConfig0, error) {
+	var body CreateEvalJSONBody01GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody01GuardrailConfig0 overwrites any union data inside the CreateEvalJSONBody_0_1_GuardrailConfig as the provided CreateEvalJSONBody01GuardrailConfig0
+func (t *CreateEvalJSONBody_0_1_GuardrailConfig) FromCreateEvalJSONBody01GuardrailConfig0(v CreateEvalJSONBody01GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody01GuardrailConfig0 performs a merge with any union data inside the CreateEvalJSONBody_0_1_GuardrailConfig, using the provided CreateEvalJSONBody01GuardrailConfig0
+func (t *CreateEvalJSONBody_0_1_GuardrailConfig) MergeCreateEvalJSONBody01GuardrailConfig0(v CreateEvalJSONBody01GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCreateEvalJSONBody01GuardrailConfig1 returns the union data inside the CreateEvalJSONBody_0_1_GuardrailConfig as a CreateEvalJSONBody01GuardrailConfig1
+func (t CreateEvalJSONBody_0_1_GuardrailConfig) AsCreateEvalJSONBody01GuardrailConfig1() (CreateEvalJSONBody01GuardrailConfig1, error) {
+	var body CreateEvalJSONBody01GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody01GuardrailConfig1 overwrites any union data inside the CreateEvalJSONBody_0_1_GuardrailConfig as the provided CreateEvalJSONBody01GuardrailConfig1
+func (t *CreateEvalJSONBody_0_1_GuardrailConfig) FromCreateEvalJSONBody01GuardrailConfig1(v CreateEvalJSONBody01GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody01GuardrailConfig1 performs a merge with any union data inside the CreateEvalJSONBody_0_1_GuardrailConfig, using the provided CreateEvalJSONBody01GuardrailConfig1
+func (t *CreateEvalJSONBody_0_1_GuardrailConfig) MergeCreateEvalJSONBody01GuardrailConfig1(v CreateEvalJSONBody01GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCreateEvalJSONBody01GuardrailConfig2 returns the union data inside the CreateEvalJSONBody_0_1_GuardrailConfig as a CreateEvalJSONBody01GuardrailConfig2
+func (t CreateEvalJSONBody_0_1_GuardrailConfig) AsCreateEvalJSONBody01GuardrailConfig2() (CreateEvalJSONBody01GuardrailConfig2, error) {
+	var body CreateEvalJSONBody01GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody01GuardrailConfig2 overwrites any union data inside the CreateEvalJSONBody_0_1_GuardrailConfig as the provided CreateEvalJSONBody01GuardrailConfig2
+func (t *CreateEvalJSONBody_0_1_GuardrailConfig) FromCreateEvalJSONBody01GuardrailConfig2(v CreateEvalJSONBody01GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody01GuardrailConfig2 performs a merge with any union data inside the CreateEvalJSONBody_0_1_GuardrailConfig, using the provided CreateEvalJSONBody01GuardrailConfig2
+func (t *CreateEvalJSONBody_0_1_GuardrailConfig) MergeCreateEvalJSONBody01GuardrailConfig2(v CreateEvalJSONBody01GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t CreateEvalJSONBody_0_1_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *CreateEvalJSONBody_0_1_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsCreateEvalJSONBody1GuardrailConfig0 returns the union data inside the CreateEvalJSONBody_1_GuardrailConfig as a CreateEvalJSONBody1GuardrailConfig0
+func (t CreateEvalJSONBody_1_GuardrailConfig) AsCreateEvalJSONBody1GuardrailConfig0() (CreateEvalJSONBody1GuardrailConfig0, error) {
+	var body CreateEvalJSONBody1GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody1GuardrailConfig0 overwrites any union data inside the CreateEvalJSONBody_1_GuardrailConfig as the provided CreateEvalJSONBody1GuardrailConfig0
+func (t *CreateEvalJSONBody_1_GuardrailConfig) FromCreateEvalJSONBody1GuardrailConfig0(v CreateEvalJSONBody1GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody1GuardrailConfig0 performs a merge with any union data inside the CreateEvalJSONBody_1_GuardrailConfig, using the provided CreateEvalJSONBody1GuardrailConfig0
+func (t *CreateEvalJSONBody_1_GuardrailConfig) MergeCreateEvalJSONBody1GuardrailConfig0(v CreateEvalJSONBody1GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCreateEvalJSONBody1GuardrailConfig1 returns the union data inside the CreateEvalJSONBody_1_GuardrailConfig as a CreateEvalJSONBody1GuardrailConfig1
+func (t CreateEvalJSONBody_1_GuardrailConfig) AsCreateEvalJSONBody1GuardrailConfig1() (CreateEvalJSONBody1GuardrailConfig1, error) {
+	var body CreateEvalJSONBody1GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody1GuardrailConfig1 overwrites any union data inside the CreateEvalJSONBody_1_GuardrailConfig as the provided CreateEvalJSONBody1GuardrailConfig1
+func (t *CreateEvalJSONBody_1_GuardrailConfig) FromCreateEvalJSONBody1GuardrailConfig1(v CreateEvalJSONBody1GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody1GuardrailConfig1 performs a merge with any union data inside the CreateEvalJSONBody_1_GuardrailConfig, using the provided CreateEvalJSONBody1GuardrailConfig1
+func (t *CreateEvalJSONBody_1_GuardrailConfig) MergeCreateEvalJSONBody1GuardrailConfig1(v CreateEvalJSONBody1GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCreateEvalJSONBody1GuardrailConfig2 returns the union data inside the CreateEvalJSONBody_1_GuardrailConfig as a CreateEvalJSONBody1GuardrailConfig2
+func (t CreateEvalJSONBody_1_GuardrailConfig) AsCreateEvalJSONBody1GuardrailConfig2() (CreateEvalJSONBody1GuardrailConfig2, error) {
+	var body CreateEvalJSONBody1GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateEvalJSONBody1GuardrailConfig2 overwrites any union data inside the CreateEvalJSONBody_1_GuardrailConfig as the provided CreateEvalJSONBody1GuardrailConfig2
+func (t *CreateEvalJSONBody_1_GuardrailConfig) FromCreateEvalJSONBody1GuardrailConfig2(v CreateEvalJSONBody1GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateEvalJSONBody1GuardrailConfig2 performs a merge with any union data inside the CreateEvalJSONBody_1_GuardrailConfig, using the provided CreateEvalJSONBody1GuardrailConfig2
+func (t *CreateEvalJSONBody_1_GuardrailConfig) MergeCreateEvalJSONBody1GuardrailConfig2(v CreateEvalJSONBody1GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t CreateEvalJSONBody_1_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *CreateEvalJSONBody_1_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsEvaluatorResponseLlm returns the union data inside the CreateEval200JSONResponseBody as a EvaluatorResponseLlm
+func (t CreateEval200JSONResponseBody) AsEvaluatorResponseLlm() (EvaluatorResponseLlm, error) {
+	var body EvaluatorResponseLlm
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseLlm overwrites any union data inside the CreateEval200JSONResponseBody as the provided EvaluatorResponseLlm
+func (t *CreateEval200JSONResponseBody) FromEvaluatorResponseLlm(v EvaluatorResponseLlm) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"llm_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseLlm performs a merge with any union data inside the CreateEval200JSONResponseBody, using the provided EvaluatorResponseLlm
+func (t *CreateEval200JSONResponseBody) MergeEvaluatorResponseLlm(v EvaluatorResponseLlm) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"llm_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseJsonSchema returns the union data inside the CreateEval200JSONResponseBody as a EvaluatorResponseJsonSchema
+func (t CreateEval200JSONResponseBody) AsEvaluatorResponseJsonSchema() (EvaluatorResponseJsonSchema, error) {
+	var body EvaluatorResponseJsonSchema
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseJsonSchema overwrites any union data inside the CreateEval200JSONResponseBody as the provided EvaluatorResponseJsonSchema
+func (t *CreateEval200JSONResponseBody) FromEvaluatorResponseJsonSchema(v EvaluatorResponseJsonSchema) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"json_schema"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseJsonSchema performs a merge with any union data inside the CreateEval200JSONResponseBody, using the provided EvaluatorResponseJsonSchema
+func (t *CreateEval200JSONResponseBody) MergeEvaluatorResponseJsonSchema(v EvaluatorResponseJsonSchema) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"json_schema"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseHttp returns the union data inside the CreateEval200JSONResponseBody as a EvaluatorResponseHttp
+func (t CreateEval200JSONResponseBody) AsEvaluatorResponseHttp() (EvaluatorResponseHttp, error) {
+	var body EvaluatorResponseHttp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseHttp overwrites any union data inside the CreateEval200JSONResponseBody as the provided EvaluatorResponseHttp
+func (t *CreateEval200JSONResponseBody) FromEvaluatorResponseHttp(v EvaluatorResponseHttp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"http_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseHttp performs a merge with any union data inside the CreateEval200JSONResponseBody, using the provided EvaluatorResponseHttp
+func (t *CreateEval200JSONResponseBody) MergeEvaluatorResponseHttp(v EvaluatorResponseHttp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"http_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponsePython returns the union data inside the CreateEval200JSONResponseBody as a EvaluatorResponsePython
+func (t CreateEval200JSONResponseBody) AsEvaluatorResponsePython() (EvaluatorResponsePython, error) {
+	var body EvaluatorResponsePython
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponsePython overwrites any union data inside the CreateEval200JSONResponseBody as the provided EvaluatorResponsePython
+func (t *CreateEval200JSONResponseBody) FromEvaluatorResponsePython(v EvaluatorResponsePython) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"python_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponsePython performs a merge with any union data inside the CreateEval200JSONResponseBody, using the provided EvaluatorResponsePython
+func (t *CreateEval200JSONResponseBody) MergeEvaluatorResponsePython(v EvaluatorResponsePython) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"python_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunction returns the union data inside the CreateEval200JSONResponseBody as a EvaluatorResponseFunction
+func (t CreateEval200JSONResponseBody) AsEvaluatorResponseFunction() (EvaluatorResponseFunction, error) {
+	var body EvaluatorResponseFunction
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunction overwrites any union data inside the CreateEval200JSONResponseBody as the provided EvaluatorResponseFunction
+func (t *CreateEval200JSONResponseBody) FromEvaluatorResponseFunction(v EvaluatorResponseFunction) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"function_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunction performs a merge with any union data inside the CreateEval200JSONResponseBody, using the provided EvaluatorResponseFunction
+func (t *CreateEval200JSONResponseBody) MergeEvaluatorResponseFunction(v EvaluatorResponseFunction) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"function_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseRagas returns the union data inside the CreateEval200JSONResponseBody as a EvaluatorResponseRagas
+func (t CreateEval200JSONResponseBody) AsEvaluatorResponseRagas() (EvaluatorResponseRagas, error) {
+	var body EvaluatorResponseRagas
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseRagas overwrites any union data inside the CreateEval200JSONResponseBody as the provided EvaluatorResponseRagas
+func (t *CreateEval200JSONResponseBody) FromEvaluatorResponseRagas(v EvaluatorResponseRagas) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"ragas"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseRagas performs a merge with any union data inside the CreateEval200JSONResponseBody, using the provided EvaluatorResponseRagas
+func (t *CreateEval200JSONResponseBody) MergeEvaluatorResponseRagas(v EvaluatorResponseRagas) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"ragas"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseTypescript returns the union data inside the CreateEval200JSONResponseBody as a EvaluatorResponseTypescript
+func (t CreateEval200JSONResponseBody) AsEvaluatorResponseTypescript() (EvaluatorResponseTypescript, error) {
+	var body EvaluatorResponseTypescript
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseTypescript overwrites any union data inside the CreateEval200JSONResponseBody as the provided EvaluatorResponseTypescript
+func (t *CreateEval200JSONResponseBody) FromEvaluatorResponseTypescript(v EvaluatorResponseTypescript) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"typescript_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseTypescript performs a merge with any union data inside the CreateEval200JSONResponseBody, using the provided EvaluatorResponseTypescript
+func (t *CreateEval200JSONResponseBody) MergeEvaluatorResponseTypescript(v EvaluatorResponseTypescript) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"typescript_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t CreateEval200JSONResponseBody) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"type"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t CreateEval200JSONResponseBody) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "function_eval":
+		return t.AsEvaluatorResponseFunction()
+	case "http_eval":
+		return t.AsEvaluatorResponseHttp()
+	case "json_schema":
+		return t.AsEvaluatorResponseJsonSchema()
+	case "llm_eval":
+		return t.AsEvaluatorResponseLlm()
+	case "python_eval":
+		return t.AsEvaluatorResponsePython()
+	case "ragas":
+		return t.AsEvaluatorResponseRagas()
+	case "typescript_eval":
+		return t.AsEvaluatorResponseTypescript()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t CreateEval200JSONResponseBody) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *CreateEval200JSONResponseBody) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody0GuardrailConfig0 returns the union data inside the GetEval200JSONResponseBody_0_GuardrailConfig as a GetEval200JSONResponseBody0GuardrailConfig0
+func (t GetEval200JSONResponseBody_0_GuardrailConfig) AsGetEval200JSONResponseBody0GuardrailConfig0() (GetEval200JSONResponseBody0GuardrailConfig0, error) {
+	var body GetEval200JSONResponseBody0GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody0GuardrailConfig0 overwrites any union data inside the GetEval200JSONResponseBody_0_GuardrailConfig as the provided GetEval200JSONResponseBody0GuardrailConfig0
+func (t *GetEval200JSONResponseBody_0_GuardrailConfig) FromGetEval200JSONResponseBody0GuardrailConfig0(v GetEval200JSONResponseBody0GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody0GuardrailConfig0 performs a merge with any union data inside the GetEval200JSONResponseBody_0_GuardrailConfig, using the provided GetEval200JSONResponseBody0GuardrailConfig0
+func (t *GetEval200JSONResponseBody_0_GuardrailConfig) MergeGetEval200JSONResponseBody0GuardrailConfig0(v GetEval200JSONResponseBody0GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody0GuardrailConfig1 returns the union data inside the GetEval200JSONResponseBody_0_GuardrailConfig as a GetEval200JSONResponseBody0GuardrailConfig1
+func (t GetEval200JSONResponseBody_0_GuardrailConfig) AsGetEval200JSONResponseBody0GuardrailConfig1() (GetEval200JSONResponseBody0GuardrailConfig1, error) {
+	var body GetEval200JSONResponseBody0GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody0GuardrailConfig1 overwrites any union data inside the GetEval200JSONResponseBody_0_GuardrailConfig as the provided GetEval200JSONResponseBody0GuardrailConfig1
+func (t *GetEval200JSONResponseBody_0_GuardrailConfig) FromGetEval200JSONResponseBody0GuardrailConfig1(v GetEval200JSONResponseBody0GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody0GuardrailConfig1 performs a merge with any union data inside the GetEval200JSONResponseBody_0_GuardrailConfig, using the provided GetEval200JSONResponseBody0GuardrailConfig1
+func (t *GetEval200JSONResponseBody_0_GuardrailConfig) MergeGetEval200JSONResponseBody0GuardrailConfig1(v GetEval200JSONResponseBody0GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody0GuardrailConfig2 returns the union data inside the GetEval200JSONResponseBody_0_GuardrailConfig as a GetEval200JSONResponseBody0GuardrailConfig2
+func (t GetEval200JSONResponseBody_0_GuardrailConfig) AsGetEval200JSONResponseBody0GuardrailConfig2() (GetEval200JSONResponseBody0GuardrailConfig2, error) {
+	var body GetEval200JSONResponseBody0GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody0GuardrailConfig2 overwrites any union data inside the GetEval200JSONResponseBody_0_GuardrailConfig as the provided GetEval200JSONResponseBody0GuardrailConfig2
+func (t *GetEval200JSONResponseBody_0_GuardrailConfig) FromGetEval200JSONResponseBody0GuardrailConfig2(v GetEval200JSONResponseBody0GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody0GuardrailConfig2 performs a merge with any union data inside the GetEval200JSONResponseBody_0_GuardrailConfig, using the provided GetEval200JSONResponseBody0GuardrailConfig2
+func (t *GetEval200JSONResponseBody_0_GuardrailConfig) MergeGetEval200JSONResponseBody0GuardrailConfig2(v GetEval200JSONResponseBody0GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody_0_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody_0_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams0 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams0
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams0() (GetEval200JSONResponseBody1FunctionParams0, error) {
+	var body GetEval200JSONResponseBody1FunctionParams0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams0 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams0
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams0(v GetEval200JSONResponseBody1FunctionParams0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams0 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams0
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams0(v GetEval200JSONResponseBody1FunctionParams0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams1 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams1
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams1() (GetEval200JSONResponseBody1FunctionParams1, error) {
+	var body GetEval200JSONResponseBody1FunctionParams1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams1 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams1
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams1(v GetEval200JSONResponseBody1FunctionParams1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams1 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams1
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams1(v GetEval200JSONResponseBody1FunctionParams1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams2 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams2
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams2() (GetEval200JSONResponseBody1FunctionParams2, error) {
+	var body GetEval200JSONResponseBody1FunctionParams2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams2 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams2
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams2(v GetEval200JSONResponseBody1FunctionParams2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams2 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams2
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams2(v GetEval200JSONResponseBody1FunctionParams2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams3 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams3
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams3() (GetEval200JSONResponseBody1FunctionParams3, error) {
+	var body GetEval200JSONResponseBody1FunctionParams3
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams3 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams3
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams3(v GetEval200JSONResponseBody1FunctionParams3) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams3 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams3
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams3(v GetEval200JSONResponseBody1FunctionParams3) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams4 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams4
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams4() (GetEval200JSONResponseBody1FunctionParams4, error) {
+	var body GetEval200JSONResponseBody1FunctionParams4
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams4 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams4
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams4(v GetEval200JSONResponseBody1FunctionParams4) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams4 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams4
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams4(v GetEval200JSONResponseBody1FunctionParams4) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams5 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams5
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams5() (GetEval200JSONResponseBody1FunctionParams5, error) {
+	var body GetEval200JSONResponseBody1FunctionParams5
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams5 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams5
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams5(v GetEval200JSONResponseBody1FunctionParams5) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams5 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams5
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams5(v GetEval200JSONResponseBody1FunctionParams5) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams6 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams6
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams6() (GetEval200JSONResponseBody1FunctionParams6, error) {
+	var body GetEval200JSONResponseBody1FunctionParams6
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams6 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams6
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams6(v GetEval200JSONResponseBody1FunctionParams6) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams6 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams6
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams6(v GetEval200JSONResponseBody1FunctionParams6) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams7 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams7
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams7() (GetEval200JSONResponseBody1FunctionParams7, error) {
+	var body GetEval200JSONResponseBody1FunctionParams7
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams7 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams7
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams7(v GetEval200JSONResponseBody1FunctionParams7) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams7 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams7
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams7(v GetEval200JSONResponseBody1FunctionParams7) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams8 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams8
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams8() (GetEval200JSONResponseBody1FunctionParams8, error) {
+	var body GetEval200JSONResponseBody1FunctionParams8
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams8 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams8
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams8(v GetEval200JSONResponseBody1FunctionParams8) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams8 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams8
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams8(v GetEval200JSONResponseBody1FunctionParams8) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams9 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams9
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams9() (GetEval200JSONResponseBody1FunctionParams9, error) {
+	var body GetEval200JSONResponseBody1FunctionParams9
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams9 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams9
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams9(v GetEval200JSONResponseBody1FunctionParams9) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams9 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams9
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams9(v GetEval200JSONResponseBody1FunctionParams9) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams10 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams10
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams10() (GetEval200JSONResponseBody1FunctionParams10, error) {
+	var body GetEval200JSONResponseBody1FunctionParams10
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams10 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams10
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams10(v GetEval200JSONResponseBody1FunctionParams10) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams10 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams10
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams10(v GetEval200JSONResponseBody1FunctionParams10) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams11 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams11
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams11() (GetEval200JSONResponseBody1FunctionParams11, error) {
+	var body GetEval200JSONResponseBody1FunctionParams11
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams11 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams11
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams11(v GetEval200JSONResponseBody1FunctionParams11) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams11 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams11
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams11(v GetEval200JSONResponseBody1FunctionParams11) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams12 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams12
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams12() (GetEval200JSONResponseBody1FunctionParams12, error) {
+	var body GetEval200JSONResponseBody1FunctionParams12
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams12 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams12
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams12(v GetEval200JSONResponseBody1FunctionParams12) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams12 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams12
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams12(v GetEval200JSONResponseBody1FunctionParams12) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams13 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams13
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams13() (GetEval200JSONResponseBody1FunctionParams13, error) {
+	var body GetEval200JSONResponseBody1FunctionParams13
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams13 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams13
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams13(v GetEval200JSONResponseBody1FunctionParams13) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams13 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams13
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams13(v GetEval200JSONResponseBody1FunctionParams13) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams14 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams14
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams14() (GetEval200JSONResponseBody1FunctionParams14, error) {
+	var body GetEval200JSONResponseBody1FunctionParams14
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams14 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams14
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams14(v GetEval200JSONResponseBody1FunctionParams14) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams14 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams14
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams14(v GetEval200JSONResponseBody1FunctionParams14) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams15 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams15
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams15() (GetEval200JSONResponseBody1FunctionParams15, error) {
+	var body GetEval200JSONResponseBody1FunctionParams15
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams15 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams15
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams15(v GetEval200JSONResponseBody1FunctionParams15) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams15 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams15
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams15(v GetEval200JSONResponseBody1FunctionParams15) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams16 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams16
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams16() (GetEval200JSONResponseBody1FunctionParams16, error) {
+	var body GetEval200JSONResponseBody1FunctionParams16
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams16 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams16
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams16(v GetEval200JSONResponseBody1FunctionParams16) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams16 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams16
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams16(v GetEval200JSONResponseBody1FunctionParams16) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams17 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams17
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams17() (GetEval200JSONResponseBody1FunctionParams17, error) {
+	var body GetEval200JSONResponseBody1FunctionParams17
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams17 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams17
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams17(v GetEval200JSONResponseBody1FunctionParams17) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams17 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams17
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams17(v GetEval200JSONResponseBody1FunctionParams17) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams18 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams18
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams18() (GetEval200JSONResponseBody1FunctionParams18, error) {
+	var body GetEval200JSONResponseBody1FunctionParams18
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams18 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams18
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams18(v GetEval200JSONResponseBody1FunctionParams18) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams18 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams18
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams18(v GetEval200JSONResponseBody1FunctionParams18) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams19 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams19
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams19() (GetEval200JSONResponseBody1FunctionParams19, error) {
+	var body GetEval200JSONResponseBody1FunctionParams19
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams19 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams19
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams19(v GetEval200JSONResponseBody1FunctionParams19) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams19 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams19
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams19(v GetEval200JSONResponseBody1FunctionParams19) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams20 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams20
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams20() (GetEval200JSONResponseBody1FunctionParams20, error) {
+	var body GetEval200JSONResponseBody1FunctionParams20
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams20 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams20
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams20(v GetEval200JSONResponseBody1FunctionParams20) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams20 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams20
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams20(v GetEval200JSONResponseBody1FunctionParams20) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams21 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams21
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams21() (GetEval200JSONResponseBody1FunctionParams21, error) {
+	var body GetEval200JSONResponseBody1FunctionParams21
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams21 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams21
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams21(v GetEval200JSONResponseBody1FunctionParams21) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams21 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams21
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams21(v GetEval200JSONResponseBody1FunctionParams21) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams22 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams22
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams22() (GetEval200JSONResponseBody1FunctionParams22, error) {
+	var body GetEval200JSONResponseBody1FunctionParams22
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams22 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams22
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams22(v GetEval200JSONResponseBody1FunctionParams22) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams22 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams22
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams22(v GetEval200JSONResponseBody1FunctionParams22) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams23 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams23
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams23() (GetEval200JSONResponseBody1FunctionParams23, error) {
+	var body GetEval200JSONResponseBody1FunctionParams23
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams23 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams23
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams23(v GetEval200JSONResponseBody1FunctionParams23) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams23 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams23
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams23(v GetEval200JSONResponseBody1FunctionParams23) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams24 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams24
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams24() (GetEval200JSONResponseBody1FunctionParams24, error) {
+	var body GetEval200JSONResponseBody1FunctionParams24
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams24 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams24
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams24(v GetEval200JSONResponseBody1FunctionParams24) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams24 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams24
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams24(v GetEval200JSONResponseBody1FunctionParams24) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams25 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams25
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams25() (GetEval200JSONResponseBody1FunctionParams25, error) {
+	var body GetEval200JSONResponseBody1FunctionParams25
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams25 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams25
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams25(v GetEval200JSONResponseBody1FunctionParams25) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams25 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams25
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams25(v GetEval200JSONResponseBody1FunctionParams25) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams26 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams26
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams26() (GetEval200JSONResponseBody1FunctionParams26, error) {
+	var body GetEval200JSONResponseBody1FunctionParams26
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams26 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams26
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams26(v GetEval200JSONResponseBody1FunctionParams26) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams26 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams26
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams26(v GetEval200JSONResponseBody1FunctionParams26) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams27 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams27
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams27() (GetEval200JSONResponseBody1FunctionParams27, error) {
+	var body GetEval200JSONResponseBody1FunctionParams27
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams27 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams27
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams27(v GetEval200JSONResponseBody1FunctionParams27) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams27 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams27
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams27(v GetEval200JSONResponseBody1FunctionParams27) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams28 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams28
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams28() (GetEval200JSONResponseBody1FunctionParams28, error) {
+	var body GetEval200JSONResponseBody1FunctionParams28
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams28 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams28
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams28(v GetEval200JSONResponseBody1FunctionParams28) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams28 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams28
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams28(v GetEval200JSONResponseBody1FunctionParams28) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams29 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams29
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams29() (GetEval200JSONResponseBody1FunctionParams29, error) {
+	var body GetEval200JSONResponseBody1FunctionParams29
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams29 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams29
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams29(v GetEval200JSONResponseBody1FunctionParams29) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams29 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams29
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams29(v GetEval200JSONResponseBody1FunctionParams29) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams30 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams30
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams30() (GetEval200JSONResponseBody1FunctionParams30, error) {
+	var body GetEval200JSONResponseBody1FunctionParams30
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams30 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams30
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams30(v GetEval200JSONResponseBody1FunctionParams30) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams30 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams30
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams30(v GetEval200JSONResponseBody1FunctionParams30) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1FunctionParams31 returns the union data inside the GetEval200JSONResponseBody_1_FunctionParams as a GetEval200JSONResponseBody1FunctionParams31
+func (t GetEval200JSONResponseBody_1_FunctionParams) AsGetEval200JSONResponseBody1FunctionParams31() (GetEval200JSONResponseBody1FunctionParams31, error) {
+	var body GetEval200JSONResponseBody1FunctionParams31
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1FunctionParams31 overwrites any union data inside the GetEval200JSONResponseBody_1_FunctionParams as the provided GetEval200JSONResponseBody1FunctionParams31
+func (t *GetEval200JSONResponseBody_1_FunctionParams) FromGetEval200JSONResponseBody1FunctionParams31(v GetEval200JSONResponseBody1FunctionParams31) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1FunctionParams31 performs a merge with any union data inside the GetEval200JSONResponseBody_1_FunctionParams, using the provided GetEval200JSONResponseBody1FunctionParams31
+func (t *GetEval200JSONResponseBody_1_FunctionParams) MergeGetEval200JSONResponseBody1FunctionParams31(v GetEval200JSONResponseBody1FunctionParams31) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody_1_FunctionParams) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody_1_FunctionParams) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody1GuardrailConfig0 returns the union data inside the GetEval200JSONResponseBody_1_GuardrailConfig as a GetEval200JSONResponseBody1GuardrailConfig0
+func (t GetEval200JSONResponseBody_1_GuardrailConfig) AsGetEval200JSONResponseBody1GuardrailConfig0() (GetEval200JSONResponseBody1GuardrailConfig0, error) {
+	var body GetEval200JSONResponseBody1GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1GuardrailConfig0 overwrites any union data inside the GetEval200JSONResponseBody_1_GuardrailConfig as the provided GetEval200JSONResponseBody1GuardrailConfig0
+func (t *GetEval200JSONResponseBody_1_GuardrailConfig) FromGetEval200JSONResponseBody1GuardrailConfig0(v GetEval200JSONResponseBody1GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1GuardrailConfig0 performs a merge with any union data inside the GetEval200JSONResponseBody_1_GuardrailConfig, using the provided GetEval200JSONResponseBody1GuardrailConfig0
+func (t *GetEval200JSONResponseBody_1_GuardrailConfig) MergeGetEval200JSONResponseBody1GuardrailConfig0(v GetEval200JSONResponseBody1GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1GuardrailConfig1 returns the union data inside the GetEval200JSONResponseBody_1_GuardrailConfig as a GetEval200JSONResponseBody1GuardrailConfig1
+func (t GetEval200JSONResponseBody_1_GuardrailConfig) AsGetEval200JSONResponseBody1GuardrailConfig1() (GetEval200JSONResponseBody1GuardrailConfig1, error) {
+	var body GetEval200JSONResponseBody1GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1GuardrailConfig1 overwrites any union data inside the GetEval200JSONResponseBody_1_GuardrailConfig as the provided GetEval200JSONResponseBody1GuardrailConfig1
+func (t *GetEval200JSONResponseBody_1_GuardrailConfig) FromGetEval200JSONResponseBody1GuardrailConfig1(v GetEval200JSONResponseBody1GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1GuardrailConfig1 performs a merge with any union data inside the GetEval200JSONResponseBody_1_GuardrailConfig, using the provided GetEval200JSONResponseBody1GuardrailConfig1
+func (t *GetEval200JSONResponseBody_1_GuardrailConfig) MergeGetEval200JSONResponseBody1GuardrailConfig1(v GetEval200JSONResponseBody1GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1GuardrailConfig2 returns the union data inside the GetEval200JSONResponseBody_1_GuardrailConfig as a GetEval200JSONResponseBody1GuardrailConfig2
+func (t GetEval200JSONResponseBody_1_GuardrailConfig) AsGetEval200JSONResponseBody1GuardrailConfig2() (GetEval200JSONResponseBody1GuardrailConfig2, error) {
+	var body GetEval200JSONResponseBody1GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1GuardrailConfig2 overwrites any union data inside the GetEval200JSONResponseBody_1_GuardrailConfig as the provided GetEval200JSONResponseBody1GuardrailConfig2
+func (t *GetEval200JSONResponseBody_1_GuardrailConfig) FromGetEval200JSONResponseBody1GuardrailConfig2(v GetEval200JSONResponseBody1GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1GuardrailConfig2 performs a merge with any union data inside the GetEval200JSONResponseBody_1_GuardrailConfig, using the provided GetEval200JSONResponseBody1GuardrailConfig2
+func (t *GetEval200JSONResponseBody_1_GuardrailConfig) MergeGetEval200JSONResponseBody1GuardrailConfig2(v GetEval200JSONResponseBody1GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody_1_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody_1_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody2GuardrailConfig0 returns the union data inside the GetEval200JSONResponseBody_2_GuardrailConfig as a GetEval200JSONResponseBody2GuardrailConfig0
+func (t GetEval200JSONResponseBody_2_GuardrailConfig) AsGetEval200JSONResponseBody2GuardrailConfig0() (GetEval200JSONResponseBody2GuardrailConfig0, error) {
+	var body GetEval200JSONResponseBody2GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody2GuardrailConfig0 overwrites any union data inside the GetEval200JSONResponseBody_2_GuardrailConfig as the provided GetEval200JSONResponseBody2GuardrailConfig0
+func (t *GetEval200JSONResponseBody_2_GuardrailConfig) FromGetEval200JSONResponseBody2GuardrailConfig0(v GetEval200JSONResponseBody2GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody2GuardrailConfig0 performs a merge with any union data inside the GetEval200JSONResponseBody_2_GuardrailConfig, using the provided GetEval200JSONResponseBody2GuardrailConfig0
+func (t *GetEval200JSONResponseBody_2_GuardrailConfig) MergeGetEval200JSONResponseBody2GuardrailConfig0(v GetEval200JSONResponseBody2GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody2GuardrailConfig1 returns the union data inside the GetEval200JSONResponseBody_2_GuardrailConfig as a GetEval200JSONResponseBody2GuardrailConfig1
+func (t GetEval200JSONResponseBody_2_GuardrailConfig) AsGetEval200JSONResponseBody2GuardrailConfig1() (GetEval200JSONResponseBody2GuardrailConfig1, error) {
+	var body GetEval200JSONResponseBody2GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody2GuardrailConfig1 overwrites any union data inside the GetEval200JSONResponseBody_2_GuardrailConfig as the provided GetEval200JSONResponseBody2GuardrailConfig1
+func (t *GetEval200JSONResponseBody_2_GuardrailConfig) FromGetEval200JSONResponseBody2GuardrailConfig1(v GetEval200JSONResponseBody2GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody2GuardrailConfig1 performs a merge with any union data inside the GetEval200JSONResponseBody_2_GuardrailConfig, using the provided GetEval200JSONResponseBody2GuardrailConfig1
+func (t *GetEval200JSONResponseBody_2_GuardrailConfig) MergeGetEval200JSONResponseBody2GuardrailConfig1(v GetEval200JSONResponseBody2GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody2GuardrailConfig2 returns the union data inside the GetEval200JSONResponseBody_2_GuardrailConfig as a GetEval200JSONResponseBody2GuardrailConfig2
+func (t GetEval200JSONResponseBody_2_GuardrailConfig) AsGetEval200JSONResponseBody2GuardrailConfig2() (GetEval200JSONResponseBody2GuardrailConfig2, error) {
+	var body GetEval200JSONResponseBody2GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody2GuardrailConfig2 overwrites any union data inside the GetEval200JSONResponseBody_2_GuardrailConfig as the provided GetEval200JSONResponseBody2GuardrailConfig2
+func (t *GetEval200JSONResponseBody_2_GuardrailConfig) FromGetEval200JSONResponseBody2GuardrailConfig2(v GetEval200JSONResponseBody2GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody2GuardrailConfig2 performs a merge with any union data inside the GetEval200JSONResponseBody_2_GuardrailConfig, using the provided GetEval200JSONResponseBody2GuardrailConfig2
+func (t *GetEval200JSONResponseBody_2_GuardrailConfig) MergeGetEval200JSONResponseBody2GuardrailConfig2(v GetEval200JSONResponseBody2GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody_2_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody_2_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody3GuardrailConfig0 returns the union data inside the GetEval200JSONResponseBody_3_GuardrailConfig as a GetEval200JSONResponseBody3GuardrailConfig0
+func (t GetEval200JSONResponseBody_3_GuardrailConfig) AsGetEval200JSONResponseBody3GuardrailConfig0() (GetEval200JSONResponseBody3GuardrailConfig0, error) {
+	var body GetEval200JSONResponseBody3GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody3GuardrailConfig0 overwrites any union data inside the GetEval200JSONResponseBody_3_GuardrailConfig as the provided GetEval200JSONResponseBody3GuardrailConfig0
+func (t *GetEval200JSONResponseBody_3_GuardrailConfig) FromGetEval200JSONResponseBody3GuardrailConfig0(v GetEval200JSONResponseBody3GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody3GuardrailConfig0 performs a merge with any union data inside the GetEval200JSONResponseBody_3_GuardrailConfig, using the provided GetEval200JSONResponseBody3GuardrailConfig0
+func (t *GetEval200JSONResponseBody_3_GuardrailConfig) MergeGetEval200JSONResponseBody3GuardrailConfig0(v GetEval200JSONResponseBody3GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody3GuardrailConfig1 returns the union data inside the GetEval200JSONResponseBody_3_GuardrailConfig as a GetEval200JSONResponseBody3GuardrailConfig1
+func (t GetEval200JSONResponseBody_3_GuardrailConfig) AsGetEval200JSONResponseBody3GuardrailConfig1() (GetEval200JSONResponseBody3GuardrailConfig1, error) {
+	var body GetEval200JSONResponseBody3GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody3GuardrailConfig1 overwrites any union data inside the GetEval200JSONResponseBody_3_GuardrailConfig as the provided GetEval200JSONResponseBody3GuardrailConfig1
+func (t *GetEval200JSONResponseBody_3_GuardrailConfig) FromGetEval200JSONResponseBody3GuardrailConfig1(v GetEval200JSONResponseBody3GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody3GuardrailConfig1 performs a merge with any union data inside the GetEval200JSONResponseBody_3_GuardrailConfig, using the provided GetEval200JSONResponseBody3GuardrailConfig1
+func (t *GetEval200JSONResponseBody_3_GuardrailConfig) MergeGetEval200JSONResponseBody3GuardrailConfig1(v GetEval200JSONResponseBody3GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody3GuardrailConfig2 returns the union data inside the GetEval200JSONResponseBody_3_GuardrailConfig as a GetEval200JSONResponseBody3GuardrailConfig2
+func (t GetEval200JSONResponseBody_3_GuardrailConfig) AsGetEval200JSONResponseBody3GuardrailConfig2() (GetEval200JSONResponseBody3GuardrailConfig2, error) {
+	var body GetEval200JSONResponseBody3GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody3GuardrailConfig2 overwrites any union data inside the GetEval200JSONResponseBody_3_GuardrailConfig as the provided GetEval200JSONResponseBody3GuardrailConfig2
+func (t *GetEval200JSONResponseBody_3_GuardrailConfig) FromGetEval200JSONResponseBody3GuardrailConfig2(v GetEval200JSONResponseBody3GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody3GuardrailConfig2 performs a merge with any union data inside the GetEval200JSONResponseBody_3_GuardrailConfig, using the provided GetEval200JSONResponseBody3GuardrailConfig2
+func (t *GetEval200JSONResponseBody_3_GuardrailConfig) MergeGetEval200JSONResponseBody3GuardrailConfig2(v GetEval200JSONResponseBody3GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody_3_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody_3_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody4GuardrailConfig0 returns the union data inside the GetEval200JSONResponseBody_4_GuardrailConfig as a GetEval200JSONResponseBody4GuardrailConfig0
+func (t GetEval200JSONResponseBody_4_GuardrailConfig) AsGetEval200JSONResponseBody4GuardrailConfig0() (GetEval200JSONResponseBody4GuardrailConfig0, error) {
+	var body GetEval200JSONResponseBody4GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody4GuardrailConfig0 overwrites any union data inside the GetEval200JSONResponseBody_4_GuardrailConfig as the provided GetEval200JSONResponseBody4GuardrailConfig0
+func (t *GetEval200JSONResponseBody_4_GuardrailConfig) FromGetEval200JSONResponseBody4GuardrailConfig0(v GetEval200JSONResponseBody4GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody4GuardrailConfig0 performs a merge with any union data inside the GetEval200JSONResponseBody_4_GuardrailConfig, using the provided GetEval200JSONResponseBody4GuardrailConfig0
+func (t *GetEval200JSONResponseBody_4_GuardrailConfig) MergeGetEval200JSONResponseBody4GuardrailConfig0(v GetEval200JSONResponseBody4GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody4GuardrailConfig1 returns the union data inside the GetEval200JSONResponseBody_4_GuardrailConfig as a GetEval200JSONResponseBody4GuardrailConfig1
+func (t GetEval200JSONResponseBody_4_GuardrailConfig) AsGetEval200JSONResponseBody4GuardrailConfig1() (GetEval200JSONResponseBody4GuardrailConfig1, error) {
+	var body GetEval200JSONResponseBody4GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody4GuardrailConfig1 overwrites any union data inside the GetEval200JSONResponseBody_4_GuardrailConfig as the provided GetEval200JSONResponseBody4GuardrailConfig1
+func (t *GetEval200JSONResponseBody_4_GuardrailConfig) FromGetEval200JSONResponseBody4GuardrailConfig1(v GetEval200JSONResponseBody4GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody4GuardrailConfig1 performs a merge with any union data inside the GetEval200JSONResponseBody_4_GuardrailConfig, using the provided GetEval200JSONResponseBody4GuardrailConfig1
+func (t *GetEval200JSONResponseBody_4_GuardrailConfig) MergeGetEval200JSONResponseBody4GuardrailConfig1(v GetEval200JSONResponseBody4GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody4GuardrailConfig2 returns the union data inside the GetEval200JSONResponseBody_4_GuardrailConfig as a GetEval200JSONResponseBody4GuardrailConfig2
+func (t GetEval200JSONResponseBody_4_GuardrailConfig) AsGetEval200JSONResponseBody4GuardrailConfig2() (GetEval200JSONResponseBody4GuardrailConfig2, error) {
+	var body GetEval200JSONResponseBody4GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody4GuardrailConfig2 overwrites any union data inside the GetEval200JSONResponseBody_4_GuardrailConfig as the provided GetEval200JSONResponseBody4GuardrailConfig2
+func (t *GetEval200JSONResponseBody_4_GuardrailConfig) FromGetEval200JSONResponseBody4GuardrailConfig2(v GetEval200JSONResponseBody4GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody4GuardrailConfig2 performs a merge with any union data inside the GetEval200JSONResponseBody_4_GuardrailConfig, using the provided GetEval200JSONResponseBody4GuardrailConfig2
+func (t *GetEval200JSONResponseBody_4_GuardrailConfig) MergeGetEval200JSONResponseBody4GuardrailConfig2(v GetEval200JSONResponseBody4GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody_4_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody_4_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody5GuardrailConfig0 returns the union data inside the GetEval200JSONResponseBody_5_GuardrailConfig as a GetEval200JSONResponseBody5GuardrailConfig0
+func (t GetEval200JSONResponseBody_5_GuardrailConfig) AsGetEval200JSONResponseBody5GuardrailConfig0() (GetEval200JSONResponseBody5GuardrailConfig0, error) {
+	var body GetEval200JSONResponseBody5GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody5GuardrailConfig0 overwrites any union data inside the GetEval200JSONResponseBody_5_GuardrailConfig as the provided GetEval200JSONResponseBody5GuardrailConfig0
+func (t *GetEval200JSONResponseBody_5_GuardrailConfig) FromGetEval200JSONResponseBody5GuardrailConfig0(v GetEval200JSONResponseBody5GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody5GuardrailConfig0 performs a merge with any union data inside the GetEval200JSONResponseBody_5_GuardrailConfig, using the provided GetEval200JSONResponseBody5GuardrailConfig0
+func (t *GetEval200JSONResponseBody_5_GuardrailConfig) MergeGetEval200JSONResponseBody5GuardrailConfig0(v GetEval200JSONResponseBody5GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody5GuardrailConfig1 returns the union data inside the GetEval200JSONResponseBody_5_GuardrailConfig as a GetEval200JSONResponseBody5GuardrailConfig1
+func (t GetEval200JSONResponseBody_5_GuardrailConfig) AsGetEval200JSONResponseBody5GuardrailConfig1() (GetEval200JSONResponseBody5GuardrailConfig1, error) {
+	var body GetEval200JSONResponseBody5GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody5GuardrailConfig1 overwrites any union data inside the GetEval200JSONResponseBody_5_GuardrailConfig as the provided GetEval200JSONResponseBody5GuardrailConfig1
+func (t *GetEval200JSONResponseBody_5_GuardrailConfig) FromGetEval200JSONResponseBody5GuardrailConfig1(v GetEval200JSONResponseBody5GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody5GuardrailConfig1 performs a merge with any union data inside the GetEval200JSONResponseBody_5_GuardrailConfig, using the provided GetEval200JSONResponseBody5GuardrailConfig1
+func (t *GetEval200JSONResponseBody_5_GuardrailConfig) MergeGetEval200JSONResponseBody5GuardrailConfig1(v GetEval200JSONResponseBody5GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody5GuardrailConfig2 returns the union data inside the GetEval200JSONResponseBody_5_GuardrailConfig as a GetEval200JSONResponseBody5GuardrailConfig2
+func (t GetEval200JSONResponseBody_5_GuardrailConfig) AsGetEval200JSONResponseBody5GuardrailConfig2() (GetEval200JSONResponseBody5GuardrailConfig2, error) {
+	var body GetEval200JSONResponseBody5GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody5GuardrailConfig2 overwrites any union data inside the GetEval200JSONResponseBody_5_GuardrailConfig as the provided GetEval200JSONResponseBody5GuardrailConfig2
+func (t *GetEval200JSONResponseBody_5_GuardrailConfig) FromGetEval200JSONResponseBody5GuardrailConfig2(v GetEval200JSONResponseBody5GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody5GuardrailConfig2 performs a merge with any union data inside the GetEval200JSONResponseBody_5_GuardrailConfig, using the provided GetEval200JSONResponseBody5GuardrailConfig2
+func (t *GetEval200JSONResponseBody_5_GuardrailConfig) MergeGetEval200JSONResponseBody5GuardrailConfig2(v GetEval200JSONResponseBody5GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody_5_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody_5_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody6GuardrailConfig0 returns the union data inside the GetEval200JSONResponseBody_6_GuardrailConfig as a GetEval200JSONResponseBody6GuardrailConfig0
+func (t GetEval200JSONResponseBody_6_GuardrailConfig) AsGetEval200JSONResponseBody6GuardrailConfig0() (GetEval200JSONResponseBody6GuardrailConfig0, error) {
+	var body GetEval200JSONResponseBody6GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody6GuardrailConfig0 overwrites any union data inside the GetEval200JSONResponseBody_6_GuardrailConfig as the provided GetEval200JSONResponseBody6GuardrailConfig0
+func (t *GetEval200JSONResponseBody_6_GuardrailConfig) FromGetEval200JSONResponseBody6GuardrailConfig0(v GetEval200JSONResponseBody6GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody6GuardrailConfig0 performs a merge with any union data inside the GetEval200JSONResponseBody_6_GuardrailConfig, using the provided GetEval200JSONResponseBody6GuardrailConfig0
+func (t *GetEval200JSONResponseBody_6_GuardrailConfig) MergeGetEval200JSONResponseBody6GuardrailConfig0(v GetEval200JSONResponseBody6GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody6GuardrailConfig1 returns the union data inside the GetEval200JSONResponseBody_6_GuardrailConfig as a GetEval200JSONResponseBody6GuardrailConfig1
+func (t GetEval200JSONResponseBody_6_GuardrailConfig) AsGetEval200JSONResponseBody6GuardrailConfig1() (GetEval200JSONResponseBody6GuardrailConfig1, error) {
+	var body GetEval200JSONResponseBody6GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody6GuardrailConfig1 overwrites any union data inside the GetEval200JSONResponseBody_6_GuardrailConfig as the provided GetEval200JSONResponseBody6GuardrailConfig1
+func (t *GetEval200JSONResponseBody_6_GuardrailConfig) FromGetEval200JSONResponseBody6GuardrailConfig1(v GetEval200JSONResponseBody6GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody6GuardrailConfig1 performs a merge with any union data inside the GetEval200JSONResponseBody_6_GuardrailConfig, using the provided GetEval200JSONResponseBody6GuardrailConfig1
+func (t *GetEval200JSONResponseBody_6_GuardrailConfig) MergeGetEval200JSONResponseBody6GuardrailConfig1(v GetEval200JSONResponseBody6GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody6GuardrailConfig2 returns the union data inside the GetEval200JSONResponseBody_6_GuardrailConfig as a GetEval200JSONResponseBody6GuardrailConfig2
+func (t GetEval200JSONResponseBody_6_GuardrailConfig) AsGetEval200JSONResponseBody6GuardrailConfig2() (GetEval200JSONResponseBody6GuardrailConfig2, error) {
+	var body GetEval200JSONResponseBody6GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody6GuardrailConfig2 overwrites any union data inside the GetEval200JSONResponseBody_6_GuardrailConfig as the provided GetEval200JSONResponseBody6GuardrailConfig2
+func (t *GetEval200JSONResponseBody_6_GuardrailConfig) FromGetEval200JSONResponseBody6GuardrailConfig2(v GetEval200JSONResponseBody6GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody6GuardrailConfig2 performs a merge with any union data inside the GetEval200JSONResponseBody_6_GuardrailConfig, using the provided GetEval200JSONResponseBody6GuardrailConfig2
+func (t *GetEval200JSONResponseBody_6_GuardrailConfig) MergeGetEval200JSONResponseBody6GuardrailConfig2(v GetEval200JSONResponseBody6GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody_6_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody_6_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody7GuardrailConfig0 returns the union data inside the GetEval200JSONResponseBody_7_GuardrailConfig as a GetEval200JSONResponseBody7GuardrailConfig0
+func (t GetEval200JSONResponseBody_7_GuardrailConfig) AsGetEval200JSONResponseBody7GuardrailConfig0() (GetEval200JSONResponseBody7GuardrailConfig0, error) {
+	var body GetEval200JSONResponseBody7GuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody7GuardrailConfig0 overwrites any union data inside the GetEval200JSONResponseBody_7_GuardrailConfig as the provided GetEval200JSONResponseBody7GuardrailConfig0
+func (t *GetEval200JSONResponseBody_7_GuardrailConfig) FromGetEval200JSONResponseBody7GuardrailConfig0(v GetEval200JSONResponseBody7GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody7GuardrailConfig0 performs a merge with any union data inside the GetEval200JSONResponseBody_7_GuardrailConfig, using the provided GetEval200JSONResponseBody7GuardrailConfig0
+func (t *GetEval200JSONResponseBody_7_GuardrailConfig) MergeGetEval200JSONResponseBody7GuardrailConfig0(v GetEval200JSONResponseBody7GuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody7GuardrailConfig1 returns the union data inside the GetEval200JSONResponseBody_7_GuardrailConfig as a GetEval200JSONResponseBody7GuardrailConfig1
+func (t GetEval200JSONResponseBody_7_GuardrailConfig) AsGetEval200JSONResponseBody7GuardrailConfig1() (GetEval200JSONResponseBody7GuardrailConfig1, error) {
+	var body GetEval200JSONResponseBody7GuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody7GuardrailConfig1 overwrites any union data inside the GetEval200JSONResponseBody_7_GuardrailConfig as the provided GetEval200JSONResponseBody7GuardrailConfig1
+func (t *GetEval200JSONResponseBody_7_GuardrailConfig) FromGetEval200JSONResponseBody7GuardrailConfig1(v GetEval200JSONResponseBody7GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody7GuardrailConfig1 performs a merge with any union data inside the GetEval200JSONResponseBody_7_GuardrailConfig, using the provided GetEval200JSONResponseBody7GuardrailConfig1
+func (t *GetEval200JSONResponseBody_7_GuardrailConfig) MergeGetEval200JSONResponseBody7GuardrailConfig1(v GetEval200JSONResponseBody7GuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody7GuardrailConfig2 returns the union data inside the GetEval200JSONResponseBody_7_GuardrailConfig as a GetEval200JSONResponseBody7GuardrailConfig2
+func (t GetEval200JSONResponseBody_7_GuardrailConfig) AsGetEval200JSONResponseBody7GuardrailConfig2() (GetEval200JSONResponseBody7GuardrailConfig2, error) {
+	var body GetEval200JSONResponseBody7GuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody7GuardrailConfig2 overwrites any union data inside the GetEval200JSONResponseBody_7_GuardrailConfig as the provided GetEval200JSONResponseBody7GuardrailConfig2
+func (t *GetEval200JSONResponseBody_7_GuardrailConfig) FromGetEval200JSONResponseBody7GuardrailConfig2(v GetEval200JSONResponseBody7GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody7GuardrailConfig2 performs a merge with any union data inside the GetEval200JSONResponseBody_7_GuardrailConfig, using the provided GetEval200JSONResponseBody7GuardrailConfig2
+func (t *GetEval200JSONResponseBody_7_GuardrailConfig) MergeGetEval200JSONResponseBody7GuardrailConfig2(v GetEval200JSONResponseBody7GuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody_7_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody_7_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsGetEval200JSONResponseBody0 returns the union data inside the GetEval200JSONResponseBody as a GetEval200JSONResponseBody0
+func (t GetEval200JSONResponseBody) AsGetEval200JSONResponseBody0() (GetEval200JSONResponseBody0, error) {
+	var body GetEval200JSONResponseBody0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody0 overwrites any union data inside the GetEval200JSONResponseBody as the provided GetEval200JSONResponseBody0
+func (t *GetEval200JSONResponseBody) FromGetEval200JSONResponseBody0(v GetEval200JSONResponseBody0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody0 performs a merge with any union data inside the GetEval200JSONResponseBody, using the provided GetEval200JSONResponseBody0
+func (t *GetEval200JSONResponseBody) MergeGetEval200JSONResponseBody0(v GetEval200JSONResponseBody0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody1 returns the union data inside the GetEval200JSONResponseBody as a GetEval200JSONResponseBody1
+func (t GetEval200JSONResponseBody) AsGetEval200JSONResponseBody1() (GetEval200JSONResponseBody1, error) {
+	var body GetEval200JSONResponseBody1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody1 overwrites any union data inside the GetEval200JSONResponseBody as the provided GetEval200JSONResponseBody1
+func (t *GetEval200JSONResponseBody) FromGetEval200JSONResponseBody1(v GetEval200JSONResponseBody1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody1 performs a merge with any union data inside the GetEval200JSONResponseBody, using the provided GetEval200JSONResponseBody1
+func (t *GetEval200JSONResponseBody) MergeGetEval200JSONResponseBody1(v GetEval200JSONResponseBody1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody2 returns the union data inside the GetEval200JSONResponseBody as a GetEval200JSONResponseBody2
+func (t GetEval200JSONResponseBody) AsGetEval200JSONResponseBody2() (GetEval200JSONResponseBody2, error) {
+	var body GetEval200JSONResponseBody2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody2 overwrites any union data inside the GetEval200JSONResponseBody as the provided GetEval200JSONResponseBody2
+func (t *GetEval200JSONResponseBody) FromGetEval200JSONResponseBody2(v GetEval200JSONResponseBody2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody2 performs a merge with any union data inside the GetEval200JSONResponseBody, using the provided GetEval200JSONResponseBody2
+func (t *GetEval200JSONResponseBody) MergeGetEval200JSONResponseBody2(v GetEval200JSONResponseBody2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody3 returns the union data inside the GetEval200JSONResponseBody as a GetEval200JSONResponseBody3
+func (t GetEval200JSONResponseBody) AsGetEval200JSONResponseBody3() (GetEval200JSONResponseBody3, error) {
+	var body GetEval200JSONResponseBody3
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody3 overwrites any union data inside the GetEval200JSONResponseBody as the provided GetEval200JSONResponseBody3
+func (t *GetEval200JSONResponseBody) FromGetEval200JSONResponseBody3(v GetEval200JSONResponseBody3) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody3 performs a merge with any union data inside the GetEval200JSONResponseBody, using the provided GetEval200JSONResponseBody3
+func (t *GetEval200JSONResponseBody) MergeGetEval200JSONResponseBody3(v GetEval200JSONResponseBody3) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody4 returns the union data inside the GetEval200JSONResponseBody as a GetEval200JSONResponseBody4
+func (t GetEval200JSONResponseBody) AsGetEval200JSONResponseBody4() (GetEval200JSONResponseBody4, error) {
+	var body GetEval200JSONResponseBody4
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody4 overwrites any union data inside the GetEval200JSONResponseBody as the provided GetEval200JSONResponseBody4
+func (t *GetEval200JSONResponseBody) FromGetEval200JSONResponseBody4(v GetEval200JSONResponseBody4) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody4 performs a merge with any union data inside the GetEval200JSONResponseBody, using the provided GetEval200JSONResponseBody4
+func (t *GetEval200JSONResponseBody) MergeGetEval200JSONResponseBody4(v GetEval200JSONResponseBody4) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody5 returns the union data inside the GetEval200JSONResponseBody as a GetEval200JSONResponseBody5
+func (t GetEval200JSONResponseBody) AsGetEval200JSONResponseBody5() (GetEval200JSONResponseBody5, error) {
+	var body GetEval200JSONResponseBody5
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody5 overwrites any union data inside the GetEval200JSONResponseBody as the provided GetEval200JSONResponseBody5
+func (t *GetEval200JSONResponseBody) FromGetEval200JSONResponseBody5(v GetEval200JSONResponseBody5) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody5 performs a merge with any union data inside the GetEval200JSONResponseBody, using the provided GetEval200JSONResponseBody5
+func (t *GetEval200JSONResponseBody) MergeGetEval200JSONResponseBody5(v GetEval200JSONResponseBody5) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody6 returns the union data inside the GetEval200JSONResponseBody as a GetEval200JSONResponseBody6
+func (t GetEval200JSONResponseBody) AsGetEval200JSONResponseBody6() (GetEval200JSONResponseBody6, error) {
+	var body GetEval200JSONResponseBody6
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody6 overwrites any union data inside the GetEval200JSONResponseBody as the provided GetEval200JSONResponseBody6
+func (t *GetEval200JSONResponseBody) FromGetEval200JSONResponseBody6(v GetEval200JSONResponseBody6) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody6 performs a merge with any union data inside the GetEval200JSONResponseBody, using the provided GetEval200JSONResponseBody6
+func (t *GetEval200JSONResponseBody) MergeGetEval200JSONResponseBody6(v GetEval200JSONResponseBody6) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGetEval200JSONResponseBody7 returns the union data inside the GetEval200JSONResponseBody as a GetEval200JSONResponseBody7
+func (t GetEval200JSONResponseBody) AsGetEval200JSONResponseBody7() (GetEval200JSONResponseBody7, error) {
+	var body GetEval200JSONResponseBody7
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGetEval200JSONResponseBody7 overwrites any union data inside the GetEval200JSONResponseBody as the provided GetEval200JSONResponseBody7
+func (t *GetEval200JSONResponseBody) FromGetEval200JSONResponseBody7(v GetEval200JSONResponseBody7) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGetEval200JSONResponseBody7 performs a merge with any union data inside the GetEval200JSONResponseBody, using the provided GetEval200JSONResponseBody7
+func (t *GetEval200JSONResponseBody) MergeGetEval200JSONResponseBody7(v GetEval200JSONResponseBody7) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetEval200JSONResponseBody) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetEval200JSONResponseBody) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsUpdateEvalJSONBodyGuardrailConfig0 returns the union data inside the UpdateEvalJSONBody_GuardrailConfig as a UpdateEvalJSONBodyGuardrailConfig0
+func (t UpdateEvalJSONBody_GuardrailConfig) AsUpdateEvalJSONBodyGuardrailConfig0() (UpdateEvalJSONBodyGuardrailConfig0, error) {
+	var body UpdateEvalJSONBodyGuardrailConfig0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromUpdateEvalJSONBodyGuardrailConfig0 overwrites any union data inside the UpdateEvalJSONBody_GuardrailConfig as the provided UpdateEvalJSONBodyGuardrailConfig0
+func (t *UpdateEvalJSONBody_GuardrailConfig) FromUpdateEvalJSONBodyGuardrailConfig0(v UpdateEvalJSONBodyGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeUpdateEvalJSONBodyGuardrailConfig0 performs a merge with any union data inside the UpdateEvalJSONBody_GuardrailConfig, using the provided UpdateEvalJSONBodyGuardrailConfig0
+func (t *UpdateEvalJSONBody_GuardrailConfig) MergeUpdateEvalJSONBodyGuardrailConfig0(v UpdateEvalJSONBodyGuardrailConfig0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsUpdateEvalJSONBodyGuardrailConfig1 returns the union data inside the UpdateEvalJSONBody_GuardrailConfig as a UpdateEvalJSONBodyGuardrailConfig1
+func (t UpdateEvalJSONBody_GuardrailConfig) AsUpdateEvalJSONBodyGuardrailConfig1() (UpdateEvalJSONBodyGuardrailConfig1, error) {
+	var body UpdateEvalJSONBodyGuardrailConfig1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromUpdateEvalJSONBodyGuardrailConfig1 overwrites any union data inside the UpdateEvalJSONBody_GuardrailConfig as the provided UpdateEvalJSONBodyGuardrailConfig1
+func (t *UpdateEvalJSONBody_GuardrailConfig) FromUpdateEvalJSONBodyGuardrailConfig1(v UpdateEvalJSONBodyGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeUpdateEvalJSONBodyGuardrailConfig1 performs a merge with any union data inside the UpdateEvalJSONBody_GuardrailConfig, using the provided UpdateEvalJSONBodyGuardrailConfig1
+func (t *UpdateEvalJSONBody_GuardrailConfig) MergeUpdateEvalJSONBodyGuardrailConfig1(v UpdateEvalJSONBodyGuardrailConfig1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsUpdateEvalJSONBodyGuardrailConfig2 returns the union data inside the UpdateEvalJSONBody_GuardrailConfig as a UpdateEvalJSONBodyGuardrailConfig2
+func (t UpdateEvalJSONBody_GuardrailConfig) AsUpdateEvalJSONBodyGuardrailConfig2() (UpdateEvalJSONBodyGuardrailConfig2, error) {
+	var body UpdateEvalJSONBodyGuardrailConfig2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromUpdateEvalJSONBodyGuardrailConfig2 overwrites any union data inside the UpdateEvalJSONBody_GuardrailConfig as the provided UpdateEvalJSONBodyGuardrailConfig2
+func (t *UpdateEvalJSONBody_GuardrailConfig) FromUpdateEvalJSONBodyGuardrailConfig2(v UpdateEvalJSONBodyGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeUpdateEvalJSONBodyGuardrailConfig2 performs a merge with any union data inside the UpdateEvalJSONBody_GuardrailConfig, using the provided UpdateEvalJSONBodyGuardrailConfig2
+func (t *UpdateEvalJSONBody_GuardrailConfig) MergeUpdateEvalJSONBodyGuardrailConfig2(v UpdateEvalJSONBodyGuardrailConfig2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t UpdateEvalJSONBody_GuardrailConfig) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *UpdateEvalJSONBody_GuardrailConfig) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsEvaluatorResponseLlm returns the union data inside the UpdateEval200JSONResponseBody as a EvaluatorResponseLlm
+func (t UpdateEval200JSONResponseBody) AsEvaluatorResponseLlm() (EvaluatorResponseLlm, error) {
+	var body EvaluatorResponseLlm
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseLlm overwrites any union data inside the UpdateEval200JSONResponseBody as the provided EvaluatorResponseLlm
+func (t *UpdateEval200JSONResponseBody) FromEvaluatorResponseLlm(v EvaluatorResponseLlm) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"llm_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseLlm performs a merge with any union data inside the UpdateEval200JSONResponseBody, using the provided EvaluatorResponseLlm
+func (t *UpdateEval200JSONResponseBody) MergeEvaluatorResponseLlm(v EvaluatorResponseLlm) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"llm_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseJsonSchema returns the union data inside the UpdateEval200JSONResponseBody as a EvaluatorResponseJsonSchema
+func (t UpdateEval200JSONResponseBody) AsEvaluatorResponseJsonSchema() (EvaluatorResponseJsonSchema, error) {
+	var body EvaluatorResponseJsonSchema
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseJsonSchema overwrites any union data inside the UpdateEval200JSONResponseBody as the provided EvaluatorResponseJsonSchema
+func (t *UpdateEval200JSONResponseBody) FromEvaluatorResponseJsonSchema(v EvaluatorResponseJsonSchema) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"json_schema"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseJsonSchema performs a merge with any union data inside the UpdateEval200JSONResponseBody, using the provided EvaluatorResponseJsonSchema
+func (t *UpdateEval200JSONResponseBody) MergeEvaluatorResponseJsonSchema(v EvaluatorResponseJsonSchema) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"json_schema"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseHttp returns the union data inside the UpdateEval200JSONResponseBody as a EvaluatorResponseHttp
+func (t UpdateEval200JSONResponseBody) AsEvaluatorResponseHttp() (EvaluatorResponseHttp, error) {
+	var body EvaluatorResponseHttp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseHttp overwrites any union data inside the UpdateEval200JSONResponseBody as the provided EvaluatorResponseHttp
+func (t *UpdateEval200JSONResponseBody) FromEvaluatorResponseHttp(v EvaluatorResponseHttp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"http_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseHttp performs a merge with any union data inside the UpdateEval200JSONResponseBody, using the provided EvaluatorResponseHttp
+func (t *UpdateEval200JSONResponseBody) MergeEvaluatorResponseHttp(v EvaluatorResponseHttp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"http_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponsePython returns the union data inside the UpdateEval200JSONResponseBody as a EvaluatorResponsePython
+func (t UpdateEval200JSONResponseBody) AsEvaluatorResponsePython() (EvaluatorResponsePython, error) {
+	var body EvaluatorResponsePython
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponsePython overwrites any union data inside the UpdateEval200JSONResponseBody as the provided EvaluatorResponsePython
+func (t *UpdateEval200JSONResponseBody) FromEvaluatorResponsePython(v EvaluatorResponsePython) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"python_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponsePython performs a merge with any union data inside the UpdateEval200JSONResponseBody, using the provided EvaluatorResponsePython
+func (t *UpdateEval200JSONResponseBody) MergeEvaluatorResponsePython(v EvaluatorResponsePython) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"python_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseFunction returns the union data inside the UpdateEval200JSONResponseBody as a EvaluatorResponseFunction
+func (t UpdateEval200JSONResponseBody) AsEvaluatorResponseFunction() (EvaluatorResponseFunction, error) {
+	var body EvaluatorResponseFunction
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseFunction overwrites any union data inside the UpdateEval200JSONResponseBody as the provided EvaluatorResponseFunction
+func (t *UpdateEval200JSONResponseBody) FromEvaluatorResponseFunction(v EvaluatorResponseFunction) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"function_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseFunction performs a merge with any union data inside the UpdateEval200JSONResponseBody, using the provided EvaluatorResponseFunction
+func (t *UpdateEval200JSONResponseBody) MergeEvaluatorResponseFunction(v EvaluatorResponseFunction) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"function_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseRagas returns the union data inside the UpdateEval200JSONResponseBody as a EvaluatorResponseRagas
+func (t UpdateEval200JSONResponseBody) AsEvaluatorResponseRagas() (EvaluatorResponseRagas, error) {
+	var body EvaluatorResponseRagas
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseRagas overwrites any union data inside the UpdateEval200JSONResponseBody as the provided EvaluatorResponseRagas
+func (t *UpdateEval200JSONResponseBody) FromEvaluatorResponseRagas(v EvaluatorResponseRagas) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"ragas"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseRagas performs a merge with any union data inside the UpdateEval200JSONResponseBody, using the provided EvaluatorResponseRagas
+func (t *UpdateEval200JSONResponseBody) MergeEvaluatorResponseRagas(v EvaluatorResponseRagas) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"ragas"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEvaluatorResponseTypescript returns the union data inside the UpdateEval200JSONResponseBody as a EvaluatorResponseTypescript
+func (t UpdateEval200JSONResponseBody) AsEvaluatorResponseTypescript() (EvaluatorResponseTypescript, error) {
+	var body EvaluatorResponseTypescript
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEvaluatorResponseTypescript overwrites any union data inside the UpdateEval200JSONResponseBody as the provided EvaluatorResponseTypescript
+func (t *UpdateEval200JSONResponseBody) FromEvaluatorResponseTypescript(v EvaluatorResponseTypescript) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"typescript_eval"}`))
+	t.union = b
+	return err
+}
+
+// MergeEvaluatorResponseTypescript performs a merge with any union data inside the UpdateEval200JSONResponseBody, using the provided EvaluatorResponseTypescript
+func (t *UpdateEval200JSONResponseBody) MergeEvaluatorResponseTypescript(v EvaluatorResponseTypescript) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"typescript_eval"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t UpdateEval200JSONResponseBody) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"type"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t UpdateEval200JSONResponseBody) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "function_eval":
+		return t.AsEvaluatorResponseFunction()
+	case "http_eval":
+		return t.AsEvaluatorResponseHttp()
+	case "json_schema":
+		return t.AsEvaluatorResponseJsonSchema()
+	case "llm_eval":
+		return t.AsEvaluatorResponseLlm()
+	case "python_eval":
+		return t.AsEvaluatorResponsePython()
+	case "ragas":
+		return t.AsEvaluatorResponseRagas()
+	case "typescript_eval":
+		return t.AsEvaluatorResponseTypescript()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t UpdateEval200JSONResponseBody) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *UpdateEval200JSONResponseBody) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -1184,6 +10730,50 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+
+	// CreateEvalWithBody Create an Evaluator
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v2/evaluators (the `CreateEval` operationId).
+	CreateEvalWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateEval Create an Evaluator
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v2/evaluators (the `CreateEval` operationId).
+	CreateEval(ctx context.Context, body CreateEvalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteEval Delete an Evaluator
+	//
+	// Corresponds with DELETE /v2/evaluators/{id} (the `DeleteEval` operationId).
+	DeleteEval(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetEval Retrieve an Evaluator
+	//
+	// Retrieve a single evaluator by its unique identifier. Returns the evaluator exactly as stored, including its type-specific configuration — prompt and model for LLM evaluators, source code for Python and TypeScript evaluators, the JSON Schema for schema evaluators, and so on.
+	//
+	// Use this when you already know the evaluator id (for example to refresh the state of a resource you manage declaratively). To discover evaluator ids, list them with `GET /v2/evaluators`.
+	//
+	// This endpoint returns the stored record, which carries more detail than the representation `GET /v2/evaluators` returns: `display_name` rather than `key`, `model` as an object rather than a provider-qualified string, plus the `owner`, `domain_id`, `metadata`, `enabled` and `output_type` fields.
+	//
+	// Corresponds with GET /v2/evaluators/{id} (the `GetEval` operationId).
+	GetEval(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateEvalWithBody Update an Evaluator
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /v2/evaluators/{id} (the `UpdateEval` operationId).
+	UpdateEvalWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateEval Update an Evaluator
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /v2/evaluators/{id} (the `UpdateEval` operationId).
+	UpdateEval(ctx context.Context, id string, body UpdateEvalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GuardrailRuleList List guardrail rules
 	//
@@ -1649,6 +11239,110 @@ type ClientInterface interface {
 	//
 	// Corresponds with DELETE /v2/workspace-models/{model_id} (the `ModelDisable` operationId).
 	ModelDisable(ctx context.Context, modelId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// CreateEvalWithBody Create an Evaluator
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v2/evaluators (the `CreateEval` operationId).
+func (c *Client) CreateEvalWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateEvalRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateEval Create an Evaluator
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v2/evaluators (the `CreateEval` operationId).
+func (c *Client) CreateEval(ctx context.Context, body CreateEvalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateEvalRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteEval Delete an Evaluator
+//
+// Corresponds with DELETE /v2/evaluators/{id} (the `DeleteEval` operationId).
+func (c *Client) DeleteEval(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteEvalRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetEval Retrieve an Evaluator
+//
+// Retrieve a single evaluator by its unique identifier. Returns the evaluator exactly as stored, including its type-specific configuration — prompt and model for LLM evaluators, source code for Python and TypeScript evaluators, the JSON Schema for schema evaluators, and so on.
+//
+// Use this when you already know the evaluator id (for example to refresh the state of a resource you manage declaratively). To discover evaluator ids, list them with `GET /v2/evaluators`.
+//
+// This endpoint returns the stored record, which carries more detail than the representation `GET /v2/evaluators` returns: `display_name` rather than `key`, `model` as an object rather than a provider-qualified string, plus the `owner`, `domain_id`, `metadata`, `enabled` and `output_type` fields.
+//
+// Corresponds with GET /v2/evaluators/{id} (the `GetEval` operationId).
+func (c *Client) GetEval(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetEvalRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateEvalWithBody Update an Evaluator
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /v2/evaluators/{id} (the `UpdateEval` operationId).
+func (c *Client) UpdateEvalWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateEvalRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateEval Update an Evaluator
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /v2/evaluators/{id} (the `UpdateEval` operationId).
+func (c *Client) UpdateEval(ctx context.Context, id string, body UpdateEvalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateEvalRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 // GuardrailRuleList List guardrail rules
@@ -2664,6 +12358,161 @@ func (c *Client) ModelDisable(ctx context.Context, modelId string, reqEditors ..
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewCreateEvalRequest calls the generic CreateEval builder with application/json body
+func NewCreateEvalRequest(server string, body CreateEvalJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateEvalRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateEvalRequestWithBody constructs an http.Request for the CreateEval method, with any body, and a specified content type
+func NewCreateEvalRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/evaluators")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteEvalRequest constructs an http.Request for the DeleteEval method
+func NewDeleteEvalRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/evaluators/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetEvalRequest constructs an http.Request for the GetEval method
+func NewGetEvalRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/evaluators/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateEvalRequest calls the generic UpdateEval builder with application/json body
+func NewUpdateEvalRequest(server string, id string, body UpdateEvalJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateEvalRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewUpdateEvalRequestWithBody constructs an http.Request for the UpdateEval method, with any body, and a specified content type
+func NewUpdateEvalRequestWithBody(server string, id string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/evaluators/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewGuardrailRuleListRequest constructs an http.Request for the GuardrailRuleList method
@@ -4293,6 +14142,54 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// CreateEvalWithBodyWithResponse Create an Evaluator
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/evaluators (the `CreateEval` operationId).
+	CreateEvalWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateEvalResponse, error)
+
+	// CreateEvalWithResponse Create an Evaluator
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/evaluators (the `CreateEval` operationId).
+	CreateEvalWithResponse(ctx context.Context, body CreateEvalJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateEvalResponse, error)
+
+	// DeleteEvalWithResponse Delete an Evaluator
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /v2/evaluators/{id} (the `DeleteEval` operationId).
+	DeleteEvalWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteEvalResponse, error)
+
+	// GetEvalWithResponse Retrieve an Evaluator
+	//
+	// Retrieve a single evaluator by its unique identifier. Returns the evaluator exactly as stored, including its type-specific configuration — prompt and model for LLM evaluators, source code for Python and TypeScript evaluators, the JSON Schema for schema evaluators, and so on.
+	//
+	// Use this when you already know the evaluator id (for example to refresh the state of a resource you manage declaratively). To discover evaluator ids, list them with `GET /v2/evaluators`.
+	//
+	// This endpoint returns the stored record, which carries more detail than the representation `GET /v2/evaluators` returns: `display_name` rather than `key`, `model` as an object rather than a provider-qualified string, plus the `owner`, `domain_id`, `metadata`, `enabled` and `output_type` fields.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v2/evaluators/{id} (the `GetEval` operationId).
+	GetEvalWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetEvalResponse, error)
+
+	// UpdateEvalWithBodyWithResponse Update an Evaluator
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/evaluators/{id} (the `UpdateEval` operationId).
+	UpdateEvalWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateEvalResponse, error)
+
+	// UpdateEvalWithResponse Update an Evaluator
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/evaluators/{id} (the `UpdateEval` operationId).
+	UpdateEvalWithResponse(ctx context.Context, id string, body UpdateEvalJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateEvalResponse, error)
+
 	// GuardrailRuleListWithResponse List guardrail rules
 	//
 	// Returns a paginated list of guardrail rules for the current project.
@@ -4787,6 +14684,207 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with DELETE /v2/workspace-models/{model_id} (the `ModelDisable` operationId).
 	ModelDisableWithResponse(ctx context.Context, modelId string, reqEditors ...RequestEditorFn) (*ModelDisableResponse, error)
+}
+
+type CreateEvalResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CreateEval200JSONResponseBody
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *struct {
+		Message string `json:"message"`
+	}
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CreateEvalResponse) GetJSON200() *CreateEval200JSONResponseBody {
+	return r.JSON200
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r CreateEvalResponse) GetJSON404() *struct {
+	Message string `json:"message"`
+} {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateEvalResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateEvalResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateEvalResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateEvalResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteEvalResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *struct {
+		Message string `json:"message"`
+	}
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteEvalResponse) GetJSON404() *struct {
+	Message string `json:"message"`
+} {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteEvalResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteEvalResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteEvalResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteEvalResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetEvalResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetEval200JSONResponseBody
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *struct {
+		Message string `json:"message"`
+	}
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetEvalResponse) GetJSON200() *GetEval200JSONResponseBody {
+	return r.JSON200
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetEvalResponse) GetJSON404() *struct {
+	Message string `json:"message"`
+} {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetEvalResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetEvalResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetEvalResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetEvalResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateEvalResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateEval200JSONResponseBody
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *struct {
+		Message string `json:"message"`
+	}
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateEvalResponse) GetJSON200() *UpdateEval200JSONResponseBody {
+	return r.JSON200
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateEvalResponse) GetJSON404() *struct {
+	Message string `json:"message"`
+} {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateEvalResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateEvalResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateEvalResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateEvalResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type GuardrailRuleListResponse struct {
@@ -6972,6 +17070,90 @@ func (r ModelDisableResponse) ContentType() string {
 	return ""
 }
 
+// CreateEvalWithBodyWithResponse Create an Evaluator
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/evaluators (the `CreateEval` operationId).
+func (c *ClientWithResponses) CreateEvalWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateEvalResponse, error) {
+	rsp, err := c.CreateEvalWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateEvalResponse(rsp)
+}
+
+// CreateEvalWithResponse Create an Evaluator
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/evaluators (the `CreateEval` operationId).
+func (c *ClientWithResponses) CreateEvalWithResponse(ctx context.Context, body CreateEvalJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateEvalResponse, error) {
+	rsp, err := c.CreateEval(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateEvalResponse(rsp)
+}
+
+// DeleteEvalWithResponse Delete an Evaluator
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /v2/evaluators/{id} (the `DeleteEval` operationId).
+func (c *ClientWithResponses) DeleteEvalWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteEvalResponse, error) {
+	rsp, err := c.DeleteEval(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteEvalResponse(rsp)
+}
+
+// GetEvalWithResponse Retrieve an Evaluator
+//
+// Retrieve a single evaluator by its unique identifier. Returns the evaluator exactly as stored, including its type-specific configuration — prompt and model for LLM evaluators, source code for Python and TypeScript evaluators, the JSON Schema for schema evaluators, and so on.
+//
+// Use this when you already know the evaluator id (for example to refresh the state of a resource you manage declaratively). To discover evaluator ids, list them with `GET /v2/evaluators`.
+//
+// This endpoint returns the stored record, which carries more detail than the representation `GET /v2/evaluators` returns: `display_name` rather than `key`, `model` as an object rather than a provider-qualified string, plus the `owner`, `domain_id`, `metadata`, `enabled` and `output_type` fields.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v2/evaluators/{id} (the `GetEval` operationId).
+func (c *ClientWithResponses) GetEvalWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetEvalResponse, error) {
+	rsp, err := c.GetEval(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetEvalResponse(rsp)
+}
+
+// UpdateEvalWithBodyWithResponse Update an Evaluator
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/evaluators/{id} (the `UpdateEval` operationId).
+func (c *ClientWithResponses) UpdateEvalWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateEvalResponse, error) {
+	rsp, err := c.UpdateEvalWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateEvalResponse(rsp)
+}
+
+// UpdateEvalWithResponse Update an Evaluator
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/evaluators/{id} (the `UpdateEval` operationId).
+func (c *ClientWithResponses) UpdateEvalWithResponse(ctx context.Context, id string, body UpdateEvalJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateEvalResponse, error) {
+	rsp, err := c.UpdateEval(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateEvalResponse(rsp)
+}
+
 // GuardrailRuleListWithResponse List guardrail rules
 //
 // Returns a paginated list of guardrail rules for the current project.
@@ -7795,6 +17977,145 @@ func (c *ClientWithResponses) ModelDisableWithResponse(ctx context.Context, mode
 		return nil, err
 	}
 	return ParseModelDisableResponse(rsp)
+}
+
+// ParseCreateEvalResponse parses an HTTP response from a CreateEvalWithResponse call
+func ParseCreateEvalResponse(rsp *http.Response) (*CreateEvalResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateEvalResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CreateEval200JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case rsp.StatusCode == 403:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteEvalResponse parses an HTTP response from a DeleteEvalWithResponse call
+func ParseDeleteEvalResponse(rsp *http.Response) (*DeleteEvalResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteEvalResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetEvalResponse parses an HTTP response from a GetEvalWithResponse call
+func ParseGetEvalResponse(rsp *http.Response) (*GetEvalResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetEvalResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetEval200JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateEvalResponse parses an HTTP response from a UpdateEvalWithResponse call
+func ParseUpdateEvalResponse(rsp *http.Response) (*UpdateEvalResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateEvalResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateEval200JSONResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGuardrailRuleListResponse parses an HTTP response from a GuardrailRuleListWithResponse call

@@ -62,3 +62,12 @@ output-options:
     # Workspace Models (/v2/workspace-models)
     - ModelEnable
     - ModelDisable
+    # Evaluators (/v2/evaluators) — orq_evaluator. GetEvals (the LIST) is
+    # deliberately NOT generated: the resource reads by id (GetEval was made
+    # public for exactly that) and a list include would pull the full
+    # eight-variant response union, including types this provider does not
+    # manage, into the generated tree for no caller.
+    - CreateEval
+    - GetEval
+    - UpdateEval
+    - DeleteEval

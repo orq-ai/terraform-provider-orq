@@ -1,20 +1,11 @@
-# Working folder for the orq provider (IDE completions via the filesystem mirror).
-# Setup (see ../DEVELOPMENT.md):
-#   make ide-install                     # from the repo root — builds the v0.1.0 mirror binary
-#   cd dev-playground && tofu init       # (-upgrade after a rebuild)
-#
-# Target: the LOCAL OrbStack cluster (Traefik gateway, orbstack-dev chart) —
-# no proxy needed; the gateway serves https directly:
+# ENG-2440 live E2E playground — targets the LOCAL OrbStack cluster only.
 #   export ORQ_URL="https://my.orq-local.test"
 #   export ORQ_API_KEY="sk-orq-..."      # an ALL-mode management key
-# The LM Studio api key is supplied via the (gitignored) secret.auto.tfvars.
+# LM Studio api key comes from the (gitignored) secret.auto.tfvars.
 
 terraform {
   required_providers {
     orq = {
-      # Host-explicit so terraform-ls (which canonicalizes bare names to
-      # registry.terraform.io) keys the module to the SAME address tofu
-      # installs the schema under — otherwise IDE completions silently break.
       source  = "registry.opentofu.org/orq-ai/orq"
       version = "0.1.0"
     }
@@ -25,89 +16,129 @@ provider "orq" {
   # url and api_key are read from ORQ_URL / ORQ_API_KEY.
 }
 
-resource "orq_project" "example" {
-  name = "tf-test-project-2"
-  description = "Test project for Terraform"
-}
-
 variable "lm_api_key" {
   type        = string
   sensitive   = true
   description = "API key LM Studio expects. Set in secret.auto.tfvars (gitignored)."
 }
 
-# A self-hosted LM Studio model registered as a custom openai-like model.
-# base_url is resolved from inside the cluster (pods reach the host via
-# host.docker.internal); LM Studio JIT-loads the model on the create probe.
-resource "orq_model" "lmstudio" {
-  display_name = "LM Studio LFM2.5 1.2B"
-  model_id     = "liquid/lfm2.5-1.2b"
-  model_type   = "chat"
-  region       = "europe"
-  base_url     = "http://host.docker.internal:1234/v1"
-  api_key      = var.lm_api_key
-
-  # Capabilities (UI "Capabilities" toggles). The workspace chat "Select target"
-  # dropdown only lists tool-calling models, so supports_tool_calling gates it.
-  # NOTE: the server omits `false` on the wire, so the provider can set/hold these
-  # true but cannot detect a UI flip back to false (retain-on-null, by design).
-  supports_tool_calling = true # Function calling
-  supports_vision       = false # Vision
-  supports_strict_tool  = false # Structured Output
-  has_reasoning         = false # Reasoning (encoded server-side as a parameter)
+resource "orq_project" "example" {
+  name        = "tf-e2e-project"
+  description = "TF e2e"
 }
 
-# Model Garden enablement. orq_model has NO enable/disable flag — enablement is
-# the lifecycle of this orq_workspace_model: its PRESENCE = enabled, destroying it
-# = disabled (the model stays in the catalog; only DESTROYING orq_model deletes it).
-# Flip the variable to false (e.g. `tofu apply -var lmstudio_enabled=false`) to
-# disable without deleting.
-variable "lmstudio_enabled" {
-  type        = bool
-  default     = true
-  description = "Model Garden enablement toggle. false disables the model (kept in the catalog)."
+resource "orq_project" "other" {
+  name = "tf-e2e-other"
 }
 
-resource "orq_workspace_model" "lmstudio" {
-  count    = var.lmstudio_enabled ? 1 : 0
-  model_id = orq_model.lmstudio.id # the resolved document UUID
+resource "orq_model" "gemma" {
+  display_name          = "LM Studio Gemma 4 E2B"
+  model_id              = "google/gemma-4-e2b"
+  model_type            = "chat"
+  region                = "europe"
+  base_url              = "http://host.docker.internal:1234/v1"
+  api_key               = var.lm_api_key
+  has_reasoning         = true
+  supports_tool_calling = true
+  supports_vision       = false
+  supports_strict_tool  = false
+}
+
+resource "orq_workspace_model" "gemma" {
+  model_id = orq_model.gemma.id
   sharing = {
     all_projects = true
   }
 }
 
-# Enable a built-in (system) model. No orq_model needed — it already exists in the
-# catalog; the workspace_model row is what enables it. Referenced by its human
-# ref (provider/model) thanks to the provider's ref resolver.
-resource "orq_workspace_model" "gpt4o_mini" {
+resource "orq_workspace_model" "sys" {
   model_id = "openai/gpt-4o-mini"
   sharing = {
     all_projects = true
   }
 }
 
-# gpt-4o enabled but shared ONLY with the newly created test project (scoped
-# sharing via project_ids instead of all_projects).
-resource "orq_workspace_model" "gpt4o" {
+resource "orq_workspace_model" "scoped" {
   model_id = "openai/gpt-4o"
   sharing = {
     project_ids = [orq_project.example.id]
   }
 }
 
-# Workspace settings singleton (ENG-2440). COMMENTED OUT on purpose: enabling it
-# ADOPTS the live workspace settings and renames the workspace on the first
-# apply, so it must be an explicit choice rather than something a stray
-# `tofu plan` picks up. Uncomment for the live run.
+# BLOCKED on this cluster: an ALL-mode MANAGEMENT key cannot create api-keys
+# ("apikeys: permissions exceed actor authority", HTTP 403) nor management-keys
+# ("not authorized for this endpoint", HTTP 403). See PG-8 / WS-48..50 notes.
+# resource "orq_api_key" "router" {
+#   name       = "tf-e2e-router-key"
+#   project_id = orq_project.example.id
+# }
 #
-# `destroy` on this resource is state-only: nothing is changed server-side.
-# Import (any id; `workspace` is the documented sentinel):
-#   tofu import orq_workspace_settings.this workspace
+# resource "orq_management_key" "ro" {
+#   name            = "tf-e2e-ro"
+#   permission_mode = "MANAGEMENT_PERMISSION_MODE_READ_ONLY"
+# }
+
+resource "orq_notifier" "email" {
+  display_name = "tf-e2e-notifier"
+  type         = "EMAIL"
+  emails       = ["e2e@orq-local.test"]
+}
+
+resource "orq_budget" "ws" {
+  scope = {
+    kind = "WORKSPACE"
+  }
+  limits = {
+    period = "MONTHLY"
+    amount = 25
+  }
+  rate_limit_per_minute = 60
+
+  alerts {
+    threshold_percent = 80
+    notifier_ids      = [orq_notifier.email.id]
+    dimension         = "COST"
+  }
+}
+
+resource "orq_routing_rule" "fallback" {
+  display_name = "tf-e2e-routing"
+  priority     = 10
+  expression = {
+    cel = "model == \"openai/gpt-4o-mini\""
+  }
+  models_config = jsonencode({
+    mode = "fallback"
+    models = [
+      { model = "openai/gpt-4o-mini", weight = 1 },
+    ]
+  })
+}
+
+
+# --- orq_evaluator -----------------------------------------------------------
+# Commented out on purpose: this playground is applied against a live local
+# stack and evaluators need a `path` whose project exists there, plus (for
+# llm_eval) a tool-calling model the workspace can actually reach. Uncomment
+# whichever half you want to exercise — leaving it commented keeps the
+# playground's plan unchanged.
 #
-# resource "orq_workspace_settings" "this" {
-#   display_name           = "orq-test"
-#   enforce_enabled_models = false
+# resource "orq_evaluator" "py" {
+#   key         = "tf-e2e-python"
+#   type        = "python_eval"
+#   path        = "Default"
+#   description = "TF e2e python evaluator"
+#   output_type = "boolean"
+#   code        = file("${path.module}/eval.py")
+# }
 #
-#   # Omitted pii_redaction = NOT managed (never sent, never read into state).
-#   # It is not the same as `enabled = false`.
+# resource "orq_evaluator" "llm" {
+#   key         = "tf-e2e-llm"
+#   type        = "llm_eval"
+#   path        = "Default"
+#   mode        = "single"
+#   model       = "openai/gpt-4o-mini"
+#   prompt      = "Answer true when the response is polite."
+#   output_type = "boolean"
+#   repetitions = 1
 # }

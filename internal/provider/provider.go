@@ -153,5 +153,6 @@ func (p *orqProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewManagementKeyResource,
 		NewModelResource,
 		NewWorkspaceSettingsResource,
+		NewEvaluatorResource,
 	}
 }

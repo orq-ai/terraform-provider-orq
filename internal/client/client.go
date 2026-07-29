@@ -58,6 +58,7 @@ type Client struct {
 	managementKeys  ManagementKeysAPI
 	models          ModelsAPI
 	settings        WorkspaceSettingsAPI
+	evaluators      EvaluatorsAPI
 
 	rest *restgen.ClientWithResponses
 }
@@ -173,6 +174,7 @@ func New(cfg Config) (*Client, error) {
 		apiKeys:         &connectAPIKeys{c: apiKeysClient},
 		managementKeys:  &connectManagementKeys{c: managementKeysClient},
 		models:          &restModels{c: rest},
+		evaluators:      &restEvaluators{c: rest},
 		settings:        &connectWorkspaceSettings{c: workspaceSettingsClient},
 		rest:            rest,
 	}, nil
@@ -209,3 +211,6 @@ func (c *Client) Models() ModelsAPI { return c.models }
 // WorkspaceSettings returns the transport-agnostic workspace-settings API
 // (Connect-backed). It is a singleton: read + partial update only.
 func (c *Client) WorkspaceSettings() WorkspaceSettingsAPI { return c.settings }
+
+// Evaluators returns the transport-agnostic evaluators API (REST-backed).
+func (c *Client) Evaluators() EvaluatorsAPI { return c.evaluators }
