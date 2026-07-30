@@ -53,6 +53,7 @@ generate-rest:
 
 # CI guard: fail if the committed generated tree differs from a fresh regen.
 check-generated: generate
+	@git add -N internal/gen internal/restgen
 	@git diff --exit-code -- internal/gen internal/restgen \
 		|| { echo "generated code is out of date; run 'make generate' and commit"; exit 1; }
 
