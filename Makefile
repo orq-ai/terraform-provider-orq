@@ -16,7 +16,11 @@ VERSION    ?= 0.1.0
 OS_ARCH    := $(shell go env GOOS)_$(shell go env GOARCH)
 PLUGIN_DIR := $(HOME)/.terraform.d/plugins/registry.opentofu.org/orq-ai/orq/$(VERSION)/$(OS_ARCH)
 
-.PHONY: build test testacc generate generate-connect generate-rest proto-sync openapi-sync record-source-commit check-generated tidy ide-install
+# Pinned tfplugindocs used to render docs/ from the provider schema + examples/.
+TFPLUGINDOCS := github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.25.0
+TF_VERSION   := 1.15.8
+
+.PHONY: build test testacc generate generate-connect generate-rest proto-sync openapi-sync record-source-commit check-generated docs tidy ide-install
 
 build:
 	go build -o $(BINARY) .
@@ -51,6 +55,13 @@ generate-rest:
 check-generated: generate
 	@git diff --exit-code -- internal/gen internal/restgen \
 		|| { echo "generated code is out of date; run 'make generate' and commit"; exit 1; }
+
+# Registry documentation. Generated from the provider schema and examples/;
+# never hand-edit docs/. --tf-version makes tfplugindocs download its own
+# terraform rather than use whatever is on PATH (an OpenTofu binary named
+# `terraform` resolves the provider against the wrong registry and fails).
+docs:
+	go run $(TFPLUGINDOCS) generate --tf-version $(TF_VERSION)
 
 tidy:
 	go mod tidy

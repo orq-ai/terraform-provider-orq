@@ -1,9 +1,8 @@
 # CI for terraform-provider-orq.
 #
-# NOTE: not active until the GitHub upstream orq-ai/terraform-provider-orq
-# exists. Kept in-repo so it runs the moment the repo is pushed. It enforces
-# that generated code is reproducible (never hand-edited): `make check-generated`
-# regenerates both clients and fails on any diff.
+# Enforces that the generated trees are reproducible and never hand-edited:
+# `make check-generated` regenerates both clients and `make docs` re-renders the
+# registry documentation; either diff fails the build.
 name: ci
 
 on:
@@ -39,3 +38,9 @@ jobs:
 
       - name: Test
         run: make test
+
+      - name: Verify registry docs are up to date
+        run: |
+          make docs
+          git diff --exit-code -- docs/ \
+            || { echo "docs are out of date; run 'make docs' and commit"; exit 1; }
