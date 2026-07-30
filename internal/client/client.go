@@ -57,6 +57,7 @@ type Client struct {
 	apiKeys         APIKeysAPI
 	managementKeys  ManagementKeysAPI
 	models          ModelsAPI
+	bedrockModels   BedrockModelsAPI
 	settings        WorkspaceSettingsAPI
 	evaluators      EvaluatorsAPI
 
@@ -174,6 +175,7 @@ func New(cfg Config) (*Client, error) {
 		apiKeys:         &connectAPIKeys{c: apiKeysClient},
 		managementKeys:  &connectManagementKeys{c: managementKeysClient},
 		models:          &restModels{c: rest},
+		bedrockModels:   &restBedrockModels{c: rest},
 		evaluators:      &restEvaluators{c: rest},
 		settings:        &connectWorkspaceSettings{c: workspaceSettingsClient},
 		rest:            rest,
@@ -207,6 +209,10 @@ func (c *Client) ManagementKeys() ManagementKeysAPI { return c.managementKeys }
 
 // Models returns the transport-agnostic custom-models API (REST-backed).
 func (c *Client) Models() ModelsAPI { return c.models }
+
+// BedrockModels returns the transport-agnostic AWS Bedrock custom-models API
+// (REST-backed).
+func (c *Client) BedrockModels() BedrockModelsAPI { return c.bedrockModels }
 
 // WorkspaceSettings returns the transport-agnostic workspace-settings API
 // (Connect-backed). It is a singleton: read + partial update only.

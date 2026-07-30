@@ -152,6 +152,7 @@ func (p *orqProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewAPIKeyResource,
 		NewManagementKeyResource,
 		NewModelResource,
+		NewBedrockModelResource,
 		NewWorkspaceSettingsResource,
 		NewEvaluatorResource,
 	}
