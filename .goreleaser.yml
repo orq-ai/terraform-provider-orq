@@ -1,11 +1,8 @@
-# goreleaser config for the orq Terraform provider.
+# goreleaser config for the orq Terraform provider
+# (github.com/orq-ai/terraform-provider-orq).
 #
-# STATUS: UNUSED until first publish. The provider is local-development only
-# right now (no GitHub upstream, no registry entry). This file is the standard
-# terraform-provider release template kept ready so that, once
-# orq-ai/terraform-provider-orq exists and a GPG signing key is configured, a
-# tagged release (git tag vX.Y.Z) publishes to registry.terraform.io and the
-# OpenTofu registry unchanged. Do not wire it into CI yet.
+# Run by .github/workflows/release.yml on a vX.Y.Z tag; the resulting assets are
+# what registry.terraform.io and the OpenTofu registry ingest.
 version: 2
 
 before:
@@ -41,6 +38,9 @@ archives:
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
   algorithm: sha256
+  extra_files:
+    - glob: terraform-registry-manifest.json
+      name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"
 
 signs:
   - artifacts: checksum
@@ -55,7 +55,11 @@ signs:
       - "${artifact}"
 
 release:
-  # Registries ingest release assets from GitHub tags.
+  extra_files:
+    - glob: terraform-registry-manifest.json
+      name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"
+  # Released as a draft: a maintainer must click "Publish release" on GitHub
+  # before either registry can ingest the tag.
   draft: true
 
 changelog:
