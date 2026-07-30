@@ -133,14 +133,21 @@ func mapRESTStatus(status int, body []byte) error {
 // serverRESTMessage extracts the operator-actionable message from the platform's
 // {"error": "..."} envelope, or "" for anything else (an HTML proxy error page,
 // an empty body) so the caller falls back to the neutral phrase.
+// The REST surface has two error envelopes: router-style {"error": "..."} and
+// workspaces-style {"message": "...", "code": "..."}. Prefer error when both
+// are present; it is the older shape and never coexists with a message today.
 func serverRESTMessage(body []byte) string {
 	var env struct {
-		Error string `json:"error"`
+		Error   string `json:"error"`
+		Message string `json:"message"`
 	}
 	if json.Unmarshal(body, &env) != nil {
 		return ""
 	}
-	return sanitizeMessage(env.Error)
+	if env.Error != "" {
+		return sanitizeMessage(env.Error)
+	}
+	return sanitizeMessage(env.Message)
 }
 
 // sanitizeMessage bounds and cleans an untrusted server message before it

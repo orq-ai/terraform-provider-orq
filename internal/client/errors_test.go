@@ -195,3 +195,12 @@ func TestMapRESTStatus_SurfacesServerMessage(t *testing.T) {
 		}
 	})
 }
+
+func TestServerRESTMessageParsesMessageEnvelope(t *testing.T) {
+	if got := serverRESTMessage([]byte(`{"code":"invalid_request_body","message":"Project Default not found in your workspace"}`)); got != "Project Default not found in your workspace" {
+		t.Fatalf("message envelope: got %q", got)
+	}
+	if got := serverRESTMessage([]byte(`{"error":"router says no","message":"ignored"}`)); got != "router says no" {
+		t.Fatalf("error precedence: got %q", got)
+	}
+}

@@ -3,7 +3,7 @@
 resource "orq_evaluator" "cites_sources" {
   key         = "cites-sources"
   type        = "python_eval"
-  path        = "Default/evaluators" # project, then optional folders
+  path        = "Default Project/evaluators" # "<project name>/<folders...>" — the project must exist
   description = "True when the answer cites at least one source"
   output_type = "boolean" # python_eval: boolean | number
 
@@ -14,7 +14,7 @@ resource "orq_evaluator" "cites_sources" {
 resource "orq_evaluator" "tone" {
   key         = "tone"
   type        = "llm_eval"
-  path        = "Default/evaluators"
+  path        = "Default Project/evaluators"
   description = "Classifies the tone of the answer"
 
   mode   = "single"
@@ -39,7 +39,7 @@ resource "orq_evaluator" "tone" {
 resource "orq_evaluator" "factuality_jury" {
   key    = "factuality"
   type   = "llm_eval"
-  path   = "Default/evaluators"
+  path   = "Default Project/evaluators"
   mode   = "jury"
   prompt = "Is the answer factually supported by the retrieved context?"
 
@@ -79,7 +79,7 @@ resource "orq_evaluator" "factuality_jury" {
 resource "orq_evaluator" "shakespearean" {
   key         = "shakespearean"
   type        = "llm_eval"
-  path        = "Default/evaluators"
+  path        = "Default Project/evaluators"
   description = "True when the response is written in Shakespearean English"
 
   mode  = "single"
