@@ -2,12 +2,11 @@
 
 Terraform provider for [orq.ai](https://orq.ai) workspace resources (ENG-2440, phase 1).
 
-> **Status: local development only.** Not published to any registry. The upstream
-> GitHub repo `orq-ai/terraform-provider-orq` is created separately by the repo
-> owner; do not `git push` or add a remote until that exists and publish is
-> approved. This scaffold currently ships auth + generated clients + one
-> read-only data source (`orq_projects`) as an end-to-end smoke test; the full
-> resource set lands in a later task.
+> **Status.** The repo lives at
+> [github.com/orq-ai/terraform-provider-orq](https://github.com/orq-ai/terraform-provider-orq).
+> Publication to the Terraform and OpenTofu registries is pending the first
+> tagged release (`vX.Y.Z`); until then the provider is installed from source
+> (see [DEVELOPMENT.md](./DEVELOPMENT.md)).
 
 ## Registry naming requirement
 
@@ -90,6 +89,7 @@ in `openapi/oapi-codegen.yaml` (not a tag include) so the OpenAI-compatible
 | `testacc` | acceptance tests (`TF_ACC=1`; needs `ORQ_URL` + `ORQ_API_KEY`) |
 | `generate` | regenerate both clients (buf + oapi-codegen) |
 | `check-generated` | CI guard: fail if generated code is stale |
+| `docs` | regenerate `docs/` for the registries (tfplugindocs) |
 | `proto-sync` / `openapi-sync` | re-copy codegen inputs from the monorepo |
 
 ## Prerequisites
@@ -100,6 +100,14 @@ in `openapi/oapi-codegen.yaml` (not a tag include) so the OpenAI-compatible
 
 ## Publishing
 
-`.goreleaser.yml` is present but **unused** until the GitHub upstream and a GPG
-signing key exist. Releases are tag-driven (`git tag vX.Y.Z`); both registries
-auto-detect them.
+Releases are tag-driven: pushing a `vX.Y.Z` tag runs
+[`.github/workflows/release.yml`](.github/workflows/release.yml), which builds
+and GPG-signs the assets with [`.goreleaser.yml`](./.goreleaser.yml) and creates
+a **draft** GitHub release. A maintainer must click "Publish release" before
+registry.terraform.io and the OpenTofu registry can ingest the tag.
+
+Requires two repo secrets: `GPG_PRIVATE_KEY` (the ASCII-armored signing key,
+whose public half is registered with the registries) and `PASSPHRASE`.
+
+Registry documentation is generated from the provider schema and `examples/`
+with `make docs`; CI fails if `docs/` is stale. Never hand-edit `docs/`.
