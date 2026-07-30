@@ -216,20 +216,22 @@ func modelFromDocument(d *restgen.ModelDocument) Model {
 	return m
 }
 
-func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
-	resp, err := r.c.ModelListWithResponse(ctx)
+// listModelDocuments fetches the whole model catalog. There is no GET-by-id
+// route, so every read goes through here. A 404/410 from the COLLECTION endpoint
+// cannot say a single id is gone, so it is demoted rather than passed on as
+// not_found — which would make Read drop the resource and the next apply create a
+// DUPLICATE.
+func listModelDocuments(ctx context.Context, c *restgen.ClientWithResponses) ([]restgen.ModelDocument, error) {
+	resp, err := c.ModelListWithResponse(ctx)
 	if err != nil {
 		return nil, mapRESTTransportError("model", err)
 	}
 	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		mapped := mapRESTStatus(resp.StatusCode(), resp.Body)
-		// The COLLECTION endpoint cannot say a single id is gone, so a 404/410 here
-		// is demoted rather than passed on as not_found — which would make Read drop
-		// the resource and the next apply create a DUPLICATE.
 		if CodeOf(mapped) == CodeNotFound {
 			return nil, &Error{
 				Code: CodeUnavailable,
-				Message: "the model catalog list endpoint returned not-found; there is no GET-by-id " +
+				Message: "the model catalog list endpoint returned not-found; there is no lookup-by-id " +
 					"route, so this is a routing or deployment anomaly rather than a deleted model. " +
 					"State is left intact — verify the API base URL and that the model list route is " +
 					"reachable.",
@@ -238,18 +240,15 @@ func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
 		}
 		return nil, mapped
 	}
-	for i := range *resp.JSON200 {
-		d := &(*resp.JSON200)[i]
-		if d.Id != id {
-			continue
-		}
-		m := modelFromDocument(d)
-		return &m, nil
-	}
-	// The list applies workspace/project scope and visibility filters, so an
-	// absent id may be deleted OR merely invisible to this credential. Refuse to
-	// guess: a NON-not_found error keeps it in state.
-	return nil, &Error{
+	return *resp.JSON200, nil
+}
+
+// modelNotVisibleError covers a list-miss. The list applies workspace/project
+// scope and visibility filters, so an absent id may be deleted OR merely
+// invisible to this credential. Refuse to guess: a NON-not_found error keeps it
+// in state.
+func modelNotVisibleError(id string) error {
+	return &Error{
 		Code: CodeInternal,
 		Message: "model " + id + " is not visible in the workspace model catalog; it may " +
 			"have been deleted, or hidden from this credential by workspace/project scoping. " +
@@ -259,30 +258,30 @@ func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
 	}
 }
 
+func (r *restModels) Get(ctx context.Context, id string) (*Model, error) {
+	docs, err := listModelDocuments(ctx, r.c)
+	if err != nil {
+		return nil, err
+	}
+	for i := range docs {
+		if docs[i].Id != id {
+			continue
+		}
+		m := modelFromDocument(&docs[i])
+		return &m, nil
+	}
+	return nil, modelNotVisibleError(id)
+}
+
 // Resolve maps a model reference to its catalog document: an exact `id` match
 // wins outright, otherwise the unique exact `ref_id` match does. The id-vs-ref
 // decision is made purely by equality, never by a "looks like a ref"
 // contains-slash heuristic, because some backends use slug-shaped document ids.
 func (r *restModels) Resolve(ctx context.Context, ref string) (*Model, error) {
-	resp, err := r.c.ModelListWithResponse(ctx)
+	docs, err := listModelDocuments(ctx, r.c)
 	if err != nil {
-		return nil, mapRESTTransportError("model", err)
+		return nil, err
 	}
-	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
-		mapped := mapRESTStatus(resp.StatusCode(), resp.Body)
-		if CodeOf(mapped) == CodeNotFound {
-			return nil, &Error{
-				Code: CodeUnavailable,
-				Message: "the model catalog list endpoint returned not-found while resolving a model " +
-					"reference; there is no lookup-by-id route, so this is a routing or deployment anomaly " +
-					"rather than a missing model. Verify the API base URL and that the model list route is reachable.",
-				err: mapped,
-			}
-		}
-		return nil, mapped
-	}
-
-	docs := *resp.JSON200
 
 	// 1. Exact id match wins outright.
 	for i := range docs {
@@ -385,7 +384,13 @@ func (r *restModels) Update(ctx context.Context, in ModelUpdateInput) (*Model, e
 }
 
 func (r *restModels) Delete(ctx context.Context, id string) error {
-	resp, err := r.c.ModelDeleteWithResponse(ctx, id)
+	return deleteModelByID(ctx, r.c, id)
+}
+
+// deleteModelByID drives the shared DELETE /v2/models/:id route, used by every
+// custom-model flavour.
+func deleteModelByID(ctx context.Context, c *restgen.ClientWithResponses, id string) error {
+	resp, err := c.ModelDeleteWithResponse(ctx, id)
 	if err != nil {
 		return mapRESTTransportError("model", err)
 	}
