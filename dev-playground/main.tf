@@ -22,13 +22,9 @@ variable "lm_api_key" {
   description = "API key LM Studio expects. Set in secret.auto.tfvars (gitignored)."
 }
 
-resource "orq_project" "example" {
+resource "orq_project" "terraform-created" {
   name        = "tf-e2e-project"
   description = "TF e2e"
-}
-
-resource "orq_project" "other" {
-  name = "tf-e2e-other"
 }
 
 resource "orq_model" "gemma" {
@@ -44,12 +40,12 @@ resource "orq_model" "gemma" {
   supports_strict_tool  = false
 }
 
-resource "orq_workspace_model" "gemma" {
-  model_id = orq_model.gemma.id
-  sharing = {
-    all_projects = true
-  }
-}
+# resource "orq_workspace_model" "gemma" {
+#   model_id = orq_model.gemma.id
+#   sharing = {
+#     all_projects = true
+#   }
+# }
 
 resource "orq_workspace_model" "sys" {
   model_id = "openai/gpt-4o-mini"
@@ -58,16 +54,18 @@ resource "orq_workspace_model" "sys" {
   }
 }
 
-resource "orq_workspace_model" "scoped" {
-  model_id = "openai/gpt-4o"
-  sharing = {
-    project_ids = [orq_project.example.id]
-  }
-}
+# resource "orq_workspace_model" "scoped" {
+#   model_id = "openai/gpt-4o"
+#   sharing = {
+#     project_ids = [orq_project.example.id]
+#   }
+# }
 
-# BLOCKED on this cluster: an ALL-mode MANAGEMENT key cannot create api-keys
-# ("apikeys: permissions exceed actor authority", HTTP 403) nor management-keys
-# ("not authorized for this endpoint", HTTP 403). See PG-8 / WS-48..50 notes.
+# api-key minting works when the management key holds `api-key: write`
+# (ALL-mode keys do); the minted key's lifetime is capped by the actor's.
+# Management-key creation still needs an explicit RESTRICTED
+# `management-key: write` grant — the domain is excluded from the ALL and
+# READ_ONLY presets, so an ALL-mode key gets 403 by design.
 # resource "orq_api_key" "router" {
 #   name       = "tf-e2e-router-key"
 #   project_id = orq_project.example.id
@@ -78,42 +76,42 @@ resource "orq_workspace_model" "scoped" {
 #   permission_mode = "MANAGEMENT_PERMISSION_MODE_READ_ONLY"
 # }
 
-resource "orq_notifier" "email" {
-  display_name = "tf-e2e-notifier"
-  type         = "EMAIL"
-  emails       = ["e2e@orq-local.test"]
-}
+# resource "orq_notifier" "email" {
+#   display_name = "tf-e2e-notifier"
+#   type         = "EMAIL"
+#   emails       = ["e2e@orq-local.test"]
+# }
 
-resource "orq_budget" "ws" {
-  scope = {
-    kind = "WORKSPACE"
-  }
-  limits = {
-    period = "MONTHLY"
-    amount = 25
-  }
-  rate_limit_per_minute = 60
+# resource "orq_budget" "ws" {
+#   scope = {
+#     kind = "WORKSPACE"
+#   }
+#   limits = {
+#     period = "MONTHLY"
+#     amount = 25
+#   }
+#   rate_limit_per_minute = 60
 
-  alerts {
-    threshold_percent = 80
-    notifier_ids      = [orq_notifier.email.id]
-    dimension         = "COST"
-  }
-}
+#   alerts {
+#     threshold_percent = 80
+#     notifier_ids      = [orq_notifier.email.id]
+#     dimension         = "COST"
+#   }
+# }
 
-resource "orq_routing_rule" "fallback" {
-  display_name = "tf-e2e-routing"
-  priority     = 10
-  expression = {
-    cel = "model == \"openai/gpt-4o-mini\""
-  }
-  models_config = jsonencode({
-    mode = "fallback"
-    models = [
-      { model = "openai/gpt-4o-mini", weight = 1 },
-    ]
-  })
-}
+# resource "orq_routing_rule" "fallback" {
+#   display_name = "tf-e2e-routing"
+#   priority     = 10
+#   expression = {
+#     cel = "model == \"openai/gpt-4o-mini\""
+#   }
+#   models_config = jsonencode({
+#     mode = "fallback"
+#     models = [
+#       { model = "openai/gpt-4o-mini", weight = 1 },
+#     ]
+#   })
+# }
 
 
 # --- orq_evaluator -----------------------------------------------------------
