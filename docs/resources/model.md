@@ -91,3 +91,16 @@ resource "orq_model" "self_hosted" {
 - `created` (String) Creation time (RFC 3339).
 - `id` (String) Model ID (UUID) assigned by orq.
 - `updated` (String) Last update time (RFC 3339).
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Custom openai-like models are imported by their catalog document id. Importing
+# a system (non-custom) model is refused. `api_key` is never returned by the API,
+# so setting it after an import forces replacement.
+terraform import orq_model.example 019facd8-a87e-7664-885b-41cdc118e18b
+```

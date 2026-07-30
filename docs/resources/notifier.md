@@ -57,3 +57,14 @@ resource "orq_notifier" "email" {
 - `created_at` (String) Creation time (RFC 3339).
 - `id` (String) Notifier ID assigned by orq.
 - `updated_at` (String) Last update time (RFC 3339).
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Notifiers are imported by their prefixed id.
+terraform import orq_notifier.example notifier_01kypdh9ga3f9m6gptyz6v9h7n
+```

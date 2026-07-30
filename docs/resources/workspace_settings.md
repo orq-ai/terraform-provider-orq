@@ -114,3 +114,15 @@ Entities round-trip VERBATIM, so no canonical spelling is imposed on your config
 - `language` (String) Detector language: `en` or `nl`. Omit for the gateway default (`en`). The valid `entities` catalog depends on this value.
 - `on_failure` (String) Behaviour when redaction cannot run: `block` (fail closed, the gateway default) or `passthrough` (fail open, send the original text).
 - `threshold` (Number) Detection confidence threshold, in the `[0, 1]` range.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# The settings are a per-workspace singleton with no id; the workspace is implied
+# by the credential. Any id works — use the `workspace` sentinel.
+terraform import orq_workspace_settings.this workspace
+```

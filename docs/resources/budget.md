@@ -127,3 +127,14 @@ Required:
 Optional:
 
 - `target` (String) Scope target (project ID, identity external ID, api-key ID, provider, or model reference). Omit for `WORKSPACE`.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Budgets are imported by their id (a ULID).
+terraform import orq_budget.example 01KYPDH9HC6MXM71PPMGE9SBD3
+```

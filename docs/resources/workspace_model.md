@@ -96,3 +96,15 @@ Optional:
 - `allow_version_pin` (Boolean) Allow consuming projects to pin a specific version.
 - `auto_grant_new_projects` (Boolean) Automatically grant new projects access. Only valid with `all_projects` (combining it with an explicit `project_ids` list is a perpetual-diff trap and is rejected).
 - `project_ids` (List of String) Share with exactly these projects. An empty list means shared with no project (still workspace-visible to admins). Mutually exclusive with `all_projects`.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Workspace models are imported by the model reference or by the catalog
+# document id — the same forms `model_id` accepts.
+terraform import orq_workspace_model.example openai/gpt-4o
+```

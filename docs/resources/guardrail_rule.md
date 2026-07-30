@@ -71,3 +71,14 @@ Optional:
 - `is_guardrail` (Boolean) Whether this reference is enforced as a guardrail (blocking).
 - `options` (String) Arbitrary per-guardrail configuration as a JSON object string (e.g. PII language/threshold/entities). Compared semantically, so key order and insignificant whitespace do not produce a diff. Preserved across updates.
 - `sample_rate` (Number) Fraction of requests to evaluate (0-1).
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Guardrail rules are imported by their prefixed id.
+terraform import orq_guardrail_rule.example grl_01kypdn2r4tqz8f3hb6mw0cxje
+```

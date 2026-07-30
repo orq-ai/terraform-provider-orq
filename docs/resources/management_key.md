@@ -73,3 +73,15 @@ output "ci_management_key_token" {
 - `token` (String, Sensitive) Raw `sk-orq-...` secret. Returned ONCE on create and stored in state — use an encrypted remote backend. Null after import (metadata-only). `token_hash` is never returned by the API.
 - `token_prefix` (String) Displayable, non-secret token prefix (e.g. `sk-orq-01HXY...`).
 - `updated_at` (String) Last update time (RFC 3339).
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Management keys are imported by their id (a ULID). Metadata only: the raw
+# `token` is null after an import and cannot be recovered.
+terraform import orq_management_key.example 01KYPDK7T2M9XB4QZ0RVN6HDSW
+```

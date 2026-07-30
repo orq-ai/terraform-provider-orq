@@ -40,3 +40,14 @@ resource "orq_project" "example" {
 - `is_default` (Boolean) Whether this is the workspace default project.
 - `key` (String) Project key derived from the name by orq. The server re-derives it on every update, so it is planned as "known after apply" whenever `name` changes and kept stable otherwise.
 - `updated_at` (String) Last update time (RFC 3339).
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Projects are imported by their id (a UUID).
+terraform import orq_project.example 019facd8-a60b-7a97-bd30-bf8e7280058a
+```

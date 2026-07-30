@@ -65,3 +65,14 @@ resource "orq_routing_rule" "fallback" {
 Required:
 
 - `cel` (String) CEL match expression.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Routing rules are imported by their prefixed id.
+terraform import orq_routing_rule.example rrl_01kypdmvajqdqvp2xzwm4ecyg9
+```

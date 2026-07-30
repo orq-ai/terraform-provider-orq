@@ -202,3 +202,17 @@ Optional:
 
 - `count` (Number) Number of attempts, 1-5.
 - `on_codes` (List of Number) HTTP status codes that trigger a retry (100-599).
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Evaluators are imported by the 26-character ULID the API returns as `_id`.
+# Built-in evaluators (orq_pii_detection, …) are addressed by slug, have no
+# evaluator record, and cannot be imported. `path` is not importable and stays
+# null until the first apply re-asserts it from config.
+terraform import orq_evaluator.example 01JMDPA3QW5C1V0NJ1PW34T4E5
+```
