@@ -201,6 +201,18 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 		m.Guardrails = nil
 		return
 	}
+	// The server normalizes an empty options object to absent, so a planned
+	// "{}" must survive the read-back or apply reports an inconsistent result.
+	emptyOptions := make(map[string]bool, len(m.Guardrails))
+	for _, prior := range m.Guardrails {
+		if prior.Options.IsNull() || prior.Options.IsUnknown() {
+			continue
+		}
+		var opts map[string]any
+		if json.Unmarshal([]byte(prior.Options.ValueString()), &opts) == nil && len(opts) == 0 {
+			emptyOptions[prior.ID.ValueString()+"|"+prior.ExecuteOn.ValueString()] = true
+		}
+	}
 	refs := make([]guardrailRefModel, 0, len(g.Guardrails))
 	for _, ref := range g.Guardrails {
 		rm := guardrailRefModel{
@@ -220,13 +232,16 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 		// Encode the server's options map back to a JSON string. jsontypes
 		// compares semantically, so this converges with the operator's config
 		// regardless of key order / whitespace.
-		if ref.Options != nil {
+		switch {
+		case ref.Options != nil:
 			if b, err := json.Marshal(ref.Options); err == nil {
 				rm.Options = jsontypes.NewNormalizedValue(string(b))
 			} else {
 				rm.Options = jsontypes.NewNormalizedNull()
 			}
-		} else {
+		case emptyOptions[ref.ID+"|"+ref.ExecuteOn]:
+			rm.Options = jsontypes.NewNormalizedValue("{}")
+		default:
 			rm.Options = jsontypes.NewNormalizedNull()
 		}
 		refs = append(refs, rm)
