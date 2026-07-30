@@ -26,6 +26,7 @@ var (
 	_ resource.ResourceWithConfigure      = &bedrockModelResource{}
 	_ resource.ResourceWithImportState    = &bedrockModelResource{}
 	_ resource.ResourceWithValidateConfig = &bedrockModelResource{}
+	_ resource.ResourceWithModifyPlan     = &bedrockModelResource{}
 )
 
 // bedrockInferenceProfileARNPattern is copied verbatim from the server
@@ -104,16 +105,18 @@ func (r *bedrockModelResource) Schema(_ context.Context, _ resource.SchemaReques
 			"The update endpoint treats an empty value as \"not sent\" and cannot clear one, so REMOVING a " +
 			"previously set assume-role value forces replacement rather than silently leaving the role " +
 			"attached.\n\n" +
-			"**Refreshed fields:** `input_cost` and `output_cost` are always serialized by the server, so " +
-			"they are refreshed unconditionally and an out-of-band change — including to `0` — surfaces as " +
-			"drift. The `supports_*` / `has_reasoning` capability booleans live under the server's " +
-			"`metadata` with `omitempty`: a `false` is DROPPED on the wire, so on absence the prior value " +
-			"is retained (retain-on-null) and an out-of-band flip to `false` is NOT visible as drift. " +
-			"`supports_tool_calling` is the exception — the server also mirrors it into the always-present " +
-			"top-level `has_functions`, so it refreshes in both directions. `max_tokens` and `temperature` " +
-			"are encoded into the server's parameter list and cannot be refreshed or cleared, so removing " +
-			"one from config keeps the last value in state (retain-on-null); the same retain-on-null " +
-			"applies to `description` and `model_family`.",
+			"**Everything readable is refreshed authoritatively.** The read returns the complete model " +
+			"document, so an absent field means the value is `false`/unset rather than unknowable: the " +
+			"`supports_*` and `has_reasoning` booleans, `input_cost`/`output_cost`, and `max_tokens`/" +
+			"`temperature` (which the server stores as sliders in its `parameters` list) all surface " +
+			"out-of-band changes as drift, and all are recovered by import. `description` and " +
+			"`model_family` are the exception: the update endpoint ignores an empty value for them, so " +
+			"removing either from config keeps the last applied value in state (retain-on-null).\n\n" +
+			"**Clearing all tunables at once forces replacement.** The update endpoint rebuilds the whole " +
+			"parameter list from `max_tokens`, `temperature` and `has_reasoning` and writes it only when " +
+			"the result is non-empty, so a request that clears all three is silently ignored. Clearing " +
+			"some of them is applied normally; clearing the last one forces replacement rather than " +
+			"leaving a stale slider attached that would re-appear on the next refresh.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -215,18 +218,18 @@ func (r *bedrockModelResource) Schema(_ context.Context, _ resource.SchemaReques
 			},
 			"max_tokens": schema.Int64Attribute{
 				Optional: true,
-				Computed: true,
-				MarkdownDescription: "Optional max tokens (1-128000). Config-authoritative: encoded into the server " +
-					"parameter list, so it is neither refreshed nor clearable — removing it from config keeps " +
-					"the last value (retain-on-null).",
+				MarkdownDescription: "Optional max tokens (1-128000). Stored as a slider in the server's parameter " +
+					"list and refreshed from it, so an out-of-band change surfaces as drift and import recovers " +
+					"the value. Removing it from config clears it — but see the note on clearing ALL of " +
+					"`max_tokens`, `temperature` and `has_reasoning` at once, which forces replacement.",
 				Validators: []validator.Int64{int64validator.Between(1, 128000)},
 			},
 			"temperature": schema.Float64Attribute{
 				Optional: true,
-				Computed: true,
-				MarkdownDescription: "Optional default temperature (0-2). Config-authoritative: encoded into the " +
-					"server parameter list, so it is neither refreshed nor clearable — removing it from config " +
-					"keeps the last value (retain-on-null).",
+				MarkdownDescription: "Optional default temperature (0-2). Stored as a slider in the server's " +
+					"parameter list and refreshed from it, so an out-of-band change surfaces as drift and import " +
+					"recovers the value. Removing it from config clears it — but see the note on clearing ALL of " +
+					"`max_tokens`, `temperature` and `has_reasoning` at once, which forces replacement.",
 				Validators: []validator.Float64{float64validator.Between(0, 2)},
 			},
 			"input_cost": schema.Float64Attribute{
@@ -251,49 +254,45 @@ func (r *bedrockModelResource) Schema(_ context.Context, _ resource.SchemaReques
 					"refreshes in both directions and a flip to `false` surfaces as drift.",
 			},
 			"supports_vision": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				MarkdownDescription: "Whether the model accepts image input. Refreshed from the server `metadata`, " +
-					"which omits a `false` value; on absence the prior value is retained (retain-on-null), so " +
-					"an out-of-band flip to `false` is NOT surfaced as drift.",
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Whether the model accepts image input. Refreshed authoritatively (absent means `false`).",
 			},
 			"supports_strict_tool": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				MarkdownDescription: "Whether the model supports strict tool schemas. Retain-on-null (the server " +
-					"omits a `false` value).",
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Whether the model supports strict tool schemas. Refreshed authoritatively (absent means `false`).",
 			},
 			"supports_json_mode": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				MarkdownDescription: "Whether the model supports the JSON-mode response format. Retain-on-null " +
-					"(the server omits a `false` value).",
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Whether the model supports the JSON-mode response format. Refreshed authoritatively (absent means `false`).",
 			},
 			"supports_json_schema": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				MarkdownDescription: "Whether the model supports the JSON-schema response format. Retain-on-null " +
-					"(the server omits a `false` value).",
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Whether the model supports the JSON-schema response format. Refreshed authoritatively (absent means `false`).",
 			},
 			"has_reasoning": schema.BoolAttribute{
 				Optional: true,
 				Computed: true,
-				MarkdownDescription: "Whether the model exposes reasoning. Also drives the server's " +
-					"`reasoning_effort` parameter. Retain-on-null (the server omits a `false` value).",
+				MarkdownDescription: "Whether the model exposes reasoning. Refreshed authoritatively (absent means " +
+					"`false`). It also adds a `reasoning_effort` entry to the server's parameter list, so it " +
+					"participates in the all-parameters-cleared replacement rule described above.",
 			},
 			"supports_adaptive_reasoning": schema.BoolAttribute{
 				Optional: true,
 				Computed: true,
 				MarkdownDescription: "Whether the model uses adaptive reasoning. The reasoning mechanism is " +
 					"model-version specific — set this OR `supports_extended_thinking`, matching the model. " +
-					"Retain-on-null (the server omits a `false` value).",
+					"Refreshed authoritatively (absent means `false`).",
 			},
 			"supports_extended_thinking": schema.BoolAttribute{
 				Optional: true,
 				Computed: true,
 				MarkdownDescription: "Whether the model uses extended thinking. The reasoning mechanism is " +
 					"model-version specific — set this OR `supports_adaptive_reasoning`, matching the model. " +
-					"Retain-on-null (the server omits a `false` value).",
+					"Refreshed authoritatively (absent means `false`).",
 			},
 			"created": schema.StringAttribute{
 				Computed:            true,
@@ -324,13 +323,14 @@ func (r *bedrockModelResource) Configure(_ context.Context, req resource.Configu
 // apply refreshes the server-echoed fields onto the model. assume_role_arn /
 // assume_role_external_id are never touched: the server strips both from every
 // response, so `data` keeps the plan (create/update) or prior state (read) value.
-// input_cost/output_cost are always on the wire: on READ
-// (preservePlannedCosts=false) they refresh unconditionally so an out-of-band
-// change surfaces as drift; on CREATE/UPDATE a KNOWN planned value is PRESERVED
-// for plan consistency. The metadata capability booleans are `omitempty`, so a
-// false is dropped on the wire and the prior value is retained on absence;
-// max_tokens/temperature stay config-authoritative with retain-on-null.
-func (r *bedrockModelResource) apply(m *client.BedrockModel, data *bedrockModelResourceModel, preservePlannedCosts bool) {
+//
+// Everything else is authoritative on READ (preservePlanned=false) — the
+// response is the complete model document, so an absent capability boolean means
+// false and an absent parameter slider means unset. On CREATE/UPDATE
+// (preservePlanned=true) a KNOWN planned numeric value is preserved so
+// post-apply state equals the plan, with the next refresh reconciling anything
+// the server normalized.
+func (r *bedrockModelResource) apply(m *client.BedrockModel, data *bedrockModelResourceModel, preservePlanned bool) {
 	data.ID = types.StringValue(m.ID)
 	data.DisplayName = types.StringValue(m.DisplayName)
 	data.ModelID = types.StringValue(m.ModelID)
@@ -351,12 +351,17 @@ func (r *bedrockModelResource) apply(m *client.BedrockModel, data *bedrockModelR
 	// straight from the server — a change surfaces as drift and forces replace.
 	data.IntegrationID = optString(m.IntegrationID)
 
-	if preservePlannedCosts {
+	if preservePlanned {
 		data.InputCost = preservePlannedFloat(data.InputCost, m.InputCost)
 		data.OutputCost = preservePlannedFloat(data.OutputCost, m.OutputCost)
+		// max_tokens / temperature are Optional-only, so the plan is always known
+		// and is exactly what was written — including a null, which means the
+		// parameter was cleared and must not be resurrected from the server.
 	} else {
 		data.InputCost = refreshFloatAuthoritative(m.InputCost)
 		data.OutputCost = refreshFloatAuthoritative(m.OutputCost)
+		data.MaxTokens = refreshInt64Authoritative(m.MaxTokens)
+		data.Temperature = refreshFloatAuthoritative(m.Temperature)
 	}
 
 	// supports_tool_calling is mirrored into the always-present top-level
@@ -366,16 +371,30 @@ func (r *bedrockModelResource) apply(m *client.BedrockModel, data *bedrockModelR
 	} else {
 		data.SupportsToolCalling = types.BoolValue(m.HasFunctions)
 	}
-	data.SupportsVision = refreshBool(data.SupportsVision, m.SupportsVision)
-	data.SupportsStrictTool = refreshBool(data.SupportsStrictTool, m.SupportsStrictTool)
-	data.SupportsJSONMode = refreshBool(data.SupportsJSONMode, m.SupportsJSONMode)
-	data.SupportsJSONSchema = refreshBool(data.SupportsJSONSchema, m.SupportsJSONSchema)
-	data.HasReasoning = refreshBool(data.HasReasoning, m.HasReasoning)
-	data.SupportsAdaptiveReasoning = refreshBool(data.SupportsAdaptiveReasoning, m.SupportsAdaptiveReasoning)
-	data.SupportsExtendedThinking = refreshBool(data.SupportsExtendedThinking, m.SupportsExtendedThinking)
+	data.SupportsVision = refreshBoolAuthoritative(m.SupportsVision)
+	data.SupportsStrictTool = refreshBoolAuthoritative(m.SupportsStrictTool)
+	data.SupportsJSONMode = refreshBoolAuthoritative(m.SupportsJSONMode)
+	data.SupportsJSONSchema = refreshBoolAuthoritative(m.SupportsJSONSchema)
+	data.HasReasoning = refreshBoolAuthoritative(m.HasReasoning)
+	data.SupportsAdaptiveReasoning = refreshBoolAuthoritative(m.SupportsAdaptiveReasoning)
+	data.SupportsExtendedThinking = refreshBoolAuthoritative(m.SupportsExtendedThinking)
+}
 
-	data.MaxTokens = int64OrNull(data.MaxTokens)
-	data.Temperature = float64UnknownToNull(data.Temperature)
+// refreshBoolAuthoritative reflects a metadata capability flag. The read returns
+// the complete model document, so an `omitempty` absence is the server's
+// encoding of false, not "unknowable" — taking it as false is what makes an
+// out-of-band flip to false visible as drift.
+func refreshBoolAuthoritative(srv *bool) types.Bool {
+	return types.BoolValue(srv != nil && *srv)
+}
+
+// refreshInt64Authoritative mirrors refreshFloatAuthoritative for a parameter
+// slider: an absent slider is the server's encoding of "unset".
+func refreshInt64Authoritative(srv *int64) types.Int64 {
+	if srv != nil {
+		return types.Int64Value(*srv)
+	}
+	return types.Int64Null()
 }
 
 // refreshString takes the server value when present; otherwise keeps the current
@@ -389,6 +408,41 @@ func refreshString(cur types.String, srv string) types.String {
 		return types.StringNull()
 	}
 	return cur
+}
+
+// ModifyPlan forces replacement when the plan would leave the model with NO
+// tunable parameters while it currently has some. The update endpoint rebuilds
+// the entire parameter list from max_tokens/temperature/has_reasoning and writes
+// it back only when the result is non-empty, so a request that clears the last
+// one is silently dropped — the stale slider would stay attached and re-appear
+// on the next refresh as a diff that can never converge.
+func (r *bedrockModelResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.State.Raw.IsNull() || req.Plan.Raw.IsNull() {
+		return
+	}
+	var plan, state bedrockModelResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if bedrockParametersEmpty(&plan) && !bedrockParametersEmpty(&state) {
+		resp.RequiresReplace = append(resp.RequiresReplace,
+			path.Root("max_tokens"), path.Root("temperature"), path.Root("has_reasoning"))
+	}
+}
+
+// bedrockParametersEmpty mirrors the server's buildBedrockParameters: a
+// temperature slider is emitted for any value (0 included), a max-tokens slider
+// for a positive one, and a reasoning-effort selector when has_reasoning is set.
+func bedrockParametersEmpty(m *bedrockModelResourceModel) bool {
+	if !m.Temperature.IsNull() && !m.Temperature.IsUnknown() {
+		return false
+	}
+	if !m.MaxTokens.IsNull() && !m.MaxTokens.IsUnknown() && m.MaxTokens.ValueInt64() > 0 {
+		return false
+	}
+	return !m.HasReasoning.ValueBool()
 }
 
 func (r *bedrockModelResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

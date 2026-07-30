@@ -24,6 +24,12 @@ resource "orq_bedrock_model" "claude_cross_account" {
   input_cost  = 0.003 # USD per 1K input tokens
   output_cost = 0.015 # USD per 1K output tokens
 
+  # Tunables. The update endpoint rebuilds the server's whole parameter list
+  # from these three, so clearing the LAST one that is set forces replacement.
+  max_tokens    = 8192
+  temperature   = 0.7
+  has_reasoning = true
+
   supports_tool_calling = true
   supports_vision       = true
 }

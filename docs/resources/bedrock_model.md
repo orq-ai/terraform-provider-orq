@@ -6,7 +6,8 @@ description: |-
   An AWS Bedrock inference profile registered as a custom model in the workspace catalog (POST /v2/models/aws-bedrock). Read and import REFUSE any model that is not a Bedrock one (server provider = aws plus a Bedrock auth_mode and inference-profile ARN), so a system or other-provider model can never be PATCHed or DELETEd here.
   No credentials are stored on the model. They are resolved at request time from either a dashboard-created AWS integration (auth_mode = "integration") or the pod's IAM identity (auth_mode = "pod-identity"). auth_mode, integration_id and model_type are not accepted by the update endpoint, so changing any of them forces replacement.
   Write-only assume-role fields: the server strips assume_role_arn and assume_role_external_id from every response, so they can never be refreshed and out-of-band changes to them are invisible. They are also honored ONLY in pod-identity mode. The update endpoint treats an empty value as "not sent" and cannot clear one, so REMOVING a previously set assume-role value forces replacement rather than silently leaving the role attached.
-  Refreshed fields: input_cost and output_cost are always serialized by the server, so they are refreshed unconditionally and an out-of-band change — including to 0 — surfaces as drift. The supports_* / has_reasoning capability booleans live under the server's metadata with omitempty: a false is DROPPED on the wire, so on absence the prior value is retained (retain-on-null) and an out-of-band flip to false is NOT visible as drift. supports_tool_calling is the exception — the server also mirrors it into the always-present top-level has_functions, so it refreshes in both directions. max_tokens and temperature are encoded into the server's parameter list and cannot be refreshed or cleared, so removing one from config keeps the last value in state (retain-on-null); the same retain-on-null applies to description and model_family.
+  Everything readable is refreshed authoritatively. The read returns the complete model document, so an absent field means the value is false/unset rather than unknowable: the supports_* and has_reasoning booleans, input_cost/output_cost, and max_tokens/temperature (which the server stores as sliders in its parameters list) all surface out-of-band changes as drift, and all are recovered by import. description and model_family are the exception: the update endpoint ignores an empty value for them, so removing either from config keeps the last applied value in state (retain-on-null).
+  Clearing all tunables at once forces replacement. The update endpoint rebuilds the whole parameter list from max_tokens, temperature and has_reasoning and writes it only when the result is non-empty, so a request that clears all three is silently ignored. Clearing some of them is applied normally; clearing the last one forces replacement rather than leaving a stale slider attached that would re-appear on the next refresh.
 ---
 
 # orq_bedrock_model (Resource)
@@ -17,7 +18,9 @@ An AWS Bedrock inference profile registered as a custom model in the workspace c
 
 **Write-only assume-role fields:** the server strips `assume_role_arn` and `assume_role_external_id` from every response, so they can never be refreshed and out-of-band changes to them are invisible. They are also honored ONLY in `pod-identity` mode. The update endpoint treats an empty value as "not sent" and cannot clear one, so REMOVING a previously set assume-role value forces replacement rather than silently leaving the role attached.
 
-**Refreshed fields:** `input_cost` and `output_cost` are always serialized by the server, so they are refreshed unconditionally and an out-of-band change — including to `0` — surfaces as drift. The `supports_*` / `has_reasoning` capability booleans live under the server's `metadata` with `omitempty`: a `false` is DROPPED on the wire, so on absence the prior value is retained (retain-on-null) and an out-of-band flip to `false` is NOT visible as drift. `supports_tool_calling` is the exception — the server also mirrors it into the always-present top-level `has_functions`, so it refreshes in both directions. `max_tokens` and `temperature` are encoded into the server's parameter list and cannot be refreshed or cleared, so removing one from config keeps the last value in state (retain-on-null); the same retain-on-null applies to `description` and `model_family`.
+**Everything readable is refreshed authoritatively.** The read returns the complete model document, so an absent field means the value is `false`/unset rather than unknowable: the `supports_*` and `has_reasoning` booleans, `input_cost`/`output_cost`, and `max_tokens`/`temperature` (which the server stores as sliders in its `parameters` list) all surface out-of-band changes as drift, and all are recovered by import. `description` and `model_family` are the exception: the update endpoint ignores an empty value for them, so removing either from config keeps the last applied value in state (retain-on-null).
+
+**Clearing all tunables at once forces replacement.** The update endpoint rebuilds the whole parameter list from `max_tokens`, `temperature` and `has_reasoning` and writes it only when the result is non-empty, so a request that clears all three is silently ignored. Clearing some of them is applied normally; clearing the last one forces replacement rather than leaving a stale slider attached that would re-appear on the next refresh.
 
 ## Example Usage
 
@@ -47,6 +50,12 @@ resource "orq_bedrock_model" "claude_cross_account" {
 
   input_cost  = 0.003 # USD per 1K input tokens
   output_cost = 0.015 # USD per 1K output tokens
+
+  # Tunables. The update endpoint rebuilds the server's whole parameter list
+  # from these three, so clearing the LAST one that is set forces replacement.
+  max_tokens    = 8192
+  temperature   = 0.7
+  has_reasoning = true
 
   supports_tool_calling = true
   supports_vision       = true
@@ -90,21 +99,21 @@ resource "orq_bedrock_model" "titan_embeddings" {
 - `assume_role_arn` (String) ARN of a role to assume via STS before calling Bedrock (cross-account access). Honored ONLY when `auth_mode = "pod-identity"`; setting it alongside `integration` is rejected because the server would store but never use it. Write-only: the server strips it from every response, so it is held config-authoritatively and never refreshed. The update endpoint cannot clear it, so REMOVING it from config forces replacement.
 - `assume_role_external_id` (String, Sensitive) External ID passed to STS AssumeRole (confused-deputy protection). Requires `assume_role_arn`, and like it is honored only in `pod-identity` mode. Sensitive and write-only: the server strips it from every response, so it is never refreshed. The update endpoint cannot clear it, so REMOVING it from config forces replacement.
 - `description` (String) Optional description. Round-trips as a top-level field; an omitted value reads back empty. The update endpoint only overwrites it when a value is sent, so REMOVING it from config keeps the last applied value in state (retain-on-null) — set it to `""` to blank it.
-- `has_reasoning` (Boolean) Whether the model exposes reasoning. Also drives the server's `reasoning_effort` parameter. Retain-on-null (the server omits a `false` value).
+- `has_reasoning` (Boolean) Whether the model exposes reasoning. Refreshed authoritatively (absent means `false`). It also adds a `reasoning_effort` entry to the server's parameter list, so it participates in the all-parameters-cleared replacement rule described above.
 - `input_cost` (Number) Optional input cost in USD per 1K tokens (the server also derives its per-million metadata from it). Always serialized by the server, so it is refreshed unconditionally on read and an out-of-band change — including to `0` — surfaces as drift.
 - `integration_id` (String) Document id of the AWS integration holding the credentials. REQUIRED when `auth_mode = "integration"` and rejected otherwise (a `pod-identity` model never reads it). The update endpoint does not accept it, so changing it forces replacement.
-- `max_tokens` (Number) Optional max tokens (1-128000). Config-authoritative: encoded into the server parameter list, so it is neither refreshed nor clearable — removing it from config keeps the last value (retain-on-null).
+- `max_tokens` (Number) Optional max tokens (1-128000). Stored as a slider in the server's parameter list and refreshed from it, so an out-of-band change surfaces as drift and import recovers the value. Removing it from config clears it — but see the note on clearing ALL of `max_tokens`, `temperature` and `has_reasoning` at once, which forces replacement.
 - `model_family` (String) Model family (e.g. `claude`). Defaults to `unknown` server-side. The update endpoint ignores an empty value, so removing it from config keeps the last applied value in state (retain-on-null) rather than resetting it.
 - `model_type` (String) Model modality: `chat` (server default) or `embedding`. Fixed at creation — the update endpoint does not accept it, so changing it forces replacement.
 - `output_cost` (Number) Optional output cost in USD per 1K tokens. Always serialized by the server, so it is refreshed unconditionally on read and an out-of-band change — including to `0` — surfaces as drift.
-- `supports_adaptive_reasoning` (Boolean) Whether the model uses adaptive reasoning. The reasoning mechanism is model-version specific — set this OR `supports_extended_thinking`, matching the model. Retain-on-null (the server omits a `false` value).
-- `supports_extended_thinking` (Boolean) Whether the model uses extended thinking. The reasoning mechanism is model-version specific — set this OR `supports_adaptive_reasoning`, matching the model. Retain-on-null (the server omits a `false` value).
-- `supports_json_mode` (Boolean) Whether the model supports the JSON-mode response format. Retain-on-null (the server omits a `false` value).
-- `supports_json_schema` (Boolean) Whether the model supports the JSON-schema response format. Retain-on-null (the server omits a `false` value).
-- `supports_strict_tool` (Boolean) Whether the model supports strict tool schemas. Retain-on-null (the server omits a `false` value).
+- `supports_adaptive_reasoning` (Boolean) Whether the model uses adaptive reasoning. The reasoning mechanism is model-version specific — set this OR `supports_extended_thinking`, matching the model. Refreshed authoritatively (absent means `false`).
+- `supports_extended_thinking` (Boolean) Whether the model uses extended thinking. The reasoning mechanism is model-version specific — set this OR `supports_adaptive_reasoning`, matching the model. Refreshed authoritatively (absent means `false`).
+- `supports_json_mode` (Boolean) Whether the model supports the JSON-mode response format. Refreshed authoritatively (absent means `false`).
+- `supports_json_schema` (Boolean) Whether the model supports the JSON-schema response format. Refreshed authoritatively (absent means `false`).
+- `supports_strict_tool` (Boolean) Whether the model supports strict tool schemas. Refreshed authoritatively (absent means `false`).
 - `supports_tool_calling` (Boolean) Whether the model supports tool calling. The server mirrors it into the always-present top-level `has_functions`, so unlike the other capability booleans it refreshes in both directions and a flip to `false` surfaces as drift.
-- `supports_vision` (Boolean) Whether the model accepts image input. Refreshed from the server `metadata`, which omits a `false` value; on absence the prior value is retained (retain-on-null), so an out-of-band flip to `false` is NOT surfaced as drift.
-- `temperature` (Number) Optional default temperature (0-2). Config-authoritative: encoded into the server parameter list, so it is neither refreshed nor clearable — removing it from config keeps the last value (retain-on-null).
+- `supports_vision` (Boolean) Whether the model accepts image input. Refreshed authoritatively (absent means `false`).
+- `temperature` (Number) Optional default temperature (0-2). Stored as a slider in the server's parameter list and refreshed from it, so an out-of-band change surfaces as drift and import recovers the value. Removing it from config clears it — but see the note on clearing ALL of `max_tokens`, `temperature` and `has_reasoning` at once, which forces replacement.
 
 ### Read-Only
 

@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+const testARN = "arn:aws:bedrock:eu-central-1:123456789012:application-inference-profile/abc123"
+
 // bedrockDocJSON is the ModelDocument shape a Bedrock read/write returns. Note
 // the ABSENT assume_role_arn / assume_role_external_id: the server strips both
 // from every response (ModelConfigurationResponse omits them).
@@ -14,7 +16,7 @@ func bedrockDocJSON(id, authMode string) map[string]any {
 	cfg := map[string]any{
 		"provider":              "aws",
 		"region":                "eu-central-1",
-		"inference_profile_arn": "arn:aws:bedrock:eu-central-1:123456789012:application-inference-profile/abc123",
+		"inference_profile_arn": testARN,
 		"auth_mode":             authMode,
 	}
 	if authMode == BedrockAuthModeIntegration {
@@ -23,7 +25,7 @@ func bedrockDocJSON(id, authMode string) map[string]any {
 	return map[string]any{
 		"id":              id,
 		"display_name":    "tf bedrock",
-		"model_id":        "arn:aws:bedrock:eu-central-1:123456789012:application-inference-profile/abc123",
+		"model_id":        testARN,
 		"model_type":      "chat",
 		"model_developer": "anthropic",
 		"model_family":    "claude",
@@ -39,10 +41,28 @@ func bedrockDocJSON(id, authMode string) map[string]any {
 			"supports_vision":       true,
 			// supports_strict_tool / json mode / reasoning omitted: they are false.
 		},
+		"parameters": []map[string]any{
+			bedrockSliderJSON("temperature", 0.7),
+			bedrockSliderJSON("maxTokens", 4096),
+		},
 		"created":     "2020-01-01T00:00:00Z",
 		"updated":     "2020-01-02T00:00:00Z",
 		"input_cost":  0.003,
 		"output_cost": 0.015,
+	}
+}
+
+// bedrockSliderJSON is how the server encodes max_tokens / temperature: a slider
+// whose config.max carries the configured value.
+func bedrockSliderJSON(parameter string, max float64) map[string]any {
+	return map[string]any{
+		"id":             "p_" + parameter,
+		"name":           parameter,
+		"parameter":      parameter,
+		"parameter_type": "slider",
+		"is_active":      true,
+		"description":    nil,
+		"config":         map[string]any{"min": 0, "max": max, "step": 0.1, "default": 0},
 	}
 }
 
@@ -60,7 +80,7 @@ func TestBedrockModels_CreatePodIdentity(t *testing.T) {
 	externalID := "ext-1"
 	m, err := c.BedrockModels().Create(context.Background(), BedrockModelCreateInput{
 		DisplayName:          "tf bedrock",
-		ModelID:              "arn:aws:bedrock:eu-central-1:123456789012:application-inference-profile/abc123",
+		ModelID:              testARN,
 		Region:               "eu-central-1",
 		ModelDeveloper:       "anthropic",
 		AuthMode:             BedrockAuthModePodIdentity,
@@ -101,7 +121,7 @@ func TestBedrockModels_CreateIntegration(t *testing.T) {
 	integrationID := "int_1"
 	m, err := c.BedrockModels().Create(context.Background(), BedrockModelCreateInput{
 		DisplayName:    "tf bedrock",
-		ModelID:        "arn:aws:bedrock:eu-central-1:123456789012:application-inference-profile/abc123",
+		ModelID:        testARN,
 		Region:         "eu-central-1",
 		ModelDeveloper: "anthropic",
 		AuthMode:       BedrockAuthModeIntegration,
@@ -151,7 +171,75 @@ func TestBedrockModels_GetFiltersAndMaps(t *testing.T) {
 		t.Errorf("tool-calling flags not mapped: %+v", m)
 	}
 	if m.SupportsStrictTool != nil || m.HasReasoning != nil {
-		t.Error("a metadata field the server OMITS must stay nil so the resource can retain the prior value")
+		t.Error("a metadata field the server OMITS must stay nil so the resource can read it as false")
+	}
+	if m.MaxTokens == nil || *m.MaxTokens != 4096 {
+		t.Errorf("max_tokens must be projected from the parameter list, got %v", m.MaxTokens)
+	}
+	if m.Temperature == nil || *m.Temperature != 0.7 {
+		t.Errorf("temperature must be projected from the parameter list, got %v", m.Temperature)
+	}
+}
+
+// The server encodes an unset tunable as an ABSENT slider, so nothing to project.
+func TestBedrockModels_ParametersAbsentAreUnset(t *testing.T) {
+	doc := bedrockDocJSON("mdl_1", BedrockAuthModePodIdentity)
+	doc["parameters"] = []map[string]any{bedrockSliderJSON("temperature", 0)}
+	c := newModelServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]map[string]any{doc})
+	})
+	m, err := c.BedrockModels().Get(context.Background(), "mdl_1")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if m.MaxTokens != nil {
+		t.Errorf("an absent max-tokens slider means unset, got %v", *m.MaxTokens)
+	}
+	if m.Temperature == nil || *m.Temperature != 0 {
+		t.Errorf("a temperature slider of 0 is a real value, got %v", m.Temperature)
+	}
+}
+
+// The PATCH endpoint rebuilds the WHOLE parameter list from the fields in the
+// request and writes it only when non-empty, so a sibling omitted from the write
+// would be deleted server-side. Every value the resource holds must go on the
+// wire together; a nil one is a deliberate clear.
+func TestBedrockModels_UpdateSendsWholeParameterSet(t *testing.T) {
+	var gotBody map[string]any
+	c := newModelServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(bedrockDocJSON("mdl_1", BedrockAuthModePodIdentity))
+	})
+
+	maxTokens := int64(4096)
+	temperature := 0.7
+	hasReasoning := true
+	if _, err := c.BedrockModels().Update(context.Background(), BedrockModelUpdateInput{
+		ID: "mdl_1", DisplayName: "n", ModelID: testARN, Region: "eu-central-1", ModelDeveloper: "anthropic",
+		MaxTokens: &maxTokens, Temperature: &temperature, HasReasoning: &hasReasoning,
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if gotBody["max_tokens"] != float64(4096) || gotBody["temperature"] != 0.7 || gotBody["has_reasoning"] != true {
+		t.Errorf("the whole parameter set must be sent so the server's rebuild keeps every entry: %+v", gotBody)
+	}
+
+	// Clearing one: it is omitted, and the surviving sibling still goes out so the
+	// rebuilt list is non-empty and actually gets written.
+	gotBody = nil
+	if _, err := c.BedrockModels().Update(context.Background(), BedrockModelUpdateInput{
+		ID: "mdl_1", DisplayName: "n", ModelID: testARN, Region: "eu-central-1", ModelDeveloper: "anthropic",
+		MaxTokens: &maxTokens,
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if _, present := gotBody["temperature"]; present {
+		t.Errorf("a cleared temperature must be omitted so the rebuild drops it: %+v", gotBody)
+	}
+	if gotBody["max_tokens"] != float64(4096) {
+		t.Errorf("the surviving sibling must still be sent: %+v", gotBody)
 	}
 }
 

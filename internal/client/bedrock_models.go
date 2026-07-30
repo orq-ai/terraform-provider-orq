@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"net/http"
 	"time"
 
@@ -21,14 +22,21 @@ const (
 	BedrockAuthModePodIdentity = "pod-identity"
 )
 
+// The server encodes max_tokens / temperature as slider entries in the model's
+// `parameters` array, keyed by these names and carrying the configured value in
+// config.max (apps/platform-api/models/openai_like.go).
+const (
+	bedrockParamTemperature = "temperature"
+	bedrockParamMaxTokens   = "maxTokens"
+	bedrockParamConfigMax   = "max"
+)
+
 // BedrockModel is the projection of a custom AWS Bedrock model.
 //
 // No credentials are ever stored on the model, and the server strips
 // assume_role_arn / assume_role_external_id from every response
 // (ModelConfigurationResponse omits them), so those two are absent here and stay
-// config-authoritative in the resource. max_tokens / temperature are encoded
-// into the server's `parameters` array rather than clean scalars and are
-// likewise not projected.
+// config-authoritative in the resource.
 type BedrockModel struct {
 	ID          string
 	RefID       string
@@ -50,6 +58,11 @@ type BedrockModel struct {
 
 	InputCost  *float64
 	OutputCost *float64
+
+	// Decoded from the `parameters` array; nil when the model carries no such
+	// slider, which is the server's encoding of "unset".
+	MaxTokens   *int64
+	Temperature *float64
 
 	// HasFunctions is the top-level tool-calling flag; unlike its metadata twin
 	// it is always serialized, so a flip to false is visible.
@@ -191,7 +204,29 @@ func bedrockModelFromDocument(d *restgen.ModelDocument) BedrockModel {
 	m.AuthMode = firstNonEmpty(d.Configuration.AuthMode)
 	m.IntegrationID = firstNonEmpty(d.Configuration.IntegrationId)
 	m.InferenceProfileArn = firstNonEmpty(d.Configuration.InferenceProfileArn)
+	m.Temperature = bedrockParameterMax(d.Parameters, bedrockParamTemperature)
+	if maxTokens := bedrockParameterMax(d.Parameters, bedrockParamMaxTokens); maxTokens != nil {
+		rounded := int64(math.Round(*maxTokens))
+		m.MaxTokens = &rounded
+	}
 	return m
+}
+
+// bedrockParameterMax reads a slider's configured ceiling — the value the model
+// was created/updated with. An absent slider means the value is unset.
+func bedrockParameterMax(params *[]restgen.ModelParameterDocument, parameter string) *float64 {
+	if params == nil {
+		return nil
+	}
+	for _, p := range *params {
+		if p.Parameter != parameter {
+			continue
+		}
+		if v, ok := p.Config[bedrockParamConfigMax].(float64); ok {
+			return &v
+		}
+	}
+	return nil
 }
 
 // decodeBedrockModelBody decodes a create/update response. Those operations

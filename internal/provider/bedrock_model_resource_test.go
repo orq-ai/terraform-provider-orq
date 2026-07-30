@@ -88,10 +88,11 @@ func TestBedrockApplyToolCallingUsesHasFunctions(t *testing.T) {
 	})
 }
 
-// TestBedrockApplyRefreshVsRetain locks in the decision table: input/output cost
-// are always on the wire so they refresh unconditionally on READ, while the
-// metadata `omitempty` capability booleans retain the prior value on absence.
-func TestBedrockApplyRefreshVsRetain(t *testing.T) {
+// TestBedrockApplyReadIsAuthoritative locks in the read semantics: the response
+// is the COMPLETE model document, so an absent `omitempty` capability boolean
+// means false and an absent parameter slider means unset. Retaining the prior
+// value instead would hide every out-of-band true→false / cleared change.
+func TestBedrockApplyReadIsAuthoritative(t *testing.T) {
 	r := &bedrockModelResource{}
 	m := &bedrockModelResourceModel{
 		InputCost:                 types.Float64Value(5),
@@ -103,11 +104,12 @@ func TestBedrockApplyRefreshVsRetain(t *testing.T) {
 		HasReasoning:              types.BoolValue(true),
 		SupportsAdaptiveReasoning: types.BoolValue(true),
 		SupportsExtendedThinking:  types.BoolValue(true),
+		SupportsToolCalling:       types.BoolValue(true),
 		MaxTokens:                 types.Int64Value(4096),
 		Temperature:               types.Float64Value(0.7),
 	}
-	// Server dropped both costs to 0 (still on the wire) and omitted every
-	// metadata capability field.
+	// Server dropped both costs to 0, omitted every metadata capability field and
+	// carries no parameter sliders at all.
 	r.apply(&client.BedrockModel{ID: "m", InputCost: f64ptr(0), OutputCost: f64ptr(0)}, m, false)
 
 	if m.InputCost.ValueFloat64() != 0 || m.OutputCost.ValueFloat64() != 0 {
@@ -121,55 +123,133 @@ func TestBedrockApplyRefreshVsRetain(t *testing.T) {
 		"has_reasoning":               m.HasReasoning,
 		"supports_adaptive_reasoning": m.SupportsAdaptiveReasoning,
 		"supports_extended_thinking":  m.SupportsExtendedThinking,
+		"supports_tool_calling":       m.SupportsToolCalling,
 	} {
-		if !v.ValueBool() {
-			t.Errorf("%s must be RETAINED on server absence", name)
+		if v.ValueBool() {
+			t.Errorf("%s must refresh to false on server absence (an out-of-band flip must surface)", name)
+		}
+		if v.IsNull() {
+			t.Errorf("%s must be a concrete false, not null", name)
 		}
 	}
-	if m.MaxTokens.ValueInt64() != 4096 || m.Temperature.ValueFloat64() != 0.7 {
-		t.Errorf("parameter-list fields must be retained: %v %v", m.MaxTokens, m.Temperature)
+	if !m.MaxTokens.IsNull() || !m.Temperature.IsNull() {
+		t.Errorf("a cleared parameter slider must refresh to null: %v %v", m.MaxTokens, m.Temperature)
 	}
 }
 
-// TestBedrockApplyPreservesPlannedCosts proves the create/update path keeps a
-// KNOWN planned cost (post-apply state must equal the plan) and fills a
+// TestBedrockApplyRefreshesParameters proves max_tokens / temperature ARE
+// readable — the server stores them as sliders in the parameter list — so an
+// out-of-band change surfaces as drift and import recovers them.
+func TestBedrockApplyRefreshesParameters(t *testing.T) {
+	r := &bedrockModelResource{}
+	m := &bedrockModelResourceModel{
+		MaxTokens:   types.Int64Value(4096),
+		Temperature: types.Float64Value(0.7),
+	}
+	r.apply(&client.BedrockModel{ID: "m", MaxTokens: i64ptr(8192), Temperature: f64ptr(0.2)}, m, false)
+	if m.MaxTokens.ValueInt64() != 8192 {
+		t.Errorf("max_tokens must refresh from the parameter list, got %v", m.MaxTokens)
+	}
+	if m.Temperature.ValueFloat64() != 0.2 {
+		t.Errorf("temperature must refresh from the parameter list, got %v", m.Temperature)
+	}
+
+	// Import: state starts empty and the read must populate both.
+	imported := &bedrockModelResourceModel{MaxTokens: types.Int64Null(), Temperature: types.Float64Null()}
+	r.apply(&client.BedrockModel{ID: "m", MaxTokens: i64ptr(1024), Temperature: f64ptr(0)}, imported, false)
+	if imported.MaxTokens.ValueInt64() != 1024 {
+		t.Errorf("import must recover max_tokens, got %v", imported.MaxTokens)
+	}
+	if imported.Temperature.IsNull() || imported.Temperature.ValueFloat64() != 0 {
+		t.Errorf("import must recover a temperature of 0 (the server emits a slider for it), got %v", imported.Temperature)
+	}
+}
+
+// TestBedrockApplyPreservesPlannedNumerics proves the create/update path keeps a
+// KNOWN planned numeric (post-apply state must equal the plan) and fills a
 // null/unknown one from the server.
-func TestBedrockApplyPreservesPlannedCosts(t *testing.T) {
+func TestBedrockApplyPreservesPlannedNumerics(t *testing.T) {
 	r := &bedrockModelResource{}
 
-	m := &bedrockModelResourceModel{InputCost: types.Float64Value(0.003), OutputCost: types.Float64Unknown()}
-	r.apply(&client.BedrockModel{ID: "m", InputCost: f64ptr(0), OutputCost: f64ptr(0.015)}, m, true)
+	m := &bedrockModelResourceModel{
+		InputCost:   types.Float64Value(0.003),
+		OutputCost:  types.Float64Unknown(),
+		MaxTokens:   types.Int64Value(4096),
+		Temperature: types.Float64Value(0.7),
+	}
+	r.apply(&client.BedrockModel{
+		ID: "m", InputCost: f64ptr(0), OutputCost: f64ptr(0.015),
+		MaxTokens: i64ptr(999), Temperature: f64ptr(0.1),
+	}, m, true)
 	if m.InputCost.ValueFloat64() != 0.003 {
 		t.Errorf("known planned input_cost must be preserved, got %v", m.InputCost)
 	}
 	if m.OutputCost.ValueFloat64() != 0.015 {
 		t.Errorf("unknown planned output_cost must be filled from the server, got %v", m.OutputCost)
 	}
+	if m.MaxTokens.ValueInt64() != 4096 || m.Temperature.ValueFloat64() != 0.7 {
+		t.Errorf("known planned parameters must be preserved: %v %v", m.MaxTokens, m.Temperature)
+	}
+
+	// A null plan means "cleared": the server value must NOT be resurrected.
+	cleared := &bedrockModelResourceModel{MaxTokens: types.Int64Null(), Temperature: types.Float64Null()}
+	r.apply(&client.BedrockModel{ID: "m", MaxTokens: i64ptr(4096), Temperature: f64ptr(0.7)}, cleared, true)
+	if !cleared.MaxTokens.IsNull() || !cleared.Temperature.IsNull() {
+		t.Errorf("a cleared parameter must stay null on the write path: %v %v", cleared.MaxTokens, cleared.Temperature)
+	}
 }
 
-// TestBedrockApplyCollapsesUnknownToNull proves a create-time unknown collapses
-// to a concrete null when the server also omits the field: post-apply state must
-// never carry an unknown.
-func TestBedrockApplyCollapsesUnknownToNull(t *testing.T) {
+// TestBedrockApplyResolvesUnknowns proves a create-time unknown never survives
+// into post-apply state: an Optional+Computed string collapses to null when the
+// server omits it, and an Optional+Computed capability boolean resolves to the
+// server's authoritative false.
+func TestBedrockApplyResolvesUnknowns(t *testing.T) {
 	r := &bedrockModelResource{}
 	m := &bedrockModelResourceModel{
 		ModelFamily:    types.StringUnknown(),
-		MaxTokens:      types.Int64Unknown(),
-		Temperature:    types.Float64Unknown(),
 		HasReasoning:   types.BoolUnknown(),
 		SupportsVision: types.BoolUnknown(),
 	}
-	r.apply(&client.BedrockModel{ID: "m"}, m, false)
-	for name, isNull := range map[string]bool{
-		"model_family":    m.ModelFamily.IsNull(),
-		"max_tokens":      m.MaxTokens.IsNull(),
-		"temperature":     m.Temperature.IsNull(),
-		"has_reasoning":   m.HasReasoning.IsNull(),
-		"supports_vision": m.SupportsVision.IsNull(),
+	r.apply(&client.BedrockModel{ID: "m"}, m, true)
+	if !m.ModelFamily.IsNull() {
+		t.Errorf("model_family must collapse unknown → null when the server omits it, got %v", m.ModelFamily)
+	}
+	for name, v := range map[string]types.Bool{
+		"has_reasoning":   m.HasReasoning,
+		"supports_vision": m.SupportsVision,
 	} {
-		if !isNull {
-			t.Errorf("%s must collapse unknown → null when the server omits it", name)
+		if v.IsUnknown() || v.IsNull() || v.ValueBool() {
+			t.Errorf("%s must resolve to a concrete false, got %v", name, v)
 		}
+	}
+}
+
+// TestBedrockParametersEmpty mirrors the server's buildBedrockParameters: it
+// decides whether a plan/state would produce an empty parameter list, which is
+// the request shape the update endpoint silently ignores.
+func TestBedrockParametersEmpty(t *testing.T) {
+	cases := []struct {
+		name string
+		m    bedrockModelResourceModel
+		want bool
+	}{
+		{"nothing set", bedrockModelResourceModel{
+			MaxTokens: types.Int64Null(), Temperature: types.Float64Null(), HasReasoning: types.BoolValue(false)}, true},
+		{"has_reasoning null counts as unset", bedrockModelResourceModel{
+			MaxTokens: types.Int64Null(), Temperature: types.Float64Null(), HasReasoning: types.BoolNull()}, true},
+		{"temperature 0 still emits a slider", bedrockModelResourceModel{
+			MaxTokens: types.Int64Null(), Temperature: types.Float64Value(0), HasReasoning: types.BoolValue(false)}, false},
+		{"max_tokens set", bedrockModelResourceModel{
+			MaxTokens: types.Int64Value(4096), Temperature: types.Float64Null(), HasReasoning: types.BoolValue(false)}, false},
+		{"has_reasoning alone", bedrockModelResourceModel{
+			MaxTokens: types.Int64Null(), Temperature: types.Float64Null(), HasReasoning: types.BoolValue(true)}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := bedrockParametersEmpty(&tc.m); got != tc.want {
+				t.Errorf("bedrockParametersEmpty() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -205,6 +285,92 @@ func TestValidateBedrockAuthMode(t *testing.T) {
 				t.Errorf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
 			}
 		})
+	}
+}
+
+// bedrockRaw builds a resource object with every attribute null except the given
+// overrides, so a plan/state can be assembled without spelling out ~25 fields.
+func bedrockRaw(ctx context.Context, s schema.Schema, override map[string]tftypes.Value) tftypes.Value {
+	objType := s.Type().TerraformType(ctx).(tftypes.Object)
+	vals := make(map[string]tftypes.Value, len(objType.AttributeTypes))
+	for name, ty := range objType.AttributeTypes {
+		if v, ok := override[name]; ok {
+			vals[name] = v
+			continue
+		}
+		vals[name] = tftypes.NewValue(ty, nil)
+	}
+	return tftypes.NewValue(objType, vals)
+}
+
+// TestBedrockModifyPlanAllParametersCleared proves the cross-field guard: the
+// update endpoint writes its rebuilt parameter list only when non-empty, so
+// clearing the LAST of max_tokens / temperature / has_reasoning cannot be applied
+// in place and must force replacement instead of leaving a stale slider that
+// re-appears on every refresh.
+func TestBedrockModifyPlanAllParametersCleared(t *testing.T) {
+	ctx := context.Background()
+	r := NewBedrockModelResource().(*bedrockModelResource)
+	var sch resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &sch)
+	s := sch.Schema
+
+	maxTokensSet := map[string]tftypes.Value{"max_tokens": tftypes.NewValue(tftypes.Number, 4096)}
+	temperatureSet := map[string]tftypes.Value{"temperature": tftypes.NewValue(tftypes.Number, 0.7)}
+
+	run := func(stateOverride, planOverride map[string]tftypes.Value) []string {
+		resp := &resource.ModifyPlanResponse{}
+		r.ModifyPlan(ctx, resource.ModifyPlanRequest{
+			State: tfsdk.State{Schema: s, Raw: bedrockRaw(ctx, s, stateOverride)},
+			Plan:  tfsdk.Plan{Schema: s, Raw: bedrockRaw(ctx, s, planOverride)},
+		}, resp)
+		if resp.Diagnostics.HasError() {
+			t.Fatalf("ModifyPlan diagnostics: %v", resp.Diagnostics)
+		}
+		out := make([]string, 0, len(resp.RequiresReplace))
+		for _, p := range resp.RequiresReplace {
+			out = append(out, p.String())
+		}
+		return out
+	}
+
+	if got := run(maxTokensSet, nil); len(got) == 0 {
+		t.Error("clearing the last parameter must force replacement")
+	} else {
+		for _, want := range []string{"max_tokens", "temperature", "has_reasoning"} {
+			if !strings.Contains(strings.Join(got, ","), want) {
+				t.Errorf("replacement should be attributed to %s, got %v", want, got)
+			}
+		}
+	}
+	if got := run(maxTokensSet, temperatureSet); len(got) != 0 {
+		t.Errorf("clearing one parameter while another remains is applied in place, got %v", got)
+	}
+	if got := run(nil, maxTokensSet); len(got) != 0 {
+		t.Errorf("adding a parameter must not force replacement, got %v", got)
+	}
+	if got := run(maxTokensSet, maxTokensSet); len(got) != 0 {
+		t.Errorf("an unchanged parameter set must not force replacement, got %v", got)
+	}
+
+	// Create (null prior state) and destroy (null plan) are skipped outright.
+	nullRaw := tftypes.NewValue(s.Type().TerraformType(ctx), nil)
+	for _, tc := range []struct {
+		name  string
+		state tftypes.Value
+		plan  tftypes.Value
+	}{
+		{"create", nullRaw, bedrockRaw(ctx, s, nil)},
+		{"destroy", bedrockRaw(ctx, s, maxTokensSet), nullRaw},
+	} {
+		resp := &resource.ModifyPlanResponse{}
+		r.ModifyPlan(ctx, resource.ModifyPlanRequest{
+			State: tfsdk.State{Schema: s, Raw: tc.state},
+			Plan:  tfsdk.Plan{Schema: s, Raw: tc.plan},
+		}, resp)
+		if len(resp.RequiresReplace) != 0 || resp.Diagnostics.HasError() {
+			t.Errorf("%s must be skipped by ModifyPlan: %v %v", tc.name, resp.RequiresReplace, resp.Diagnostics)
+		}
 	}
 }
 
@@ -327,6 +493,17 @@ func TestBedrockSchemaReplaceSet(t *testing.T) {
 			t.Errorf("%s is write-only and must not be Computed", name)
 		}
 	}
+
+	// max_tokens / temperature ARE readable (parameter sliders), so they must be
+	// Optional-only: Computed would make a null config mean "keep the prior value"
+	// and the removal could never be applied, and an unknown plan value would be
+	// dropped from the PATCH, deleting its sibling from the server's rebuilt list.
+	if sch.Schema.Attributes["max_tokens"].(schema.Int64Attribute).Computed {
+		t.Error("max_tokens is refreshable and must be Optional-only so removing it clears it")
+	}
+	if sch.Schema.Attributes["temperature"].(schema.Float64Attribute).Computed {
+		t.Error("temperature is refreshable and must be Optional-only so removing it clears it")
+	}
 }
 
 // TestRequiresReplaceOnClear proves the PATCH-cannot-clear handling: removing a
@@ -430,3 +607,5 @@ func TestBedrockAuthModeEnum(t *testing.T) {
 		}
 	}
 }
+
+func i64ptr(i int64) *int64 { return &i }
