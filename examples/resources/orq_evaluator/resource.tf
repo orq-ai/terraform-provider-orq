@@ -17,8 +17,8 @@ resource "orq_evaluator" "tone" {
   path        = "Default/evaluators"
   description = "Classifies the tone of the answer"
 
-  mode  = "single"
-  model = "openai/gpt-4o" # must support tool calling
+  mode   = "single"
+  model  = "openai/gpt-4o" # must support tool calling
   prompt = <<-EOT
     Read the assistant's answer and classify its tone.
     Reply with exactly one of the allowed labels.
@@ -70,4 +70,40 @@ resource "orq_evaluator" "factuality_jury" {
     # At least 2, never more than judges + replacement_judges.
     min_successful_judges = 2
   }
+}
+
+# A boolean llm_eval judge. The prompt can reference the evaluated log through
+# {{log.*}} variables ({{log.input}}, {{log.output}}, {{log.messages}},
+# {{log.retrievals}}, {{log.reference}}) — Terraform passes the double curly
+# brackets through untouched, since its own interpolation syntax is $${ }.
+resource "orq_evaluator" "shakespearean" {
+  key         = "shakespearean"
+  type        = "llm_eval"
+  path        = "Default/evaluators"
+  description = "True when the response is written in Shakespearean English"
+
+  mode  = "single"
+  model = "openai/gpt-4o-mini"
+
+  prompt = <<-EOT
+    You judge whether a response is written in Shakespearean English
+    (Early Modern English, as in Shakespeare's plays and sonnets).
+
+    Return true only if the response substantially exhibits the style:
+    - archaic pronouns and inflections (thou, thee, thy, hath, doth, -eth/-est)
+    - period vocabulary and idiom (prithee, forsooth, anon, wherefore)
+    - inverted or poetic syntax, rhetorical flourish, or blank-verse rhythm
+
+    Return false if it is modern English with only a sprinkled archaism,
+    a direct quotation of Shakespeare inside otherwise modern prose, or
+    merely formal/old-fashioned but post-Elizabethan English.
+
+    The user asked:
+    {{log.input}}
+
+    The response to judge:
+    {{log.output}}
+  EOT
+
+  output_type = "boolean"
 }
