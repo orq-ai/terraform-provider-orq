@@ -123,7 +123,7 @@ func TestEvaluatorSchemaModifiers(t *testing.T) {
 
 func TestEvaluatorSchemaComputedAttributes(t *testing.T) {
 	s := evaluatorSchema(t)
-	computedOnly := []string{"id", "enabled", "project_id", "model_id", "created_at", "updated_at"}
+	computedOnly := []string{"id", "enabled", "model_id", "created_at", "updated_at"}
 	for _, name := range computedOnly {
 		a, ok := s.Attributes[name]
 		if !ok {
@@ -134,10 +134,13 @@ func TestEvaluatorSchemaComputedAttributes(t *testing.T) {
 				name, a.IsComputed(), a.IsOptional(), a.IsRequired())
 		}
 	}
-	for _, name := range []string{"key", "type", "path"} {
+	for _, name := range []string{"key", "type", "project_id"} {
 		if !s.Attributes[name].IsRequired() {
 			t.Errorf("%s must be Required", name)
 		}
+	}
+	if _, ok := s.Attributes["path"]; ok {
+		t.Error("`path` is gone; the project is addressed by project_id only")
 	}
 	// Optional+Computed: the server supplies a default the operator may omit.
 	for _, name := range []string{"description", "output_type", "repetitions"} {
@@ -275,7 +278,7 @@ func TestEvaluatorCreateInputConversion(t *testing.T) {
 	python := evaluatorResourceModel{
 		Key:         types.StringValue("my-eval"),
 		Type:        types.StringValue(client.EvaluatorTypePython),
-		Path:        types.StringValue("Default/evaluators"),
+		ProjectID:   types.StringValue("proj_1"),
 		Description: types.StringValue("checks"),
 		OutputType:  types.StringValue("boolean"),
 		Code:        types.StringValue("code"),
@@ -284,7 +287,7 @@ func TestEvaluatorCreateInputConversion(t *testing.T) {
 		Repetitions: types.Int64Null(),
 	}
 	in := python.createInput()
-	if in.Key != "my-eval" || in.Type != client.EvaluatorTypePython || in.Path != "Default/evaluators" {
+	if in.Key != "my-eval" || in.Type != client.EvaluatorTypePython || in.ProjectID != "proj_1" {
 		t.Errorf("identity fields wrong: %+v", in)
 	}
 	if in.Code == nil || *in.Code != "code" {
@@ -297,11 +300,11 @@ func TestEvaluatorCreateInputConversion(t *testing.T) {
 	minSuccessful := int64(3)
 	count := int64(4)
 	llm := evaluatorResourceModel{
-		Key:    types.StringValue("jury-eval"),
-		Type:   types.StringValue(client.EvaluatorTypeLLM),
-		Path:   types.StringValue("Default"),
-		Prompt: types.StringValue("judge"),
-		Mode:   types.StringValue("jury"),
+		Key:       types.StringValue("jury-eval"),
+		Type:      types.StringValue(client.EvaluatorTypeLLM),
+		ProjectID: types.StringValue("proj_1"),
+		Prompt:    types.StringValue("judge"),
+		Mode:      types.StringValue("jury"),
 		Jury: &evaluatorJuryModel{
 			Judges: []evaluatorJudgeModel{
 				{
@@ -341,11 +344,14 @@ func TestEvaluatorCreateInputConversion(t *testing.T) {
 
 func TestEvaluatorUpdateInputClearsLabels(t *testing.T) {
 	m := evaluatorResourceModel{
-		Key:  types.StringValue("my-eval"),
-		Type: types.StringValue(client.EvaluatorTypePython),
-		Path: types.StringValue("Default"),
+		Key:       types.StringValue("my-eval"),
+		Type:      types.StringValue(client.EvaluatorTypePython),
+		ProjectID: types.StringValue("proj_1"),
 	}
 	in := m.updateInput("01JMDPA3QW5C1V0NJ1PW34T4E5")
+	if in.ProjectID != "proj_1" {
+		t.Errorf("project_id must reach the update input, got %q", in.ProjectID)
+	}
 	if !in.ClearCategoricalLabels {
 		t.Error("an empty categorical_labels config must request an explicit clear")
 	}
@@ -397,12 +403,13 @@ func externalLLM() *client.Evaluator {
 		Mode:        "single",
 		Prompt:      "Rate the tone",
 		Repetitions: &reps,
+		ProjectID:   "proj_1",
 		Model:       "openai/gpt-4o", // a STRING here …
 		CategoricalLabels: []client.CategoricalLabel{
 			{Value: "friendly", Description: &warm},
 			{Value: "curt"},
 		},
-		// output_type / enabled / project_id / model_id are absent from this shape.
+		// output_type / enabled / model_id are absent from this shape.
 	}
 }
 
@@ -440,11 +447,10 @@ func plannedLLM() evaluatorResourceModel {
 		ID:          types.StringUnknown(),
 		Key:         types.StringValue("tone"),
 		Type:        types.StringValue(client.EvaluatorTypeLLM),
-		Path:        types.StringValue("Default/evaluators"),
+		ProjectID:   types.StringValue("proj_1"),
 		Description: types.StringValue("rates tone"),
 		OutputType:  types.StringValue("categorical"),
 		Enabled:     types.BoolUnknown(),
-		ProjectID:   types.StringUnknown(),
 		CreatedAt:   types.StringUnknown(),
 		UpdatedAt:   types.StringUnknown(),
 		Code:        types.StringNull(),
@@ -637,7 +643,7 @@ func TestEvaluatorNullUnknownsMakesStatePersistable(t *testing.T) {
 func assertNoUnknowns(t *testing.T, label string, m evaluatorResourceModel) {
 	t.Helper()
 	strings := map[string]types.String{
-		"id": m.ID, "key": m.Key, "type": m.Type, "path": m.Path,
+		"id": m.ID, "key": m.Key, "type": m.Type,
 		"description": m.Description, "output_type": m.OutputType,
 		"project_id": m.ProjectID, "created_at": m.CreatedAt, "updated_at": m.UpdatedAt,
 		"code": m.Code, "prompt": m.Prompt, "mode": m.Mode, "model": m.Model, "model_id": m.ModelID,
@@ -693,19 +699,54 @@ func TestEvaluatorImportRejectsNonULID(t *testing.T) {
 	}
 }
 
+// Import passes only the id through and then refreshes, so every REQUIRED
+// attribute has to come back from the by-id read — otherwise the plan right
+// after an import reports one as missing from state.
+func TestEvaluatorImportRecoversRequiredAttributes(t *testing.T) {
+	imported := evaluatorResourceModel{ID: types.StringValue("01JMDPA3QW5C1V0NJ1PW34T4E5")}
+	applyRead(internalLLM(), &imported)
+	required := map[string]types.String{
+		"key": imported.Key, "type": imported.Type, "project_id": imported.ProjectID,
+	}
+	for name, v := range required {
+		if v.IsNull() || v.IsUnknown() || v.ValueString() == "" {
+			t.Errorf("required attribute %s is not recovered by import: %v", name, v)
+		}
+	}
+}
+
 // --- read projection --------------------------------------------------------
 
-func TestEvaluatorApplyReadLeavesPathAndJuryAlone(t *testing.T) {
+func TestEvaluatorApplyReadLeavesJuryAlone(t *testing.T) {
 	m := evaluatorResourceModel{
-		Path: types.StringValue("Default/evaluators"),
 		Jury: &evaluatorJuryModel{Judges: []evaluatorJudgeModel{{Model: types.StringValue("openai/gpt-4o")}}},
 	}
 	applyRead(internalLLM(), &m)
-	if m.Path.ValueString() != "Default/evaluators" {
-		t.Errorf("path must survive a refresh, got %q", m.Path.ValueString())
-	}
 	if m.Jury == nil || len(m.Jury.Judges) != 1 {
 		t.Errorf("jury must survive a refresh, got %+v", m.Jury)
+	}
+}
+
+// project_id is real server state now, so an out-of-band move must surface as a
+// diff rather than be papered over by the value already in state.
+func TestEvaluatorApplyReadRefreshesProjectIDAuthoritatively(t *testing.T) {
+	m := plannedLLM()
+	moved := internalLLM()
+	moved.ProjectID = "proj_2"
+	applyRead(moved, &m)
+	if m.ProjectID.ValueString() != "proj_2" {
+		t.Errorf("project_id = %q, want the server's proj_2", m.ProjectID.ValueString())
+	}
+}
+
+// The plan is what the operator asked for, so a write must never let the
+// read-back rewrite an explicitly configured project.
+func TestEvaluatorApplyWriteKeepsPlannedProjectID(t *testing.T) {
+	m := plannedLLM()
+	m.ProjectID = types.StringValue("proj_2")
+	applyWrite(internalLLM(), externalLLM(), &m)
+	if m.ProjectID.ValueString() != "proj_2" {
+		t.Errorf("project_id = %q, want the planned proj_2", m.ProjectID.ValueString())
 	}
 }
 

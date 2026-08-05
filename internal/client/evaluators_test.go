@@ -20,11 +20,12 @@ func newEvaluatorServer(t *testing.T, handler http.HandlerFunc) *Client {
 }
 
 // externalPythonJSON is what POST/PATCH answer with. Note what is ABSENT:
-// output_type, enabled, domain_id, display_name.
+// output_type, enabled, display_name.
 func externalPythonJSON() map[string]any {
 	return map[string]any{
 		"_id":         "01JMDPA3QW5C1V0NJ1PW34T4E5",
 		"key":         "my-eval",
+		"project_id":  "proj_1",
 		"description": "checks the answer",
 		"created":     "2026-07-01T10:00:00.000Z",
 		"updated":     "2026-07-02T10:00:00.000Z",
@@ -42,6 +43,7 @@ func internalPythonJSON() map[string]any {
 		"description":  "checks the answer",
 		"owner":        "ws_1",
 		"domain_id":    "proj_1",
+		"project_id":   "proj_1",
 		"metadata":     map[string]any{"supported_on_output_type": true},
 		"enabled":      true,
 		"output_type":  "boolean",
@@ -60,6 +62,7 @@ func internalLLMJSON() map[string]any {
 		"description":  "",
 		"owner":        "ws_1",
 		"domain_id":    "proj_1",
+		"project_id":   "proj_1",
 		"metadata":     map[string]any{},
 		"enabled":      true,
 		"output_type":  "categorical",
@@ -156,7 +159,7 @@ func TestEvaluators_CreateDecodesExternalShape(t *testing.T) {
 	e, err := c.Evaluators().Create(context.Background(), EvaluatorCreateInput{
 		Key:        "my-eval",
 		Type:       EvaluatorTypePython,
-		Path:       "Default/evaluators",
+		ProjectID:  "proj_1",
 		Code:       &code,
 		OutputType: &outputType,
 	})
@@ -166,8 +169,11 @@ func TestEvaluators_CreateDecodesExternalShape(t *testing.T) {
 	if gotMethod != http.MethodPost || gotPath != "/v2/evaluators" {
 		t.Errorf("wrong request: %s %s", gotMethod, gotPath)
 	}
-	if gotBody["key"] != "my-eval" || gotBody["path"] != "Default/evaluators" || gotBody["code"] != code {
+	if gotBody["key"] != "my-eval" || gotBody["project_id"] != "proj_1" || gotBody["code"] != code {
 		t.Errorf("create body wrong: %v", gotBody)
+	}
+	if _, ok := gotBody["path"]; ok {
+		t.Error("`path` is gone; the project is addressed by project_id only")
 	}
 	if _, ok := gotBody["prompt"]; ok {
 		t.Error("a python_eval create must not carry llm keys")
@@ -178,8 +184,11 @@ func TestEvaluators_CreateDecodesExternalShape(t *testing.T) {
 	if e.Key != "my-eval" || e.ID != "01JMDPA3QW5C1V0NJ1PW34T4E5" {
 		t.Errorf("external decode wrong: %+v", e)
 	}
-	if e.OutputType != "" || e.ProjectID != "" || e.ModelID != "" {
+	if e.OutputType != "" || e.ModelID != "" {
 		t.Errorf("internal-only fields must stay zero on an external body: %+v", e)
+	}
+	if e.ProjectID != "proj_1" {
+		t.Errorf("project_id must decode from the external body too, got %q", e.ProjectID)
 	}
 }
 
@@ -198,11 +207,11 @@ func TestEvaluators_CreateLLMJuryPayload(t *testing.T) {
 	count := int64(3)
 	minSuccessful := int64(2)
 	if _, err := c.Evaluators().Create(context.Background(), EvaluatorCreateInput{
-		Key:    "jury-eval",
-		Type:   EvaluatorTypeLLM,
-		Path:   "Default",
-		Prompt: &prompt,
-		Mode:   &mode,
+		Key:       "jury-eval",
+		Type:      EvaluatorTypeLLM,
+		ProjectID: "proj_1",
+		Prompt:    &prompt,
+		Mode:      &mode,
 		Jury: &Jury{
 			Judges: []JuryJudge{
 				{Model: "openai/gpt-4o", Retry: &JuryRetry{Count: &count, OnCodes: []int64{429, 503}}, Fallbacks: []string{"anthropic/claude-sonnet-4-5"}},
@@ -261,7 +270,7 @@ func TestEvaluators_UpdateClearsLabelsWithExplicitNull(t *testing.T) {
 		ID:                     "01JMDPA3QW5C1V0NJ1PW34T4E5",
 		Key:                    "my-eval",
 		Type:                   EvaluatorTypePython,
-		Path:                   "Default",
+		ProjectID:              "proj_1",
 		ClearCategoricalLabels: true,
 	}); err != nil {
 		t.Fatalf("Update: %v", err)
@@ -290,7 +299,7 @@ func TestEvaluators_UpdateSendsLabels(t *testing.T) {
 		ID:                "01JMDPA3QW5C1V0NJ1PW34T4E5",
 		Key:               "tone",
 		Type:              EvaluatorTypeLLM,
-		Path:              "Default",
+		ProjectID:         "proj_1",
 		CategoricalLabels: []CategoricalLabel{{Value: "friendly", Description: &desc}, {Value: "curt"}},
 	}); err != nil {
 		t.Fatalf("Update: %v", err)
@@ -355,5 +364,48 @@ func TestEvaluators_DecodeExternalModelString(t *testing.T) {
 	}
 	if e.ModelID != "" {
 		t.Errorf("ModelID must stay empty on an external body, got %q", e.ModelID)
+	}
+}
+
+// The update endpoint moves an evaluator between projects, so project_id has to
+// reach the wire on a PATCH as well.
+func TestEvaluators_UpdateSendsProjectID(t *testing.T) {
+	var gotBody map[string]any
+	c := newEvaluatorServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(externalPythonJSON())
+	})
+	if _, err := c.Evaluators().Update(context.Background(), EvaluatorUpdateInput{
+		ID:        "01JMDPA3QW5C1V0NJ1PW34T4E5",
+		Key:       "my-eval",
+		Type:      EvaluatorTypePython,
+		ProjectID: "proj_2",
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if gotBody["project_id"] != "proj_2" {
+		t.Errorf("project_id not sent on update: %v", gotBody)
+	}
+	if _, ok := gotBody["path"]; ok {
+		t.Error("`path` is gone; the project is addressed by project_id only")
+	}
+}
+
+// The stored record spells the project `domain_id`; `project_id` is the newer
+// alias for the same value and either alone must decode.
+func TestEvaluators_DecodeProjectIDFallsBackToDomainID(t *testing.T) {
+	body := internalPythonJSON()
+	delete(body, "project_id")
+	raw, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	e, err := decodeEvaluatorBody(raw, ShapeInternal)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if e.ProjectID != "proj_1" {
+		t.Errorf("ProjectID = %q, want the domain_id fallback proj_1", e.ProjectID)
 	}
 }

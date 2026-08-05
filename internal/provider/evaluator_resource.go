@@ -42,7 +42,6 @@ type evaluatorResourceModel struct {
 	ID          types.String `tfsdk:"id"`
 	Key         types.String `tfsdk:"key"`
 	Type        types.String `tfsdk:"type"`
-	Path        types.String `tfsdk:"path"`
 	Description types.String `tfsdk:"description"`
 	OutputType  types.String `tfsdk:"output_type"`
 	Enabled     types.Bool   `tfsdk:"enabled"`
@@ -132,9 +131,9 @@ func (r *evaluatorResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"`json_schema`, `http_eval`, `typescript_eval` and `bedrock_eval`; this resource refuses to adopt " +
 			"them (read and import both error out rather than mis-manage a record).\n\n" +
 			"**Two response shapes.** `POST`/`PATCH /v2/evaluators` answer with the EXTERNAL representation " +
-			"(`key`, `model` as a `provider/model` string, no `output_type`/`enabled`/`domain_id`), while " +
+			"(`key`, `model` as a `provider/model` string, no `output_type`/`enabled`), while " +
 			"`GET /v2/evaluators/{id}` answers with the STORED record (`display_name`, `model` as an object " +
-			"holding a model DOCUMENT ID, plus `output_type`, `enabled` and `domain_id`). Every create and " +
+			"holding a model DOCUMENT ID, plus `output_type` and `enabled`). Every create and " +
 			"update therefore performs the write and then re-reads the evaluator by id, and state is assembled " +
 			"from both halves — see `model` and `output_type`.\n\n" +
 			"**Update is a field merge.** The API applies the patch with a mongo `$set`, so a field this " +
@@ -167,14 +166,11 @@ func (r *evaluatorResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Validators:    []validator.String{stringvalidator.OneOf(evaluatorTypes...)},
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
-			"path": schema.StringAttribute{
+			"project_id": schema.StringAttribute{
 				Required: true,
-				MarkdownDescription: "Storage path, e.g. `Default` or `Default/evaluators`. The first element is " +
-					"the project; nested folders are auto-created.\n\n" +
-					"WRITE-ONLY: the server resolves it to a project/folder, stores the result as `project_id` and " +
-					"then discards the path — no endpoint returns it. It is therefore config-authoritative, an " +
-					"out-of-band move is invisible here (watch `project_id` instead), and after `terraform import` " +
-					"it is unset until the first apply re-asserts it.",
+				MarkdownDescription: "Id of the project the evaluator lives in, e.g. " +
+					"`orq_project.evals.id`. Changing it MOVES the evaluator — the API patches it in place, so " +
+					"no replacement occurs.",
 				Validators: []validator.String{stringvalidator.LengthAtLeast(1)},
 			},
 			"description": schema.StringAttribute{
@@ -198,11 +194,6 @@ func (r *evaluatorResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Computed: true,
 				MarkdownDescription: "Whether the evaluator is enabled. Read-only: the public create/update " +
 					"bodies do not accept it (it is toggled in the UI).",
-			},
-			"project_id": schema.StringAttribute{
-				Computed: true,
-				MarkdownDescription: "Id of the project the evaluator lives in, resolved by the server from " +
-					"`path` (stored as `domain_id`).",
 			},
 			"created_at": schema.StringAttribute{
 				Computed:            true,
@@ -441,9 +432,7 @@ func (r *evaluatorResource) Delete(ctx context.Context, req resource.DeleteReque
 	}
 }
 
-// ImportState adopts an existing evaluator by its ULID. `path` cannot be
-// imported — no endpoint returns it — so it stays null until the first apply
-// after the import re-asserts it from config.
+// ImportState adopts an existing evaluator by its ULID.
 func (r *evaluatorResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	if !ulidPattern.MatchString(req.ID) {
 		resp.Diagnostics.AddError("Invalid evaluator import id",
@@ -521,7 +510,7 @@ func (m *evaluatorResourceModel) createInput() client.EvaluatorCreateInput {
 	return client.EvaluatorCreateInput{
 		Key:               m.Key.ValueString(),
 		Type:              m.Type.ValueString(),
-		Path:              m.Path.ValueString(),
+		ProjectID:         m.ProjectID.ValueString(),
 		Description:       strPtr(m.Description),
 		OutputType:        strPtr(m.OutputType),
 		Code:              strPtr(m.Code),
@@ -540,7 +529,7 @@ func (m *evaluatorResourceModel) updateInput(id string) client.EvaluatorUpdateIn
 		ID:                     id,
 		Key:                    m.Key.ValueString(),
 		Type:                   m.Type.ValueString(),
-		Path:                   m.Path.ValueString(),
+		ProjectID:              m.ProjectID.ValueString(),
 		Description:            strPtr(m.Description),
 		OutputType:             strPtr(m.OutputType),
 		Code:                   strPtr(m.Code),
@@ -557,14 +546,15 @@ func (m *evaluatorResourceModel) updateInput(id string) client.EvaluatorUpdateIn
 // --- server -> state ---------------------------------------------------------
 
 // applyWrite assembles state from BOTH response shapes: internal is the by-id
-// read-back (the only source of output_type, enabled, project_id and the model
-// document id), external is the create/update response (the only source of the
+// read-back (the only source of output_type, enabled and the model document id),
+// external is the create/update response (the only source of the
 // provider-qualified `model` string). The PLAN wins for every known planned
 // value; the read-back may only fill what the plan left unknown.
 func applyWrite(internal, external *client.Evaluator, m *evaluatorResourceModel) {
 	m.ID = types.StringValue(external.ID)
 	m.Key = evalPreserveString(m.Key, internal.Key)
 	m.Type = evalPreserveString(m.Type, internal.Type)
+	m.ProjectID = evalPreserveString(m.ProjectID, internal.ProjectID)
 	m.Description = evalPreserveString(m.Description, internal.Description)
 	m.OutputType = evalPreserveString(m.OutputType, internal.OutputType)
 	m.Repetitions = evalPreserveInt64(m.Repetitions, internal.Repetitions)
@@ -574,7 +564,6 @@ func applyWrite(internal, external *client.Evaluator, m *evaluatorResourceModel)
 
 	// Computed-only: always the server's value.
 	m.Enabled = types.BoolValue(internal.Enabled)
-	m.ProjectID = optString(internal.ProjectID)
 	m.CreatedAt = optString(internal.Created)
 	m.UpdatedAt = optString(internal.Updated)
 	m.ModelID = evaluatorModelID(internal)
@@ -583,12 +572,13 @@ func applyWrite(internal, external *client.Evaluator, m *evaluatorResourceModel)
 		m.Model = optString(external.Model)
 	}
 
-	// categorical_labels / jury / path stay exactly as planned.
+	// categorical_labels / jury stay exactly as planned.
 }
 
 // applyRead refreshes state from the STORED record, which wins outright so that
-// out-of-band drift surfaces. `path` (no endpoint returns it), `jury` (stored as
-// model document ids) and `model` (resolveModelRef) are deliberately untouched.
+// out-of-band drift surfaces — an evaluator moved to another project shows up as
+// a `project_id` diff. `jury` (stored as model document ids) and `model`
+// (resolveModelRef) are deliberately untouched.
 func applyRead(e *client.Evaluator, m *evaluatorResourceModel) {
 	m.ID = types.StringValue(e.ID)
 	m.Key = types.StringValue(e.Key)
@@ -659,8 +649,8 @@ func evalPreserveInt64(planned types.Int64, srv *int64) types.Int64 {
 // state can be persisted after a write that succeeded but whose read-back failed.
 func nullUnknowns(m *evaluatorResourceModel) {
 	for _, s := range []*types.String{
-		&m.ID, &m.Key, &m.Type, &m.Path, &m.Description, &m.OutputType,
-		&m.ProjectID, &m.CreatedAt, &m.UpdatedAt, &m.Code, &m.Prompt,
+		&m.ID, &m.Key, &m.Type, &m.ProjectID, &m.Description, &m.OutputType,
+		&m.CreatedAt, &m.UpdatedAt, &m.Code, &m.Prompt,
 		&m.Mode, &m.Model, &m.ModelID,
 	} {
 		if s.IsUnknown() {

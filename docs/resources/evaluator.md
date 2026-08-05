@@ -5,7 +5,7 @@ subcategory: ""
 description: |-
   An orq evaluator of type python_eval or llm_eval.
   Scope: only those two types are managed. The API also serves function_eval, ragas, json_schema, http_eval, typescript_eval and bedrock_eval; this resource refuses to adopt them (read and import both error out rather than mis-manage a record).
-  Two response shapes. POST/PATCH /v2/evaluators answer with the EXTERNAL representation (key, model as a provider/model string, no output_type/enabled/domain_id), while GET /v2/evaluators/{id} answers with the STORED record (display_name, model as an object holding a model DOCUMENT ID, plus output_type, enabled and domain_id). Every create and update therefore performs the write and then re-reads the evaluator by id, and state is assembled from both halves — see model and output_type.
+  Two response shapes. POST/PATCH /v2/evaluators answer with the EXTERNAL representation (key, model as a provider/model string, no output_type/enabled), while GET /v2/evaluators/{id} answers with the STORED record (display_name, model as an object holding a model DOCUMENT ID, plus output_type and enabled). Every create and update therefore performs the write and then re-reads the evaluator by id, and state is assembled from both halves — see model and output_type.
   Update is a field merge. The API applies the patch with a mongo $set, so a field this resource does not send keeps its stored value. Attributes the resource does not model at all (guardrail_config, categories, dataset_id) are consequently never sent and never read: they are left entirely to the UI/API and produce no diff here.
 ---
 
@@ -15,19 +15,25 @@ An orq evaluator of type `python_eval` or `llm_eval`.
 
 **Scope:** only those two types are managed. The API also serves `function_eval`, `ragas`, `json_schema`, `http_eval`, `typescript_eval` and `bedrock_eval`; this resource refuses to adopt them (read and import both error out rather than mis-manage a record).
 
-**Two response shapes.** `POST`/`PATCH /v2/evaluators` answer with the EXTERNAL representation (`key`, `model` as a `provider/model` string, no `output_type`/`enabled`/`domain_id`), while `GET /v2/evaluators/{id}` answers with the STORED record (`display_name`, `model` as an object holding a model DOCUMENT ID, plus `output_type`, `enabled` and `domain_id`). Every create and update therefore performs the write and then re-reads the evaluator by id, and state is assembled from both halves — see `model` and `output_type`.
+**Two response shapes.** `POST`/`PATCH /v2/evaluators` answer with the EXTERNAL representation (`key`, `model` as a `provider/model` string, no `output_type`/`enabled`), while `GET /v2/evaluators/{id}` answers with the STORED record (`display_name`, `model` as an object holding a model DOCUMENT ID, plus `output_type` and `enabled`). Every create and update therefore performs the write and then re-reads the evaluator by id, and state is assembled from both halves — see `model` and `output_type`.
 
 **Update is a field merge.** The API applies the patch with a mongo `$set`, so a field this resource does not send keeps its stored value. Attributes the resource does not model at all (`guardrail_config`, `categories`, `dataset_id`) are consequently never sent and never read: they are left entirely to the UI/API and produce no diff here.
 
 ## Example Usage
 
 ```terraform
+# The project the evaluators below live in. `project_id` is patched in place, so
+# moving an evaluator to another project never replaces it.
+resource "orq_project" "evals" {
+  name = "Evaluations"
+}
+
 # A python_eval evaluator. Keep the source in its own .py file so it stays
 # lintable, testable and diffable, and load it with file().
 resource "orq_evaluator" "cites_sources" {
   key         = "cites-sources"
   type        = "python_eval"
-  path        = "Default Project/evaluators" # "<project name>/<folders...>" — the project must exist
+  project_id  = orq_project.evals.id
   description = "True when the answer cites at least one source"
   output_type = "boolean" # python_eval: boolean | number
 
@@ -38,7 +44,7 @@ resource "orq_evaluator" "cites_sources" {
 resource "orq_evaluator" "tone" {
   key         = "tone"
   type        = "llm_eval"
-  path        = "Default Project/evaluators"
+  project_id  = orq_project.evals.id
   description = "Classifies the tone of the answer"
 
   mode   = "single"
@@ -61,11 +67,11 @@ resource "orq_evaluator" "tone" {
 # An llm_eval evaluator judged by a jury. `mode` cannot be changed in place —
 # switching between single and jury replaces the evaluator.
 resource "orq_evaluator" "factuality_jury" {
-  key    = "factuality"
-  type   = "llm_eval"
-  path   = "Default Project/evaluators"
-  mode   = "jury"
-  prompt = "Is the answer factually supported by the retrieved context?"
+  key        = "factuality"
+  type       = "llm_eval"
+  project_id = orq_project.evals.id
+  mode       = "jury"
+  prompt     = "Is the answer factually supported by the retrieved context?"
 
   output_type = "boolean"
 
@@ -103,7 +109,7 @@ resource "orq_evaluator" "factuality_jury" {
 resource "orq_evaluator" "shakespearean" {
   key         = "shakespearean"
   type        = "llm_eval"
-  path        = "Default Project/evaluators"
+  project_id  = "01JMDPA3QW5C1V0NJ1PW34T4E5" # a project id read from `orq_projects` or the UI
   description = "True when the response is written in Shakespearean English"
 
   mode  = "single"
@@ -139,9 +145,7 @@ resource "orq_evaluator" "shakespearean" {
 ### Required
 
 - `key` (String) Unique evaluator key within the workspace. Letters, digits, `-` and `_`, never starting or ending with `-`/`_`. It is stored as `display_name` and returned as `key` by the write endpoints; the two are the same value. Renaming is allowed (the API patches it) but the server matches uniqueness case-INSENSITIVELY, so `MyEval` and `myeval` collide.
-- `path` (String) Storage path, e.g. `Default` or `Default/evaluators`. The first element is the project; nested folders are auto-created.
-
-WRITE-ONLY: the server resolves it to a project/folder, stores the result as `project_id` and then discards the path — no endpoint returns it. It is therefore config-authoritative, an out-of-band move is invisible here (watch `project_id` instead), and after `terraform import` it is unset until the first apply re-asserts it.
+- `project_id` (String) Id of the project the evaluator lives in, e.g. `orq_project.evals.id`. Changing it MOVES the evaluator — the API patches it in place, so no replacement occurs.
 - `type` (String) Evaluator type: `python_eval` or `llm_eval`. IMMUTABLE — the API rejects a type change with a 400, so changing it forces replacement.
 
 ### Optional
@@ -170,7 +174,6 @@ Only the by-id GET reports it — the create/update responses omit it — which 
 - `enabled` (Boolean) Whether the evaluator is enabled. Read-only: the public create/update bodies do not accept it (it is toggled in the UI).
 - `id` (String) Evaluator id (a ULID) assigned by orq.
 - `model_id` (String) Model document id the server stored for `model`. Exposed because it is the only model identity the by-id GET returns, and it is what refresh compares against to detect an out-of-band model change. Null for `python_eval` and for `mode = "jury"`.
-- `project_id` (String) Id of the project the evaluator lives in, resolved by the server from `path` (stored as `domain_id`).
 - `updated_at` (String) Last update time as returned by the API.
 
 <a id="nestedatt--categorical_labels"></a>
@@ -248,7 +251,6 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 ```shell
 # Evaluators are imported by the 26-character ULID the API returns as `_id`.
 # Built-in evaluators (orq_pii_detection, …) are addressed by slug, have no
-# evaluator record, and cannot be imported. `path` is not importable and stays
-# null until the first apply re-asserts it from config.
+# evaluator record, and cannot be imported.
 terraform import orq_evaluator.example 01JMDPA3QW5C1V0NJ1PW34T4E5
 ```

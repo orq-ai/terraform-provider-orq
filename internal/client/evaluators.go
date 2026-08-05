@@ -21,7 +21,7 @@ import (
 //	                             and domain_id
 //
 // A field the decoded shape does not carry is left at its ZERO value, which
-// callers must not read as a server value. Neither shape carries `path`.
+// callers must not read as a server value.
 type EvaluatorShape string
 
 const (
@@ -48,11 +48,11 @@ type Evaluator struct {
 	Description string
 	Created     string
 	Updated     string
+	ProjectID   string // `project_id`; the stored record spells the same value `domain_id`
 
 	// INTERNAL only.
 	OutputType string // "" from an external body — NOT "the server has no output_type"
 	Enabled    bool
-	ProjectID  string // `domain_id`
 	ModelID    string // `model.id`: a MODEL DOCUMENT ID, never a provider/model string
 
 	// EXTERNAL only.
@@ -94,14 +94,11 @@ type Jury struct {
 	MinSuccessfulJudges *int64
 }
 
-// EvaluatorCreateInput carries the fields for POST /v2/evaluators. Path is
-// REQUIRED but write-only in the strongest sense: the server resolves it to the
-// owning project, stores that as `domain_id`, drops the path, and no endpoint
-// ever returns it.
+// EvaluatorCreateInput carries the fields for POST /v2/evaluators.
 type EvaluatorCreateInput struct {
-	Key  string
-	Type string
-	Path string
+	Key       string
+	Type      string
+	ProjectID string
 
 	Description *string
 	OutputType  *string
@@ -121,10 +118,10 @@ type EvaluatorCreateInput struct {
 // EvaluatorUpdateInput is the PATCH body. The endpoint applies a mongo `$set`
 // FIELD MERGE, not a replace: a key absent from the body keeps its stored value.
 type EvaluatorUpdateInput struct {
-	ID   string
-	Key  string
-	Type string
-	Path string
+	ID        string
+	Key       string
+	Type      string
+	ProjectID string
 
 	Description *string
 	OutputType  *string
@@ -170,6 +167,7 @@ type evaluatorWire struct {
 	Updated     string          `json:"updated"`
 	OutputType  string          `json:"output_type"`
 	Enabled     *bool           `json:"enabled"`
+	ProjectID   string          `json:"project_id"`
 	DomainID    string          `json:"domain_id"`
 	Code        string          `json:"code"`
 	Prompt      string          `json:"prompt"`
@@ -201,6 +199,11 @@ func (w *evaluatorWire) toEvaluator(shape EvaluatorShape) Evaluator {
 	if e.Key == "" {
 		e.Key = w.DisplayName
 	}
+	// Likewise `project_id` and the stored record's `domain_id`.
+	e.ProjectID = w.ProjectID
+	if e.ProjectID == "" {
+		e.ProjectID = w.DomainID
+	}
 	for _, l := range w.CategoricalLabels {
 		e.CategoricalLabels = append(e.CategoricalLabels, CategoricalLabel{Value: l.Value, Description: l.Description})
 	}
@@ -208,7 +211,6 @@ func (w *evaluatorWire) toEvaluator(shape EvaluatorShape) Evaluator {
 	switch shape {
 	case ShapeInternal:
 		e.OutputType = w.OutputType
-		e.ProjectID = w.DomainID
 		// The stored record defaults `enabled` to true when absent.
 		e.Enabled = w.Enabled == nil || *w.Enabled
 		var m struct {
@@ -311,7 +313,7 @@ func labelsToPayload(in []CategoricalLabel) []categoricalLabelPayload {
 type createPayload struct {
 	Key         string  `json:"key"`
 	Type        string  `json:"type"`
-	Path        string  `json:"path"`
+	ProjectID   string  `json:"project_id"`
 	Description *string `json:"description,omitempty"`
 	OutputType  *string `json:"output_type,omitempty"`
 
@@ -330,7 +332,7 @@ type createPayload struct {
 type updatePayload struct {
 	Key         string  `json:"key"`
 	Type        string  `json:"type"`
-	Path        string  `json:"path,omitempty"`
+	ProjectID   string  `json:"project_id,omitempty"`
 	Description *string `json:"description,omitempty"`
 	OutputType  *string `json:"output_type,omitempty"`
 
@@ -364,7 +366,7 @@ func (r *restEvaluators) Create(ctx context.Context, in EvaluatorCreateInput) (*
 	payload := createPayload{
 		Key:               in.Key,
 		Type:              in.Type,
-		Path:              in.Path,
+		ProjectID:         in.ProjectID,
 		Description:       in.Description,
 		OutputType:        in.OutputType,
 		Code:              in.Code,
@@ -393,7 +395,7 @@ func (r *restEvaluators) Update(ctx context.Context, in EvaluatorUpdateInput) (*
 	payload := updatePayload{
 		Key:         in.Key,
 		Type:        in.Type,
-		Path:        in.Path,
+		ProjectID:   in.ProjectID,
 		Description: in.Description,
 		OutputType:  in.OutputType,
 		Code:        in.Code,

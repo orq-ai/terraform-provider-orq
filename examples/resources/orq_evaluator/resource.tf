@@ -1,9 +1,15 @@
+# The project the evaluators below live in. `project_id` is patched in place, so
+# moving an evaluator to another project never replaces it.
+resource "orq_project" "evals" {
+  name = "Evaluations"
+}
+
 # A python_eval evaluator. Keep the source in its own .py file so it stays
 # lintable, testable and diffable, and load it with file().
 resource "orq_evaluator" "cites_sources" {
   key         = "cites-sources"
   type        = "python_eval"
-  path        = "Default Project/evaluators" # "<project name>/<folders...>" — the project must exist
+  project_id  = orq_project.evals.id
   description = "True when the answer cites at least one source"
   output_type = "boolean" # python_eval: boolean | number
 
@@ -14,7 +20,7 @@ resource "orq_evaluator" "cites_sources" {
 resource "orq_evaluator" "tone" {
   key         = "tone"
   type        = "llm_eval"
-  path        = "Default Project/evaluators"
+  project_id  = orq_project.evals.id
   description = "Classifies the tone of the answer"
 
   mode   = "single"
@@ -37,11 +43,11 @@ resource "orq_evaluator" "tone" {
 # An llm_eval evaluator judged by a jury. `mode` cannot be changed in place —
 # switching between single and jury replaces the evaluator.
 resource "orq_evaluator" "factuality_jury" {
-  key    = "factuality"
-  type   = "llm_eval"
-  path   = "Default Project/evaluators"
-  mode   = "jury"
-  prompt = "Is the answer factually supported by the retrieved context?"
+  key        = "factuality"
+  type       = "llm_eval"
+  project_id = orq_project.evals.id
+  mode       = "jury"
+  prompt     = "Is the answer factually supported by the retrieved context?"
 
   output_type = "boolean"
 
@@ -79,7 +85,7 @@ resource "orq_evaluator" "factuality_jury" {
 resource "orq_evaluator" "shakespearean" {
   key         = "shakespearean"
   type        = "llm_eval"
-  path        = "Default Project/evaluators"
+  project_id  = "01JMDPA3QW5C1V0NJ1PW34T4E5" # a project id read from `orq_projects` or the UI
   description = "True when the response is written in Shakespearean English"
 
   mode  = "single"
