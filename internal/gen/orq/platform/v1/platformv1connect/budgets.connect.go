@@ -70,7 +70,7 @@ type BudgetsServiceClient interface {
 	GetBudgetConsumption(context.Context, *v1.GetBudgetConsumptionRequest) (*v1.GetBudgetConsumptionResponse, error)
 	// Internal enforcement endpoint. The gate increments RPM counters, so the
 	// handler rejects external API-key principals; only the gateway may call
-	// it, authenticated with an internal `orq.internal` token.
+	// it, using service-internal authentication.
 	CheckBudgets(context.Context, *v1.CheckBudgetsRequest) (*v1.CheckBudgetsResponse, error)
 }
 
@@ -231,7 +231,7 @@ type BudgetsServiceHandler interface {
 	GetBudgetConsumption(context.Context, *v1.GetBudgetConsumptionRequest) (*v1.GetBudgetConsumptionResponse, error)
 	// Internal enforcement endpoint. The gate increments RPM counters, so the
 	// handler rejects external API-key principals; only the gateway may call
-	// it, authenticated with an internal `orq.internal` token.
+	// it, using service-internal authentication.
 	CheckBudgets(context.Context, *v1.CheckBudgetsRequest) (*v1.CheckBudgetsResponse, error)
 }
 

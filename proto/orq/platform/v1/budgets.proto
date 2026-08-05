@@ -207,7 +207,7 @@ service BudgetsService {
 
   // Internal enforcement endpoint. The gate increments RPM counters, so the
   // handler rejects external API-key principals; only the gateway may call
-  // it, authenticated with an internal `orq.internal` token.
+  // it, using service-internal authentication.
   rpc CheckBudgets(CheckBudgetsRequest) returns (CheckBudgetsResponse) {
     option (orq.authz.v1.authz) = {
       verb: ""
