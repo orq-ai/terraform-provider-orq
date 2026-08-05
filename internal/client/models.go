@@ -203,8 +203,8 @@ func modelFromDocument(d *restgen.ModelDocument) Model {
 		SupportsToolCalling: d.Metadata.SupportsToolCalling,
 		SupportsStrictTool:  d.Metadata.SupportsStrictTool,
 		SupportsImageEdit:   d.Metadata.SupportsImageEdit,
-		Created:             d.Created.UTC().Format(time.RFC3339),
-		Updated:             d.Updated.UTC().Format(time.RFC3339),
+		Created:             normalizeInstant(d.Created),
+		Updated:             normalizeInstant(d.Updated),
 	}
 	if d.Description != nil {
 		m.Description = *d.Description

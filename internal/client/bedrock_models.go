@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
-	"time"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/restgen"
 )
@@ -176,8 +175,8 @@ func bedrockModelFromDocument(d *restgen.ModelDocument) BedrockModel {
 		ModelType:    d.ModelType,
 		Provider:     d.Provider,
 		Owner:        d.Owner,
-		Created:      d.Created.UTC().Format(time.RFC3339),
-		Updated:      d.Updated.UTC().Format(time.RFC3339),
+		Created:      normalizeInstant(d.Created),
+		Updated:      normalizeInstant(d.Updated),
 		InputCost:    d.InputCost,
 		OutputCost:   d.OutputCost,
 		HasFunctions: d.HasFunctions,

@@ -16,6 +16,16 @@ func formatTimestamp(ts *timestamppb.Timestamp) string {
 	return ts.AsTime().UTC().Format(time.RFC3339)
 }
 
+// normalizeInstant re-renders an RFC 3339 instant in UTC so state stays stable
+// across offset changes. A value that does not parse is passed through as-is.
+func normalizeInstant(s string) string {
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return s
+	}
+	return t.UTC().Format(time.RFC3339)
+}
+
 // parseTimestamp converts an RFC 3339 string into a protobuf timestamp. An empty
 // string yields a nil timestamp (field omitted). A parse failure is returned so
 // the caller can surface a clear validation error rather than sending garbage.

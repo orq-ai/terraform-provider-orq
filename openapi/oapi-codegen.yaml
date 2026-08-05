@@ -21,6 +21,13 @@ generate:
   models: true
   client: true
 output-options:
+  # Component types are emitted before unused ones are pruned, so a schema no
+  # generated operation reaches can still fail generation. These two model the
+  # recursive `variables` bag of /v2/evaluators/{id}/invoke (not generated here)
+  # as an OpenAPI 3.1 type union, which oapi-codegen cannot express in Go.
+  exclude-schemas:
+    - EvaluatorVariables
+    - EvaluatorVariableValue
   include-operation-ids:
     # Guardrail Rules (/v2/guardrail-rules)
     - GuardrailRuleList

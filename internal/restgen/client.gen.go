@@ -1310,15 +1310,18 @@ func (e GuardrailRefExecuteOn) Valid() bool {
 
 // Defines values for ModelsConfigMode.
 const (
-	Fallback   ModelsConfigMode = "fallback"
-	RoundRobin ModelsConfigMode = "round_robin"
-	Weighted   ModelsConfigMode = "weighted"
+	Fallback     ModelsConfigMode = "fallback"
+	LatencyBased ModelsConfigMode = "latency_based"
+	RoundRobin   ModelsConfigMode = "round_robin"
+	Weighted     ModelsConfigMode = "weighted"
 )
 
 // Valid indicates whether the value is a known member of the ModelsConfigMode enum.
 func (e ModelsConfigMode) Valid() bool {
 	switch e {
 	case Fallback:
+		return true
+	case LatencyBased:
 		return true
 	case RoundRobin:
 		return true
@@ -1347,6 +1350,21 @@ func (e RequestLimitPeriod) Valid() bool {
 	case RequestLimitPeriodMonth:
 		return true
 	case RequestLimitPeriodWeek:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ResponseHealingPluginId.
+const (
+	ResponseHealing ResponseHealingPluginId = "response_healing"
+)
+
+// Valid indicates whether the value is a known member of the ResponseHealingPluginId enum.
+func (e ResponseHealingPluginId) Valid() bool {
+	switch e {
+	case ResponseHealing:
 		return true
 	default:
 		return false
@@ -3373,6 +3391,7 @@ func (e GuardrailRuleListParamsSortBy) Valid() bool {
 type AutoRouterConfig struct {
 	EconomicalModel *string             `json:"economical_model,omitempty"`
 	Id              *string             `json:"id,omitempty"`
+	Models          *[]string           `json:"models,omitempty"`
 	Profile         *string             `json:"profile,omitempty"`
 	StrongModel     *string             `json:"strong_model,omitempty"`
 	V2              *AutoRouterV2Config `json:"v2,omitempty"`
@@ -3381,11 +3400,27 @@ type AutoRouterConfig struct {
 
 // AutoRouterV2Config defines model for AutoRouterV2Config.
 type AutoRouterV2Config struct {
-	AaSlug            *string                              `json:"aa_slug,omitempty"`
-	DefaultEffort     *string                              `json:"default_effort,omitempty"`
-	IntelligenceIndex float64                              `json:"intelligence_index"`
-	Price             float64                              `json:"price"`
-	ReasoningEfforts  *map[string]AutoRouterV2EffortConfig `json:"reasoning_efforts,omitempty"`
+	AaCreator                       *AutoRouterV2CreatorConfig           `json:"aa_creator,omitempty"`
+	AaEvaluations                   *map[string]*float64                 `json:"aa_evaluations,omitempty"`
+	AaMedianOutputTokensPerSecond   *float64                             `json:"aa_median_output_tokens_per_second,omitempty"`
+	AaMedianTimeToFirstAnswerToken  *float64                             `json:"aa_median_time_to_first_answer_token,omitempty"`
+	AaMedianTimeToFirstTokenSeconds *float64                             `json:"aa_median_time_to_first_token_seconds,omitempty"`
+	AaModelId                       *string                              `json:"aa_model_id,omitempty"`
+	AaName                          *string                              `json:"aa_name,omitempty"`
+	AaPricing                       *map[string]*float64                 `json:"aa_pricing,omitempty"`
+	AaReleaseDate                   *string                              `json:"aa_release_date,omitempty"`
+	AaSlug                          *string                              `json:"aa_slug,omitempty"`
+	DefaultEffort                   *string                              `json:"default_effort,omitempty"`
+	IntelligenceIndex               float64                              `json:"intelligence_index"`
+	Price                           float64                              `json:"price"`
+	ReasoningEfforts                *map[string]AutoRouterV2EffortConfig `json:"reasoning_efforts,omitempty"`
+}
+
+// AutoRouterV2CreatorConfig defines model for AutoRouterV2CreatorConfig.
+type AutoRouterV2CreatorConfig struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
 }
 
 // AutoRouterV2EffortConfig defines model for AutoRouterV2EffortConfig.
@@ -3462,9 +3497,12 @@ type EvaluatorResponseFunction struct {
 	FunctionParams  EvaluatorResponseFunction_FunctionParams   `json:"function_params"`
 	GuardrailConfig *EvaluatorResponseFunction_GuardrailConfig `json:"guardrail_config,omitempty"`
 	Key             string                                     `json:"key"`
-	Type            EvaluatorResponseFunctionType              `json:"type"`
-	Updated         *string                                    `json:"updated,omitempty"`
-	UpdatedById     *string                                    `json:"updated_by_id,omitempty"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   string                        `json:"project_id"`
+	Type        EvaluatorResponseFunctionType `json:"type"`
+	Updated     *string                       `json:"updated,omitempty"`
+	UpdatedById *string                       `json:"updated_by_id,omitempty"`
 }
 
 // EvaluatorResponseFunctionFunctionParams0 defines model for EvaluatorResponseFunction.FunctionParams.0.
@@ -3795,10 +3833,13 @@ type EvaluatorResponseHttp struct {
 	Key             string                                 `json:"key"`
 	Method          EvaluatorResponseHttpMethod            `json:"method"`
 	Payload         map[string]interface{}                 `json:"payload"`
-	Type            EvaluatorResponseHttpType              `json:"type"`
-	Updated         *string                                `json:"updated,omitempty"`
-	UpdatedById     *string                                `json:"updated_by_id,omitempty"`
-	Url             string                                 `json:"url"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   string                    `json:"project_id"`
+	Type        EvaluatorResponseHttpType `json:"type"`
+	Updated     *string                   `json:"updated,omitempty"`
+	UpdatedById *string                   `json:"updated_by_id,omitempty"`
+	Url         string                    `json:"url"`
 }
 
 // EvaluatorResponseHttpGuardrailConfig0 defines model for EvaluatorResponseHttp.GuardrailConfig.0.
@@ -3856,10 +3897,13 @@ type EvaluatorResponseJsonSchema struct {
 	Description     string                                       `json:"description"`
 	GuardrailConfig *EvaluatorResponseJsonSchema_GuardrailConfig `json:"guardrail_config,omitempty"`
 	Key             string                                       `json:"key"`
-	Schema          string                                       `json:"schema"`
-	Type            EvaluatorResponseJsonSchemaType              `json:"type"`
-	Updated         *string                                      `json:"updated,omitempty"`
-	UpdatedById     *string                                      `json:"updated_by_id,omitempty"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   string                          `json:"project_id"`
+	Schema      string                          `json:"schema"`
+	Type        EvaluatorResponseJsonSchemaType `json:"type"`
+	Updated     *string                         `json:"updated,omitempty"`
+	UpdatedById *string                         `json:"updated_by_id,omitempty"`
 }
 
 // EvaluatorResponseJsonSchemaGuardrailConfig0 defines model for EvaluatorResponseJsonSchema.GuardrailConfig.0.
@@ -3943,9 +3987,12 @@ type EvaluatorResponseLlm struct {
 		} `json:"replacement_judges,omitempty"`
 		TieValue *EvaluatorResponseLlmJuryTieValue `json:"tie_value,omitempty"`
 	} `json:"jury,omitempty"`
-	Key         string                   `json:"key"`
-	Mode        EvaluatorResponseLlmMode `json:"mode"`
-	Model       *string                  `json:"model,omitempty"`
+	Key   string                   `json:"key"`
+	Mode  EvaluatorResponseLlmMode `json:"mode"`
+	Model *string                  `json:"model,omitempty"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   string                   `json:"project_id"`
 	Prompt      string                   `json:"prompt"`
 	Repetitions *int                     `json:"repetitions,omitempty"`
 	Type        EvaluatorResponseLlmType `json:"type"`
@@ -4012,9 +4059,12 @@ type EvaluatorResponsePython struct {
 	Description     string                                   `json:"description"`
 	GuardrailConfig *EvaluatorResponsePython_GuardrailConfig `json:"guardrail_config,omitempty"`
 	Key             string                                   `json:"key"`
-	Type            EvaluatorResponsePythonType              `json:"type"`
-	Updated         *string                                  `json:"updated,omitempty"`
-	UpdatedById     *string                                  `json:"updated_by_id,omitempty"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   string                      `json:"project_id"`
+	Type        EvaluatorResponsePythonType `json:"type"`
+	Updated     *string                     `json:"updated,omitempty"`
+	UpdatedById *string                     `json:"updated_by_id,omitempty"`
 }
 
 // EvaluatorResponsePythonGuardrailConfig0 defines model for EvaluatorResponsePython.GuardrailConfig.0.
@@ -4070,10 +4120,13 @@ type EvaluatorResponseRagas struct {
 	GuardrailConfig *EvaluatorResponseRagas_GuardrailConfig `json:"guardrail_config,omitempty"`
 	Key             string                                  `json:"key"`
 	Model           string                                  `json:"model"`
-	RagasMetric     EvaluatorResponseRagasRagasMetric       `json:"ragas_metric"`
-	Type            EvaluatorResponseRagasType              `json:"type"`
-	Updated         *string                                 `json:"updated,omitempty"`
-	UpdatedById     *string                                 `json:"updated_by_id,omitempty"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   string                            `json:"project_id"`
+	RagasMetric EvaluatorResponseRagasRagasMetric `json:"ragas_metric"`
+	Type        EvaluatorResponseRagasType        `json:"type"`
+	Updated     *string                           `json:"updated,omitempty"`
+	UpdatedById *string                           `json:"updated_by_id,omitempty"`
 }
 
 // EvaluatorResponseRagasGuardrailConfig0 defines model for EvaluatorResponseRagas.GuardrailConfig.0.
@@ -4132,9 +4185,12 @@ type EvaluatorResponseTypescript struct {
 	Description     string                                       `json:"description"`
 	GuardrailConfig *EvaluatorResponseTypescript_GuardrailConfig `json:"guardrail_config,omitempty"`
 	Key             string                                       `json:"key"`
-	Type            EvaluatorResponseTypescriptType              `json:"type"`
-	Updated         *string                                      `json:"updated,omitempty"`
-	UpdatedById     *string                                      `json:"updated_by_id,omitempty"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   string                          `json:"project_id"`
+	Type        EvaluatorResponseTypescriptType `json:"type"`
+	Updated     *string                         `json:"updated,omitempty"`
+	UpdatedById *string                         `json:"updated_by_id,omitempty"`
 }
 
 // EvaluatorResponseTypescriptGuardrailConfig0 defines model for EvaluatorResponseTypescript.GuardrailConfig.0.
@@ -4290,7 +4346,7 @@ type ModelConfigurationResponse struct {
 // ModelDocument defines model for ModelDocument.
 type ModelDocument struct {
 	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
+	Created              string                     `json:"created"`
 	Description          *string                    `json:"description"`
 	DisplayName          string                     `json:"display_name"`
 	DocsUrl              *string                    `json:"docs_url"`
@@ -4316,7 +4372,7 @@ type ModelDocument struct {
 	Provider             string                     `json:"provider"`
 	RefId                string                     `json:"refId"`
 	Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
-	Updated              time.Time                  `json:"updated"`
+	Updated              string                     `json:"updated"`
 }
 
 // ModelMetadata defines model for ModelMetadata.
@@ -4345,6 +4401,7 @@ type ModelMetadata struct {
 	MaxImagesPerRequest                  *int64            `json:"max_images_per_request,omitempty"`
 	MaxInputTokens                       *int64            `json:"max_input_tokens,omitempty"`
 	MaxOutputTokens                      *int64            `json:"max_output_tokens,omitempty"`
+	MaxTemperature                       *float64          `json:"max_temperature,omitempty"`
 	MillionSearchesCost                  *float64          `json:"million_searches_cost,omitempty"`
 	MillionTokensAbove128kCacheReadCost  *float64          `json:"million_tokens_above_128k_cache_read_cost,omitempty"`
 	MillionTokensAbove128kCacheWriteCost *float64          `json:"million_tokens_above_128k_cache_write_cost,omitempty"`
@@ -4416,6 +4473,7 @@ type ModelMetadata struct {
 	SupportsReasoningEffortXhigh         *bool             `json:"supports_reasoning_effort_xhigh,omitempty"`
 	SupportsResponsesApi                 *bool             `json:"supports_responses_api,omitempty"`
 	SupportsSamplingParams               *bool             `json:"supports_sampling_params,omitempty"`
+	SupportsServiceTier                  *bool             `json:"supports_service_tier,omitempty"`
 	SupportsStreaming                    *bool             `json:"supports_streaming,omitempty"`
 	SupportsStrictTool                   *bool             `json:"supports_strict_tool,omitempty"`
 	SupportsStructuredOutputs            *bool             `json:"supports_structured_outputs,omitempty"`
@@ -4486,7 +4544,8 @@ type PIIRedactionPlugin struct {
 
 // Plugin defines model for Plugin.
 type Plugin struct {
-	OfPIIRedaction PIIRedactionPlugin `json:"OfPIIRedaction"`
+	OfPIIRedaction    PIIRedactionPlugin    `json:"OfPIIRedaction"`
+	OfResponseHealing ResponseHealingPlugin `json:"OfResponseHealing"`
 }
 
 // Policy defines model for Policy.
@@ -4552,6 +4611,15 @@ type RequestLimit struct {
 
 // RequestLimitPeriod defines model for RequestLimit.Period.
 type RequestLimitPeriod string
+
+// ResponseHealingPlugin defines model for ResponseHealingPlugin.
+type ResponseHealingPlugin struct {
+	// Id Plugin discriminator. Must be `response_healing`.
+	Id ResponseHealingPluginId `json:"id"`
+}
+
+// ResponseHealingPluginId Plugin discriminator. Must be `response_healing`.
+type ResponseHealingPluginId string
 
 // RoutingRule defines model for RoutingRule.
 type RoutingRule struct {
@@ -4661,12 +4729,11 @@ type CreateEvalJSONBody00 struct {
 	// OutputType The type of output expected from the evaluator
 	OutputType *CreateEvalJSONBody00OutputType `json:"output_type,omitempty"`
 
-	// Path Entity storage path.
-	//
-	// With workspace-level API keys, use the format `project/folder/subfolder/...`. The first element identifies the project, followed by nested folders (auto-created as needed). Example: `Default/agents`.
-	//
-	// With project-level API keys, the project is predetermined by the API key, so the path is relative to that project. Example: `agents`. For backward compatibility, a leading project name is ignored when it matches the scoped project.
-	Path        string                   `json:"path"`
+	// Path Legacy alternative to `project_id`. Storage path whose first segment names the project that owns the evaluator. Mutually exclusive with `project_id`.
+	Path *string `json:"path,omitempty"`
+
+	// ProjectId Unique identifier of the project that owns the evaluator, as returned by `GET /v2/projects`. Mutually exclusive with `path`.
+	ProjectId   *string                  `json:"project_id,omitempty"`
 	Prompt      string                   `json:"prompt"`
 	Repetitions *int                     `json:"repetitions,omitempty"`
 	Type        CreateEvalJSONBody00Type `json:"type"`
@@ -4763,12 +4830,11 @@ type CreateEvalJSONBody01 struct {
 	// OutputType The type of output expected from the evaluator
 	OutputType *CreateEvalJSONBody01OutputType `json:"output_type,omitempty"`
 
-	// Path Entity storage path.
-	//
-	// With workspace-level API keys, use the format `project/folder/subfolder/...`. The first element identifies the project, followed by nested folders (auto-created as needed). Example: `Default/agents`.
-	//
-	// With project-level API keys, the project is predetermined by the API key, so the path is relative to that project. Example: `agents`. For backward compatibility, a leading project name is ignored when it matches the scoped project.
-	Path        string                   `json:"path"`
+	// Path Legacy alternative to `project_id`. Storage path whose first segment names the project that owns the evaluator. Mutually exclusive with `project_id`.
+	Path *string `json:"path,omitempty"`
+
+	// ProjectId Unique identifier of the project that owns the evaluator, as returned by `GET /v2/projects`. Mutually exclusive with `path`.
+	ProjectId   *string                  `json:"project_id,omitempty"`
 	Prompt      string                   `json:"prompt"`
 	Repetitions *int                     `json:"repetitions,omitempty"`
 	Type        CreateEvalJSONBody01Type `json:"type"`
@@ -4836,13 +4902,12 @@ type CreateEvalJSONBody1 struct {
 	Key             string                                `json:"key"`
 	OutputType      *CreateEvalJSONBody1OutputType        `json:"output_type,omitempty"`
 
-	// Path Entity storage path.
-	//
-	// With workspace-level API keys, use the format `project/folder/subfolder/...`. The first element identifies the project, followed by nested folders (auto-created as needed). Example: `Default/agents`.
-	//
-	// With project-level API keys, the project is predetermined by the API key, so the path is relative to that project. Example: `agents`. For backward compatibility, a leading project name is ignored when it matches the scoped project.
-	Path string                  `json:"path"`
-	Type CreateEvalJSONBody1Type `json:"type"`
+	// Path Legacy alternative to `project_id`. Storage path whose first segment names the project that owns the evaluator. Mutually exclusive with `project_id`.
+	Path *string `json:"path,omitempty"`
+
+	// ProjectId Unique identifier of the project that owns the evaluator, as returned by `GET /v2/projects`. Mutually exclusive with `path`.
+	ProjectId *string                 `json:"project_id,omitempty"`
+	Type      CreateEvalJSONBody1Type `json:"type"`
 }
 
 // CreateEvalJSONBody1GuardrailConfig0 defines parameters for CreateEval.
@@ -5015,13 +5080,16 @@ type GetEval200JSONResponseBody0 struct {
 	} `json:"model,omitempty"`
 
 	// OutputType The type of output expected from the evaluator
-	OutputType  *GetEval200JSONResponseBody0OutputType `json:"output_type,omitempty"`
-	Owner       string                                 `json:"owner"`
-	Prompt      string                                 `json:"prompt"`
-	Repetitions *int                                   `json:"repetitions,omitempty"`
-	Type        GetEval200JSONResponseBody0Type        `json:"type"`
-	Updated     *string                                `json:"updated,omitempty"`
-	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+	OutputType *GetEval200JSONResponseBody0OutputType `json:"output_type,omitempty"`
+	Owner      string                                 `json:"owner"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   *string                         `json:"project_id,omitempty"`
+	Prompt      string                          `json:"prompt"`
+	Repetitions *int                            `json:"repetitions,omitempty"`
+	Type        GetEval200JSONResponseBody0Type `json:"type"`
+	Updated     *string                         `json:"updated,omitempty"`
+	UpdatedById *string                         `json:"updated_by_id,omitempty"`
 }
 
 // GetEval200JSONResponseBody0GuardrailConfig0 defines parameters for GetEval.
@@ -5097,11 +5165,14 @@ type GetEval200JSONResponseBody1 struct {
 		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
 		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
 	} `json:"metadata"`
-	OutputType  GetEval200JSONResponseBody1OutputType `json:"output_type"`
-	Owner       string                                `json:"owner"`
-	Type        GetEval200JSONResponseBody1Type       `json:"type"`
-	Updated     *string                               `json:"updated,omitempty"`
-	UpdatedById *string                               `json:"updated_by_id,omitempty"`
+	OutputType GetEval200JSONResponseBody1OutputType `json:"output_type"`
+	Owner      string                                `json:"owner"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   *string                         `json:"project_id,omitempty"`
+	Type        GetEval200JSONResponseBody1Type `json:"type"`
+	Updated     *string                         `json:"updated,omitempty"`
+	UpdatedById *string                         `json:"updated_by_id,omitempty"`
 }
 
 // GetEval200JSONResponseBody1FunctionParams0 defines parameters for GetEval.
@@ -5447,8 +5518,11 @@ type GetEval200JSONResponseBody2 struct {
 		Id            string  `json:"id"`
 		IntegrationId *string `json:"integration_id,omitempty"`
 	} `json:"model"`
-	OutputType  *GetEval200JSONResponseBody2OutputType `json:"output_type,omitempty"`
-	Owner       string                                 `json:"owner"`
+	OutputType *GetEval200JSONResponseBody2OutputType `json:"output_type,omitempty"`
+	Owner      string                                 `json:"owner"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   *string                                `json:"project_id,omitempty"`
 	RagasMetric GetEval200JSONResponseBody2RagasMetric `json:"ragas_metric"`
 	Type        GetEval200JSONResponseBody2Type        `json:"type"`
 	Updated     *string                                `json:"updated,omitempty"`
@@ -5524,12 +5598,15 @@ type GetEval200JSONResponseBody3 struct {
 		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
 		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
 	} `json:"metadata"`
-	OutputType  *GetEval200JSONResponseBody3OutputType `json:"output_type,omitempty"`
-	Owner       string                                 `json:"owner"`
-	Schema      string                                 `json:"schema"`
-	Type        GetEval200JSONResponseBody3Type        `json:"type"`
-	Updated     *string                                `json:"updated,omitempty"`
-	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+	OutputType *GetEval200JSONResponseBody3OutputType `json:"output_type,omitempty"`
+	Owner      string                                 `json:"owner"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   *string                         `json:"project_id,omitempty"`
+	Schema      string                          `json:"schema"`
+	Type        GetEval200JSONResponseBody3Type `json:"type"`
+	Updated     *string                         `json:"updated,omitempty"`
+	UpdatedById *string                         `json:"updated_by_id,omitempty"`
 }
 
 // GetEval200JSONResponseBody3GuardrailConfig0 defines parameters for GetEval.
@@ -5602,13 +5679,16 @@ type GetEval200JSONResponseBody4 struct {
 	Method GetEval200JSONResponseBody4Method `json:"method"`
 
 	// OutputType The type of output expected from the evaluator
-	OutputType  *GetEval200JSONResponseBody4OutputType `json:"output_type,omitempty"`
-	Owner       string                                 `json:"owner"`
-	Payload     map[string]interface{}                 `json:"payload"`
-	Type        GetEval200JSONResponseBody4Type        `json:"type"`
-	Updated     *string                                `json:"updated,omitempty"`
-	UpdatedById *string                                `json:"updated_by_id,omitempty"`
-	Url         string                                 `json:"url"`
+	OutputType *GetEval200JSONResponseBody4OutputType `json:"output_type,omitempty"`
+	Owner      string                                 `json:"owner"`
+	Payload    map[string]interface{}                 `json:"payload"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   *string                         `json:"project_id,omitempty"`
+	Type        GetEval200JSONResponseBody4Type `json:"type"`
+	Updated     *string                         `json:"updated,omitempty"`
+	UpdatedById *string                         `json:"updated_by_id,omitempty"`
+	Url         string                          `json:"url"`
 }
 
 // GetEval200JSONResponseBody4GuardrailConfig0 defines parameters for GetEval.
@@ -5681,11 +5761,14 @@ type GetEval200JSONResponseBody5 struct {
 		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
 		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
 	} `json:"metadata"`
-	OutputType  *GetEval200JSONResponseBody5OutputType `json:"output_type,omitempty"`
-	Owner       string                                 `json:"owner"`
-	Type        GetEval200JSONResponseBody5Type        `json:"type"`
-	Updated     *string                                `json:"updated,omitempty"`
-	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+	OutputType *GetEval200JSONResponseBody5OutputType `json:"output_type,omitempty"`
+	Owner      string                                 `json:"owner"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   *string                         `json:"project_id,omitempty"`
+	Type        GetEval200JSONResponseBody5Type `json:"type"`
+	Updated     *string                         `json:"updated,omitempty"`
+	UpdatedById *string                         `json:"updated_by_id,omitempty"`
 }
 
 // GetEval200JSONResponseBody5GuardrailConfig0 defines parameters for GetEval.
@@ -5757,11 +5840,14 @@ type GetEval200JSONResponseBody6 struct {
 	} `json:"metadata"`
 
 	// OutputType The type of output expected from the evaluator
-	OutputType  *GetEval200JSONResponseBody6OutputType `json:"output_type,omitempty"`
-	Owner       string                                 `json:"owner"`
-	Type        GetEval200JSONResponseBody6Type        `json:"type"`
-	Updated     *string                                `json:"updated,omitempty"`
-	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+	OutputType *GetEval200JSONResponseBody6OutputType `json:"output_type,omitempty"`
+	Owner      string                                 `json:"owner"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   *string                         `json:"project_id,omitempty"`
+	Type        GetEval200JSONResponseBody6Type `json:"type"`
+	Updated     *string                         `json:"updated,omitempty"`
+	UpdatedById *string                         `json:"updated_by_id,omitempty"`
 }
 
 // GetEval200JSONResponseBody6GuardrailConfig0 defines parameters for GetEval.
@@ -5834,11 +5920,14 @@ type GetEval200JSONResponseBody7 struct {
 		SupportedOnInputType          *bool `json:"supported_on_input_type,omitempty"`
 		SupportedOnOutputType         *bool `json:"supported_on_output_type,omitempty"`
 	} `json:"metadata"`
-	OutputType  *GetEval200JSONResponseBody7OutputType `json:"output_type,omitempty"`
-	Owner       string                                 `json:"owner"`
-	Type        GetEval200JSONResponseBody7Type        `json:"type"`
-	Updated     *string                                `json:"updated,omitempty"`
-	UpdatedById *string                                `json:"updated_by_id,omitempty"`
+	OutputType *GetEval200JSONResponseBody7OutputType `json:"output_type,omitempty"`
+	Owner      string                                 `json:"owner"`
+
+	// ProjectId Unique identifier of the project owning this evaluator.
+	ProjectId   *string                         `json:"project_id,omitempty"`
+	Type        GetEval200JSONResponseBody7Type `json:"type"`
+	Updated     *string                         `json:"updated,omitempty"`
+	UpdatedById *string                         `json:"updated_by_id,omitempty"`
 }
 
 // GetEval200JSONResponseBody7GuardrailConfig0 defines parameters for GetEval.
@@ -5902,6 +5991,7 @@ type UpdateEvalJSONBody struct {
 	} `json:"categorical_labels,omitempty"`
 	Categories      *[]string                           `json:"categories,omitempty"`
 	Code            *string                             `json:"code,omitempty"`
+	DatasetId       *string                             `json:"dataset_id,omitempty"`
 	Description     *string                             `json:"description,omitempty"`
 	GuardrailConfig *UpdateEvalJSONBody_GuardrailConfig `json:"guardrail_config,omitempty"`
 	Headers         *map[string]string                  `json:"headers,omitempty"`
@@ -5935,12 +6025,15 @@ type UpdateEvalJSONBody struct {
 	Model      *string                 `json:"model,omitempty"`
 	OutputType *string                 `json:"output_type,omitempty"`
 
-	// Path Project path. Optional on update — uses existing project if omitted.
-	Path        *string                 `json:"path,omitempty"`
-	Payload     *map[string]interface{} `json:"payload,omitempty"`
-	Prompt      *string                 `json:"prompt,omitempty"`
-	Repetitions *float32                `json:"repetitions,omitempty"`
-	Schema      *string                 `json:"schema,omitempty"`
+	// Path Legacy alternative to `project_id`. Project path. Optional on update — the evaluator keeps its current project when both are omitted. Mutually exclusive with `project_id`.
+	Path    *string                 `json:"path,omitempty"`
+	Payload *map[string]interface{} `json:"payload,omitempty"`
+
+	// ProjectId Unique identifier of the project that owns the evaluator, as returned by `GET /v2/projects`. Optional on update — the evaluator keeps its current project when omitted; supplying a different id moves it. Mutually exclusive with `path`.
+	ProjectId   *string  `json:"project_id,omitempty"`
+	Prompt      *string  `json:"prompt,omitempty"`
+	Repetitions *float32 `json:"repetitions,omitempty"`
+	Schema      *string  `json:"schema,omitempty"`
 
 	// Type Evaluator type. Optional on update — inferred from existing evaluator.
 	Type               *string                             `json:"type,omitempty"`
@@ -6072,22 +6165,6 @@ type ModelCreateJSONBody struct {
 	OutputCost     float64                 `json:"output_cost"`
 	Parameters     *[]CreateModelParameter `json:"parameters"`
 	Provider       string                  `json:"provider"`
-}
-
-// ModelCreateAutorouterJSONBody defines parameters for ModelCreateAutorouter.
-type ModelCreateAutorouterJSONBody struct {
-	EconomicalModel string  `json:"economical_model"`
-	Key             string  `json:"key"`
-	Profile         *string `json:"profile,omitempty"`
-	StrongModel     string  `json:"strong_model"`
-}
-
-// ModelUpdateAutorouterJSONBody defines parameters for ModelUpdateAutorouter.
-type ModelUpdateAutorouterJSONBody struct {
-	EconomicalModel *string `json:"economical_model,omitempty"`
-	Key             *string `json:"key,omitempty"`
-	Profile         *string `json:"profile,omitempty"`
-	StrongModel     *string `json:"strong_model,omitempty"`
 }
 
 // ModelCreateAwsBedrockJSONBody defines parameters for ModelCreateAwsBedrock.
@@ -6345,12 +6422,6 @@ type GuardrailRuleUpdateJSONRequestBody GuardrailRuleUpdateJSONBody
 
 // ModelCreateJSONRequestBody defines body for ModelCreate for application/json ContentType.
 type ModelCreateJSONRequestBody ModelCreateJSONBody
-
-// ModelCreateAutorouterJSONRequestBody defines body for ModelCreateAutorouter for application/json ContentType.
-type ModelCreateAutorouterJSONRequestBody ModelCreateAutorouterJSONBody
-
-// ModelUpdateAutorouterJSONRequestBody defines body for ModelUpdateAutorouter for application/json ContentType.
-type ModelUpdateAutorouterJSONRequestBody ModelUpdateAutorouterJSONBody
 
 // ModelCreateAwsBedrockJSONRequestBody defines body for ModelCreateAwsBedrock for application/json ContentType.
 type ModelCreateAwsBedrockJSONRequestBody ModelCreateAwsBedrockJSONBody
@@ -10864,42 +10935,6 @@ type ClientInterface interface {
 	// Corresponds with POST /v2/models (the `ModelCreate` operationId).
 	ModelCreate(ctx context.Context, body ModelCreateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ModelCreateAutorouterWithBody Create autorouter custom model
-	//
-	// Creates an autorouter model that routes between a strong and economical source model based on the requested profile. Both source models must already exist for the workspace and be marked autorouter-eligible in master data.
-	//
-	// Takes any type of body and a specified content type.
-	//
-	// Corresponds with POST /v2/models/autorouter (the `ModelCreateAutorouter` operationId).
-	ModelCreateAutorouterWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ModelCreateAutorouter Create autorouter custom model
-	//
-	// Creates an autorouter model that routes between a strong and economical source model based on the requested profile. Both source models must already exist for the workspace and be marked autorouter-eligible in master data.
-	//
-	// Takes a body of the `application/json` content type.
-	//
-	// Corresponds with POST /v2/models/autorouter (the `ModelCreateAutorouter` operationId).
-	ModelCreateAutorouter(ctx context.Context, body ModelCreateAutorouterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ModelUpdateAutorouterWithBody Update autorouter custom model
-	//
-	// Re-configures an autorouter model. Each of key/strong_model/economical_model/profile falls back to the existing value when omitted. Changing the key enforces uniqueness and rewrites PRICING_KV.
-	//
-	// Takes any type of body and a specified content type.
-	//
-	// Corresponds with PATCH /v2/models/autorouter/{id} (the `ModelUpdateAutorouter` operationId).
-	ModelUpdateAutorouterWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ModelUpdateAutorouter Update autorouter custom model
-	//
-	// Re-configures an autorouter model. Each of key/strong_model/economical_model/profile falls back to the existing value when omitted. Changing the key enforces uniqueness and rewrites PRICING_KV.
-	//
-	// Takes a body of the `application/json` content type.
-	//
-	// Corresponds with PATCH /v2/models/autorouter/{id} (the `ModelUpdateAutorouter` operationId).
-	ModelUpdateAutorouter(ctx context.Context, id string, body ModelUpdateAutorouterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// ModelCreateAwsBedrockWithBody Create AWS Bedrock custom model
 	//
 	// Registers an AWS Bedrock inference profile as a custom model for the workspace. Credentials are resolved at request time via either the integration reference or pod-identity — nothing is stored with the model.
@@ -11534,82 +11569,6 @@ func (c *Client) ModelCreateWithBody(ctx context.Context, contentType string, bo
 // Corresponds with POST /v2/models (the `ModelCreate` operationId).
 func (c *Client) ModelCreate(ctx context.Context, body ModelCreateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewModelCreateRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// ModelCreateAutorouterWithBody Create autorouter custom model
-//
-// Creates an autorouter model that routes between a strong and economical source model based on the requested profile. Both source models must already exist for the workspace and be marked autorouter-eligible in master data.
-//
-// Takes any type of body and a specified content type.
-//
-// Corresponds with POST /v2/models/autorouter (the `ModelCreateAutorouter` operationId).
-func (c *Client) ModelCreateAutorouterWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewModelCreateAutorouterRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// ModelCreateAutorouter Create autorouter custom model
-//
-// Creates an autorouter model that routes between a strong and economical source model based on the requested profile. Both source models must already exist for the workspace and be marked autorouter-eligible in master data.
-//
-// Takes a body of the `application/json` content type.
-//
-// Corresponds with POST /v2/models/autorouter (the `ModelCreateAutorouter` operationId).
-func (c *Client) ModelCreateAutorouter(ctx context.Context, body ModelCreateAutorouterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewModelCreateAutorouterRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// ModelUpdateAutorouterWithBody Update autorouter custom model
-//
-// Re-configures an autorouter model. Each of key/strong_model/economical_model/profile falls back to the existing value when omitted. Changing the key enforces uniqueness and rewrites PRICING_KV.
-//
-// Takes any type of body and a specified content type.
-//
-// Corresponds with PATCH /v2/models/autorouter/{id} (the `ModelUpdateAutorouter` operationId).
-func (c *Client) ModelUpdateAutorouterWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewModelUpdateAutorouterRequestWithBody(c.Server, id, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// ModelUpdateAutorouter Update autorouter custom model
-//
-// Re-configures an autorouter model. Each of key/strong_model/economical_model/profile falls back to the existing value when omitted. Changing the key enforces uniqueness and rewrites PRICING_KV.
-//
-// Takes a body of the `application/json` content type.
-//
-// Corresponds with PATCH /v2/models/autorouter/{id} (the `ModelUpdateAutorouter` operationId).
-func (c *Client) ModelUpdateAutorouter(ctx context.Context, id string, body ModelUpdateAutorouterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewModelUpdateAutorouterRequest(c.Server, id, body)
 	if err != nil {
 		return nil, err
 	}
@@ -12893,93 +12852,6 @@ func NewModelCreateRequestWithBody(server string, contentType string, body io.Re
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewModelCreateAutorouterRequest calls the generic ModelCreateAutorouter builder with application/json body
-func NewModelCreateAutorouterRequest(server string, body ModelCreateAutorouterJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewModelCreateAutorouterRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewModelCreateAutorouterRequestWithBody constructs an http.Request for the ModelCreateAutorouter method, with any body, and a specified content type
-func NewModelCreateAutorouterRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/v2/models/autorouter")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewModelUpdateAutorouterRequest calls the generic ModelUpdateAutorouter builder with application/json body
-func NewModelUpdateAutorouterRequest(server string, id string, body ModelUpdateAutorouterJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewModelUpdateAutorouterRequestWithBody(server, id, "application/json", bodyReader)
-}
-
-// NewModelUpdateAutorouterRequestWithBody constructs an http.Request for the ModelUpdateAutorouter method, with any body, and a specified content type
-func NewModelUpdateAutorouterRequestWithBody(server string, id string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/v2/models/autorouter/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -14289,42 +14161,6 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /v2/models (the `ModelCreate` operationId).
 	ModelCreateWithResponse(ctx context.Context, body ModelCreateJSONRequestBody, reqEditors ...RequestEditorFn) (*ModelCreateResponse, error)
 
-	// ModelCreateAutorouterWithBodyWithResponse Create autorouter custom model
-	//
-	// Creates an autorouter model that routes between a strong and economical source model based on the requested profile. Both source models must already exist for the workspace and be marked autorouter-eligible in master data.
-	//
-	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /v2/models/autorouter (the `ModelCreateAutorouter` operationId).
-	ModelCreateAutorouterWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ModelCreateAutorouterResponse, error)
-
-	// ModelCreateAutorouterWithResponse Create autorouter custom model
-	//
-	// Creates an autorouter model that routes between a strong and economical source model based on the requested profile. Both source models must already exist for the workspace and be marked autorouter-eligible in master data.
-	//
-	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /v2/models/autorouter (the `ModelCreateAutorouter` operationId).
-	ModelCreateAutorouterWithResponse(ctx context.Context, body ModelCreateAutorouterJSONRequestBody, reqEditors ...RequestEditorFn) (*ModelCreateAutorouterResponse, error)
-
-	// ModelUpdateAutorouterWithBodyWithResponse Update autorouter custom model
-	//
-	// Re-configures an autorouter model. Each of key/strong_model/economical_model/profile falls back to the existing value when omitted. Changing the key enforces uniqueness and rewrites PRICING_KV.
-	//
-	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with PATCH /v2/models/autorouter/{id} (the `ModelUpdateAutorouter` operationId).
-	ModelUpdateAutorouterWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ModelUpdateAutorouterResponse, error)
-
-	// ModelUpdateAutorouterWithResponse Update autorouter custom model
-	//
-	// Re-configures an autorouter model. Each of key/strong_model/economical_model/profile falls back to the existing value when omitted. Changing the key enforces uniqueness and rewrites PRICING_KV.
-	//
-	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with PATCH /v2/models/autorouter/{id} (the `ModelUpdateAutorouter` operationId).
-	ModelUpdateAutorouterWithResponse(ctx context.Context, id string, body ModelUpdateAutorouterJSONRequestBody, reqEditors ...RequestEditorFn) (*ModelUpdateAutorouterResponse, error)
-
 	// ModelCreateAwsBedrockWithBodyWithResponse Create AWS Bedrock custom model
 	//
 	// Registers an AWS Bedrock inference profile as a custom model for the workspace. Credentials are resolved at request time via either the integration reference or pod-identity — nothing is stored with the model.
@@ -14745,6 +14581,10 @@ type DeleteEvalResponse struct {
 	JSON404 *struct {
 		Message string `json:"message"`
 	}
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *struct {
+		Message string `json:"message"`
+	}
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14752,6 +14592,13 @@ func (r DeleteEvalResponse) GetJSON404() *struct {
 	Message string `json:"message"`
 } {
 	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r DeleteEvalResponse) GetJSON409() *struct {
+	Message string `json:"message"`
+} {
+	return r.JSON409
 }
 
 // GetBody returns the raw response body bytes
@@ -15271,7 +15118,7 @@ type ModelCreateResponse struct {
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
 		Configuration        ModelConfigurationResponse `json:"configuration"`
-		Created              time.Time                  `json:"created"`
+		Created              string                     `json:"created"`
 		Description          *string                    `json:"description"`
 		DisplayName          string                     `json:"display_name"`
 		DocsUrl              *string                    `json:"docs_url"`
@@ -15296,14 +15143,15 @@ type ModelCreateResponse struct {
 		PricingUrl           *string                    `json:"pricing_url"`
 		Provider             string                     `json:"provider"`
 		RefId                string                     `json:"refId"`
-		Updated              time.Time                  `json:"updated"`
+		Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+		Updated              string                     `json:"updated"`
 	}
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r ModelCreateResponse) GetJSON200() *struct {
 	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
+	Created              string                     `json:"created"`
 	Description          *string                    `json:"description"`
 	DisplayName          string                     `json:"display_name"`
 	DocsUrl              *string                    `json:"docs_url"`
@@ -15328,7 +15176,8 @@ func (r ModelCreateResponse) GetJSON200() *struct {
 	PricingUrl           *string                    `json:"pricing_url"`
 	Provider             string                     `json:"provider"`
 	RefId                string                     `json:"refId"`
-	Updated              time.Time                  `json:"updated"`
+	Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+	Updated              string                     `json:"updated"`
 } {
 	return r.JSON200
 }
@@ -15362,207 +15211,13 @@ func (r ModelCreateResponse) ContentType() string {
 	return ""
 }
 
-type ModelCreateAutorouterResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *struct {
-		Configuration        ModelConfigurationResponse `json:"configuration"`
-		Created              time.Time                  `json:"created"`
-		Description          *string                    `json:"description"`
-		DisplayName          string                     `json:"display_name"`
-		DocsUrl              *string                    `json:"docs_url"`
-		Enabled              bool                       `json:"enabled"`
-		EnabledForEndpoints  bool                       `json:"enabled_for_endpoints"`
-		EnabledForPlayground bool                       `json:"enabled_for_playground"`
-		HasCpuPricing        bool                       `json:"has_cpu_pricing"`
-		HasFunctions         bool                       `json:"has_functions"`
-		Id                   string                     `json:"id"`
-		InputCost            *float64                   `json:"input_cost"`
-		InputCurrency        string                     `json:"input_currency"`
-		IsActive             bool                       `json:"is_active"`
-		Metadata             ModelMetadata              `json:"metadata"`
-		ModelDeveloper       *string                    `json:"model_developer,omitempty"`
-		ModelFamily          *string                    `json:"model_family,omitempty"`
-		ModelId              string                     `json:"model_id"`
-		ModelType            string                     `json:"model_type"`
-		OutputCost           *float64                   `json:"output_cost"`
-		OutputCurrency       string                     `json:"output_currency"`
-		Owner                string                     `json:"owner"`
-		Parameters           *[]ModelParameterDocument  `json:"parameters"`
-		PricingUrl           *string                    `json:"pricing_url"`
-		Provider             string                     `json:"provider"`
-		RefId                string                     `json:"refId"`
-		Updated              time.Time                  `json:"updated"`
-	}
-}
-
-// GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ModelCreateAutorouterResponse) GetJSON200() *struct {
-	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
-	Description          *string                    `json:"description"`
-	DisplayName          string                     `json:"display_name"`
-	DocsUrl              *string                    `json:"docs_url"`
-	Enabled              bool                       `json:"enabled"`
-	EnabledForEndpoints  bool                       `json:"enabled_for_endpoints"`
-	EnabledForPlayground bool                       `json:"enabled_for_playground"`
-	HasCpuPricing        bool                       `json:"has_cpu_pricing"`
-	HasFunctions         bool                       `json:"has_functions"`
-	Id                   string                     `json:"id"`
-	InputCost            *float64                   `json:"input_cost"`
-	InputCurrency        string                     `json:"input_currency"`
-	IsActive             bool                       `json:"is_active"`
-	Metadata             ModelMetadata              `json:"metadata"`
-	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
-	ModelFamily          *string                    `json:"model_family,omitempty"`
-	ModelId              string                     `json:"model_id"`
-	ModelType            string                     `json:"model_type"`
-	OutputCost           *float64                   `json:"output_cost"`
-	OutputCurrency       string                     `json:"output_currency"`
-	Owner                string                     `json:"owner"`
-	Parameters           *[]ModelParameterDocument  `json:"parameters"`
-	PricingUrl           *string                    `json:"pricing_url"`
-	Provider             string                     `json:"provider"`
-	RefId                string                     `json:"refId"`
-	Updated              time.Time                  `json:"updated"`
-} {
-	return r.JSON200
-}
-
-// GetBody returns the raw response body bytes
-func (r ModelCreateAutorouterResponse) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r ModelCreateAutorouterResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ModelCreateAutorouterResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r ModelCreateAutorouterResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type ModelUpdateAutorouterResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *struct {
-		Configuration        ModelConfigurationResponse `json:"configuration"`
-		Created              time.Time                  `json:"created"`
-		Description          *string                    `json:"description"`
-		DisplayName          string                     `json:"display_name"`
-		DocsUrl              *string                    `json:"docs_url"`
-		Enabled              bool                       `json:"enabled"`
-		EnabledForEndpoints  bool                       `json:"enabled_for_endpoints"`
-		EnabledForPlayground bool                       `json:"enabled_for_playground"`
-		HasCpuPricing        bool                       `json:"has_cpu_pricing"`
-		HasFunctions         bool                       `json:"has_functions"`
-		Id                   string                     `json:"id"`
-		InputCost            *float64                   `json:"input_cost"`
-		InputCurrency        string                     `json:"input_currency"`
-		IsActive             bool                       `json:"is_active"`
-		Metadata             ModelMetadata              `json:"metadata"`
-		ModelDeveloper       *string                    `json:"model_developer,omitempty"`
-		ModelFamily          *string                    `json:"model_family,omitempty"`
-		ModelId              string                     `json:"model_id"`
-		ModelType            string                     `json:"model_type"`
-		OutputCost           *float64                   `json:"output_cost"`
-		OutputCurrency       string                     `json:"output_currency"`
-		Owner                string                     `json:"owner"`
-		Parameters           *[]ModelParameterDocument  `json:"parameters"`
-		PricingUrl           *string                    `json:"pricing_url"`
-		Provider             string                     `json:"provider"`
-		RefId                string                     `json:"refId"`
-		Updated              time.Time                  `json:"updated"`
-	}
-}
-
-// GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ModelUpdateAutorouterResponse) GetJSON200() *struct {
-	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
-	Description          *string                    `json:"description"`
-	DisplayName          string                     `json:"display_name"`
-	DocsUrl              *string                    `json:"docs_url"`
-	Enabled              bool                       `json:"enabled"`
-	EnabledForEndpoints  bool                       `json:"enabled_for_endpoints"`
-	EnabledForPlayground bool                       `json:"enabled_for_playground"`
-	HasCpuPricing        bool                       `json:"has_cpu_pricing"`
-	HasFunctions         bool                       `json:"has_functions"`
-	Id                   string                     `json:"id"`
-	InputCost            *float64                   `json:"input_cost"`
-	InputCurrency        string                     `json:"input_currency"`
-	IsActive             bool                       `json:"is_active"`
-	Metadata             ModelMetadata              `json:"metadata"`
-	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
-	ModelFamily          *string                    `json:"model_family,omitempty"`
-	ModelId              string                     `json:"model_id"`
-	ModelType            string                     `json:"model_type"`
-	OutputCost           *float64                   `json:"output_cost"`
-	OutputCurrency       string                     `json:"output_currency"`
-	Owner                string                     `json:"owner"`
-	Parameters           *[]ModelParameterDocument  `json:"parameters"`
-	PricingUrl           *string                    `json:"pricing_url"`
-	Provider             string                     `json:"provider"`
-	RefId                string                     `json:"refId"`
-	Updated              time.Time                  `json:"updated"`
-} {
-	return r.JSON200
-}
-
-// GetBody returns the raw response body bytes
-func (r ModelUpdateAutorouterResponse) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r ModelUpdateAutorouterResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ModelUpdateAutorouterResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r ModelUpdateAutorouterResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 type ModelCreateAwsBedrockResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
 		Configuration        ModelConfigurationResponse `json:"configuration"`
-		Created              time.Time                  `json:"created"`
+		Created              string                     `json:"created"`
 		Description          *string                    `json:"description"`
 		DisplayName          string                     `json:"display_name"`
 		DocsUrl              *string                    `json:"docs_url"`
@@ -15587,14 +15242,15 @@ type ModelCreateAwsBedrockResponse struct {
 		PricingUrl           *string                    `json:"pricing_url"`
 		Provider             string                     `json:"provider"`
 		RefId                string                     `json:"refId"`
-		Updated              time.Time                  `json:"updated"`
+		Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+		Updated              string                     `json:"updated"`
 	}
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r ModelCreateAwsBedrockResponse) GetJSON200() *struct {
 	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
+	Created              string                     `json:"created"`
 	Description          *string                    `json:"description"`
 	DisplayName          string                     `json:"display_name"`
 	DocsUrl              *string                    `json:"docs_url"`
@@ -15619,7 +15275,8 @@ func (r ModelCreateAwsBedrockResponse) GetJSON200() *struct {
 	PricingUrl           *string                    `json:"pricing_url"`
 	Provider             string                     `json:"provider"`
 	RefId                string                     `json:"refId"`
-	Updated              time.Time                  `json:"updated"`
+	Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+	Updated              string                     `json:"updated"`
 } {
 	return r.JSON200
 }
@@ -15693,7 +15350,7 @@ type ModelUpdateAwsBedrockResponse struct {
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
 		Configuration        ModelConfigurationResponse `json:"configuration"`
-		Created              time.Time                  `json:"created"`
+		Created              string                     `json:"created"`
 		Description          *string                    `json:"description"`
 		DisplayName          string                     `json:"display_name"`
 		DocsUrl              *string                    `json:"docs_url"`
@@ -15718,14 +15375,15 @@ type ModelUpdateAwsBedrockResponse struct {
 		PricingUrl           *string                    `json:"pricing_url"`
 		Provider             string                     `json:"provider"`
 		RefId                string                     `json:"refId"`
-		Updated              time.Time                  `json:"updated"`
+		Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+		Updated              string                     `json:"updated"`
 	}
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r ModelUpdateAwsBedrockResponse) GetJSON200() *struct {
 	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
+	Created              string                     `json:"created"`
 	Description          *string                    `json:"description"`
 	DisplayName          string                     `json:"display_name"`
 	DocsUrl              *string                    `json:"docs_url"`
@@ -15750,7 +15408,8 @@ func (r ModelUpdateAwsBedrockResponse) GetJSON200() *struct {
 	PricingUrl           *string                    `json:"pricing_url"`
 	Provider             string                     `json:"provider"`
 	RefId                string                     `json:"refId"`
-	Updated              time.Time                  `json:"updated"`
+	Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+	Updated              string                     `json:"updated"`
 } {
 	return r.JSON200
 }
@@ -15919,7 +15578,7 @@ type ModelCreateOpenAILikeResponse struct {
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
 		Configuration        ModelConfigurationResponse `json:"configuration"`
-		Created              time.Time                  `json:"created"`
+		Created              string                     `json:"created"`
 		Description          *string                    `json:"description"`
 		DisplayName          string                     `json:"display_name"`
 		DocsUrl              *string                    `json:"docs_url"`
@@ -15944,14 +15603,15 @@ type ModelCreateOpenAILikeResponse struct {
 		PricingUrl           *string                    `json:"pricing_url"`
 		Provider             string                     `json:"provider"`
 		RefId                string                     `json:"refId"`
-		Updated              time.Time                  `json:"updated"`
+		Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+		Updated              string                     `json:"updated"`
 	}
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r ModelCreateOpenAILikeResponse) GetJSON200() *struct {
 	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
+	Created              string                     `json:"created"`
 	Description          *string                    `json:"description"`
 	DisplayName          string                     `json:"display_name"`
 	DocsUrl              *string                    `json:"docs_url"`
@@ -15976,7 +15636,8 @@ func (r ModelCreateOpenAILikeResponse) GetJSON200() *struct {
 	PricingUrl           *string                    `json:"pricing_url"`
 	Provider             string                     `json:"provider"`
 	RefId                string                     `json:"refId"`
-	Updated              time.Time                  `json:"updated"`
+	Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+	Updated              string                     `json:"updated"`
 } {
 	return r.JSON200
 }
@@ -16016,7 +15677,7 @@ type ModelUpdateOpenAILikeResponse struct {
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
 		Configuration        ModelConfigurationResponse `json:"configuration"`
-		Created              time.Time                  `json:"created"`
+		Created              string                     `json:"created"`
 		Description          *string                    `json:"description"`
 		DisplayName          string                     `json:"display_name"`
 		DocsUrl              *string                    `json:"docs_url"`
@@ -16041,14 +15702,15 @@ type ModelUpdateOpenAILikeResponse struct {
 		PricingUrl           *string                    `json:"pricing_url"`
 		Provider             string                     `json:"provider"`
 		RefId                string                     `json:"refId"`
-		Updated              time.Time                  `json:"updated"`
+		Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+		Updated              string                     `json:"updated"`
 	}
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r ModelUpdateOpenAILikeResponse) GetJSON200() *struct {
 	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
+	Created              string                     `json:"created"`
 	Description          *string                    `json:"description"`
 	DisplayName          string                     `json:"display_name"`
 	DocsUrl              *string                    `json:"docs_url"`
@@ -16073,7 +15735,8 @@ func (r ModelUpdateOpenAILikeResponse) GetJSON200() *struct {
 	PricingUrl           *string                    `json:"pricing_url"`
 	Provider             string                     `json:"provider"`
 	RefId                string                     `json:"refId"`
-	Updated              time.Time                  `json:"updated"`
+	Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+	Updated              string                     `json:"updated"`
 } {
 	return r.JSON200
 }
@@ -16147,7 +15810,7 @@ type ModelCreateVertexResponse struct {
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
 		Configuration        ModelConfigurationResponse `json:"configuration"`
-		Created              time.Time                  `json:"created"`
+		Created              string                     `json:"created"`
 		Description          *string                    `json:"description"`
 		DisplayName          string                     `json:"display_name"`
 		DocsUrl              *string                    `json:"docs_url"`
@@ -16172,14 +15835,15 @@ type ModelCreateVertexResponse struct {
 		PricingUrl           *string                    `json:"pricing_url"`
 		Provider             string                     `json:"provider"`
 		RefId                string                     `json:"refId"`
-		Updated              time.Time                  `json:"updated"`
+		Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+		Updated              string                     `json:"updated"`
 	}
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r ModelCreateVertexResponse) GetJSON200() *struct {
 	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
+	Created              string                     `json:"created"`
 	Description          *string                    `json:"description"`
 	DisplayName          string                     `json:"display_name"`
 	DocsUrl              *string                    `json:"docs_url"`
@@ -16204,7 +15868,8 @@ func (r ModelCreateVertexResponse) GetJSON200() *struct {
 	PricingUrl           *string                    `json:"pricing_url"`
 	Provider             string                     `json:"provider"`
 	RefId                string                     `json:"refId"`
-	Updated              time.Time                  `json:"updated"`
+	Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+	Updated              string                     `json:"updated"`
 } {
 	return r.JSON200
 }
@@ -16278,7 +15943,7 @@ type ModelUpdateResponse struct {
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
 		Configuration        ModelConfigurationResponse `json:"configuration"`
-		Created              time.Time                  `json:"created"`
+		Created              string                     `json:"created"`
 		Description          *string                    `json:"description"`
 		DisplayName          string                     `json:"display_name"`
 		DocsUrl              *string                    `json:"docs_url"`
@@ -16303,14 +15968,15 @@ type ModelUpdateResponse struct {
 		PricingUrl           *string                    `json:"pricing_url"`
 		Provider             string                     `json:"provider"`
 		RefId                string                     `json:"refId"`
-		Updated              time.Time                  `json:"updated"`
+		Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+		Updated              string                     `json:"updated"`
 	}
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r ModelUpdateResponse) GetJSON200() *struct {
 	Configuration        ModelConfigurationResponse `json:"configuration"`
-	Created              time.Time                  `json:"created"`
+	Created              string                     `json:"created"`
 	Description          *string                    `json:"description"`
 	DisplayName          string                     `json:"display_name"`
 	DocsUrl              *string                    `json:"docs_url"`
@@ -16335,7 +16001,8 @@ func (r ModelUpdateResponse) GetJSON200() *struct {
 	PricingUrl           *string                    `json:"pricing_url"`
 	Provider             string                     `json:"provider"`
 	RefId                string                     `json:"refId"`
-	Updated              time.Time                  `json:"updated"`
+	Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+	Updated              string                     `json:"updated"`
 } {
 	return r.JSON200
 }
@@ -17319,66 +16986,6 @@ func (c *ClientWithResponses) ModelCreateWithResponse(ctx context.Context, body 
 	return ParseModelCreateResponse(rsp)
 }
 
-// ModelCreateAutorouterWithBodyWithResponse Create autorouter custom model
-//
-// Creates an autorouter model that routes between a strong and economical source model based on the requested profile. Both source models must already exist for the workspace and be marked autorouter-eligible in master data.
-//
-// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /v2/models/autorouter (the `ModelCreateAutorouter` operationId).
-func (c *ClientWithResponses) ModelCreateAutorouterWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ModelCreateAutorouterResponse, error) {
-	rsp, err := c.ModelCreateAutorouterWithBody(ctx, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseModelCreateAutorouterResponse(rsp)
-}
-
-// ModelCreateAutorouterWithResponse Create autorouter custom model
-//
-// Creates an autorouter model that routes between a strong and economical source model based on the requested profile. Both source models must already exist for the workspace and be marked autorouter-eligible in master data.
-//
-// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /v2/models/autorouter (the `ModelCreateAutorouter` operationId).
-func (c *ClientWithResponses) ModelCreateAutorouterWithResponse(ctx context.Context, body ModelCreateAutorouterJSONRequestBody, reqEditors ...RequestEditorFn) (*ModelCreateAutorouterResponse, error) {
-	rsp, err := c.ModelCreateAutorouter(ctx, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseModelCreateAutorouterResponse(rsp)
-}
-
-// ModelUpdateAutorouterWithBodyWithResponse Update autorouter custom model
-//
-// Re-configures an autorouter model. Each of key/strong_model/economical_model/profile falls back to the existing value when omitted. Changing the key enforces uniqueness and rewrites PRICING_KV.
-//
-// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with PATCH /v2/models/autorouter/{id} (the `ModelUpdateAutorouter` operationId).
-func (c *ClientWithResponses) ModelUpdateAutorouterWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ModelUpdateAutorouterResponse, error) {
-	rsp, err := c.ModelUpdateAutorouterWithBody(ctx, id, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseModelUpdateAutorouterResponse(rsp)
-}
-
-// ModelUpdateAutorouterWithResponse Update autorouter custom model
-//
-// Re-configures an autorouter model. Each of key/strong_model/economical_model/profile falls back to the existing value when omitted. Changing the key enforces uniqueness and rewrites PRICING_KV.
-//
-// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with PATCH /v2/models/autorouter/{id} (the `ModelUpdateAutorouter` operationId).
-func (c *ClientWithResponses) ModelUpdateAutorouterWithResponse(ctx context.Context, id string, body ModelUpdateAutorouterJSONRequestBody, reqEditors ...RequestEditorFn) (*ModelUpdateAutorouterResponse, error) {
-	rsp, err := c.ModelUpdateAutorouter(ctx, id, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseModelUpdateAutorouterResponse(rsp)
-}
-
 // ModelCreateAwsBedrockWithBodyWithResponse Create AWS Bedrock custom model
 //
 // Registers an AWS Bedrock inference profile as a custom model for the workspace. Credentials are resolved at request time via either the integration reference or pod-identity — nothing is stored with the model.
@@ -18043,6 +17650,15 @@ func ParseDeleteEvalResponse(rsp *http.Response) (*DeleteEvalResponse, error) {
 		}
 		response.JSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
 	}
 
 	return response, nil
@@ -18374,7 +17990,7 @@ func ParseModelCreateResponse(rsp *http.Response) (*ModelCreateResponse, error) 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			Configuration        ModelConfigurationResponse `json:"configuration"`
-			Created              time.Time                  `json:"created"`
+			Created              string                     `json:"created"`
 			Description          *string                    `json:"description"`
 			DisplayName          string                     `json:"display_name"`
 			DocsUrl              *string                    `json:"docs_url"`
@@ -18399,127 +18015,8 @@ func ParseModelCreateResponse(rsp *http.Response) (*ModelCreateResponse, error) 
 			PricingUrl           *string                    `json:"pricing_url"`
 			Provider             string                     `json:"provider"`
 			RefId                string                     `json:"refId"`
-			Updated              time.Time                  `json:"updated"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case rsp.StatusCode == 400:
-		break // No content-type
-
-	case rsp.StatusCode == 404:
-		break // No content-type
-
-	}
-
-	return response, nil
-}
-
-// ParseModelCreateAutorouterResponse parses an HTTP response from a ModelCreateAutorouterWithResponse call
-func ParseModelCreateAutorouterResponse(rsp *http.Response) (*ModelCreateAutorouterResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ModelCreateAutorouterResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest struct {
-			Configuration        ModelConfigurationResponse `json:"configuration"`
-			Created              time.Time                  `json:"created"`
-			Description          *string                    `json:"description"`
-			DisplayName          string                     `json:"display_name"`
-			DocsUrl              *string                    `json:"docs_url"`
-			Enabled              bool                       `json:"enabled"`
-			EnabledForEndpoints  bool                       `json:"enabled_for_endpoints"`
-			EnabledForPlayground bool                       `json:"enabled_for_playground"`
-			HasCpuPricing        bool                       `json:"has_cpu_pricing"`
-			HasFunctions         bool                       `json:"has_functions"`
-			Id                   string                     `json:"id"`
-			InputCost            *float64                   `json:"input_cost"`
-			InputCurrency        string                     `json:"input_currency"`
-			IsActive             bool                       `json:"is_active"`
-			Metadata             ModelMetadata              `json:"metadata"`
-			ModelDeveloper       *string                    `json:"model_developer,omitempty"`
-			ModelFamily          *string                    `json:"model_family,omitempty"`
-			ModelId              string                     `json:"model_id"`
-			ModelType            string                     `json:"model_type"`
-			OutputCost           *float64                   `json:"output_cost"`
-			OutputCurrency       string                     `json:"output_currency"`
-			Owner                string                     `json:"owner"`
-			Parameters           *[]ModelParameterDocument  `json:"parameters"`
-			PricingUrl           *string                    `json:"pricing_url"`
-			Provider             string                     `json:"provider"`
-			RefId                string                     `json:"refId"`
-			Updated              time.Time                  `json:"updated"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case rsp.StatusCode == 400:
-		break // No content-type
-
-	case rsp.StatusCode == 404:
-		break // No content-type
-
-	}
-
-	return response, nil
-}
-
-// ParseModelUpdateAutorouterResponse parses an HTTP response from a ModelUpdateAutorouterWithResponse call
-func ParseModelUpdateAutorouterResponse(rsp *http.Response) (*ModelUpdateAutorouterResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ModelUpdateAutorouterResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest struct {
-			Configuration        ModelConfigurationResponse `json:"configuration"`
-			Created              time.Time                  `json:"created"`
-			Description          *string                    `json:"description"`
-			DisplayName          string                     `json:"display_name"`
-			DocsUrl              *string                    `json:"docs_url"`
-			Enabled              bool                       `json:"enabled"`
-			EnabledForEndpoints  bool                       `json:"enabled_for_endpoints"`
-			EnabledForPlayground bool                       `json:"enabled_for_playground"`
-			HasCpuPricing        bool                       `json:"has_cpu_pricing"`
-			HasFunctions         bool                       `json:"has_functions"`
-			Id                   string                     `json:"id"`
-			InputCost            *float64                   `json:"input_cost"`
-			InputCurrency        string                     `json:"input_currency"`
-			IsActive             bool                       `json:"is_active"`
-			Metadata             ModelMetadata              `json:"metadata"`
-			ModelDeveloper       *string                    `json:"model_developer,omitempty"`
-			ModelFamily          *string                    `json:"model_family,omitempty"`
-			ModelId              string                     `json:"model_id"`
-			ModelType            string                     `json:"model_type"`
-			OutputCost           *float64                   `json:"output_cost"`
-			OutputCurrency       string                     `json:"output_currency"`
-			Owner                string                     `json:"owner"`
-			Parameters           *[]ModelParameterDocument  `json:"parameters"`
-			PricingUrl           *string                    `json:"pricing_url"`
-			Provider             string                     `json:"provider"`
-			RefId                string                     `json:"refId"`
-			Updated              time.Time                  `json:"updated"`
+			Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+			Updated              string                     `json:"updated"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -18554,7 +18051,7 @@ func ParseModelCreateAwsBedrockResponse(rsp *http.Response) (*ModelCreateAwsBedr
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			Configuration        ModelConfigurationResponse `json:"configuration"`
-			Created              time.Time                  `json:"created"`
+			Created              string                     `json:"created"`
 			Description          *string                    `json:"description"`
 			DisplayName          string                     `json:"display_name"`
 			DocsUrl              *string                    `json:"docs_url"`
@@ -18579,7 +18076,8 @@ func ParseModelCreateAwsBedrockResponse(rsp *http.Response) (*ModelCreateAwsBedr
 			PricingUrl           *string                    `json:"pricing_url"`
 			Provider             string                     `json:"provider"`
 			RefId                string                     `json:"refId"`
-			Updated              time.Time                  `json:"updated"`
+			Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+			Updated              string                     `json:"updated"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -18630,7 +18128,7 @@ func ParseModelUpdateAwsBedrockResponse(rsp *http.Response) (*ModelUpdateAwsBedr
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			Configuration        ModelConfigurationResponse `json:"configuration"`
-			Created              time.Time                  `json:"created"`
+			Created              string                     `json:"created"`
 			Description          *string                    `json:"description"`
 			DisplayName          string                     `json:"display_name"`
 			DocsUrl              *string                    `json:"docs_url"`
@@ -18655,7 +18153,8 @@ func ParseModelUpdateAwsBedrockResponse(rsp *http.Response) (*ModelUpdateAwsBedr
 			PricingUrl           *string                    `json:"pricing_url"`
 			Provider             string                     `json:"provider"`
 			RefId                string                     `json:"refId"`
-			Updated              time.Time                  `json:"updated"`
+			Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+			Updated              string                     `json:"updated"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -18786,7 +18285,7 @@ func ParseModelCreateOpenAILikeResponse(rsp *http.Response) (*ModelCreateOpenAIL
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			Configuration        ModelConfigurationResponse `json:"configuration"`
-			Created              time.Time                  `json:"created"`
+			Created              string                     `json:"created"`
 			Description          *string                    `json:"description"`
 			DisplayName          string                     `json:"display_name"`
 			DocsUrl              *string                    `json:"docs_url"`
@@ -18811,7 +18310,8 @@ func ParseModelCreateOpenAILikeResponse(rsp *http.Response) (*ModelCreateOpenAIL
 			PricingUrl           *string                    `json:"pricing_url"`
 			Provider             string                     `json:"provider"`
 			RefId                string                     `json:"refId"`
-			Updated              time.Time                  `json:"updated"`
+			Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+			Updated              string                     `json:"updated"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -18846,7 +18346,7 @@ func ParseModelUpdateOpenAILikeResponse(rsp *http.Response) (*ModelUpdateOpenAIL
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			Configuration        ModelConfigurationResponse `json:"configuration"`
-			Created              time.Time                  `json:"created"`
+			Created              string                     `json:"created"`
 			Description          *string                    `json:"description"`
 			DisplayName          string                     `json:"display_name"`
 			DocsUrl              *string                    `json:"docs_url"`
@@ -18871,7 +18371,8 @@ func ParseModelUpdateOpenAILikeResponse(rsp *http.Response) (*ModelUpdateOpenAIL
 			PricingUrl           *string                    `json:"pricing_url"`
 			Provider             string                     `json:"provider"`
 			RefId                string                     `json:"refId"`
-			Updated              time.Time                  `json:"updated"`
+			Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+			Updated              string                     `json:"updated"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -18922,7 +18423,7 @@ func ParseModelCreateVertexResponse(rsp *http.Response) (*ModelCreateVertexRespo
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			Configuration        ModelConfigurationResponse `json:"configuration"`
-			Created              time.Time                  `json:"created"`
+			Created              string                     `json:"created"`
 			Description          *string                    `json:"description"`
 			DisplayName          string                     `json:"display_name"`
 			DocsUrl              *string                    `json:"docs_url"`
@@ -18947,7 +18448,8 @@ func ParseModelCreateVertexResponse(rsp *http.Response) (*ModelCreateVertexRespo
 			PricingUrl           *string                    `json:"pricing_url"`
 			Provider             string                     `json:"provider"`
 			RefId                string                     `json:"refId"`
-			Updated              time.Time                  `json:"updated"`
+			Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+			Updated              string                     `json:"updated"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -18998,7 +18500,7 @@ func ParseModelUpdateResponse(rsp *http.Response) (*ModelUpdateResponse, error) 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			Configuration        ModelConfigurationResponse `json:"configuration"`
-			Created              time.Time                  `json:"created"`
+			Created              string                     `json:"created"`
 			Description          *string                    `json:"description"`
 			DisplayName          string                     `json:"display_name"`
 			DocsUrl              *string                    `json:"docs_url"`
@@ -19023,7 +18525,8 @@ func ParseModelUpdateResponse(rsp *http.Response) (*ModelUpdateResponse, error) 
 			PricingUrl           *string                    `json:"pricing_url"`
 			Provider             string                     `json:"provider"`
 			RefId                string                     `json:"refId"`
-			Updated              time.Time                  `json:"updated"`
+			Sharing              *ModelSharingConfig        `json:"sharing,omitempty"`
+			Updated              string                     `json:"updated"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
