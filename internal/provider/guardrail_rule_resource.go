@@ -78,10 +78,13 @@ func (r *guardrailRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"enabled": schema.BoolAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Whether the rule is enabled. Defaults server-side when omitted.",
-				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Whether the rule is enabled. Defaults server-side when omitted. " +
+					"An enabled rule with no `project_id` applies to EVERY inference request in the " +
+					"workspace, and a failing guardrail blocks the request (HTTP 400 `guardrail_error`), " +
+					"so enable deliberately.",
+				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"project_id": schema.StringAttribute{
 				Optional: true,
@@ -90,9 +93,11 @@ func (r *guardrailRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"timeout": schema.Int64Attribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Evaluation timeout in milliseconds.",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Evaluation timeout in milliseconds. Stored and returned, but NOT " +
+					"currently enforced at execution time — the effective limits come from the " +
+					"grader transport and sandbox instead.",
 			},
 			"created_at": schema.StringAttribute{
 				Computed:            true,
@@ -110,8 +115,12 @@ func (r *guardrailRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
-							Required:            true,
-							MarkdownDescription: "Guardrail evaluator ID.",
+							Required: true,
+							MarkdownDescription: "What to run. Either a BUILT-IN guardrail slug — `orq_pii_detection` " +
+								"or `orq_secret_detection` — or the id of a custom evaluator, e.g. " +
+								"`orq_evaluator.my_judge.id`. The id is resolved at REQUEST time, not at " +
+								"apply time: an unresolvable custom id is not rejected here, it fails every " +
+								"matching inference request with a 500 once the rule is enabled.",
 						},
 						"execute_on": schema.StringAttribute{
 							Required:            true,
@@ -125,8 +134,12 @@ func (r *guardrailRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 							MarkdownDescription: "Fraction of requests to evaluate (0-1).",
 						},
 						"is_guardrail": schema.BoolAttribute{
-							Optional:            true,
-							MarkdownDescription: "Whether this reference is enforced as a guardrail (blocking).",
+							Optional: true,
+							MarkdownDescription: "`true` enforces the verdict: a failing check blocks the request. " +
+								"`false` observes only — the check runs asynchronously and its result lands in " +
+								"traces without affecting the response. NOTE for `python_eval` evaluators: a " +
+								"boolean `false` blocks only when the evaluator itself carries a guardrail " +
+								"config; `llm_eval` evaluators block on `false` without one.",
 						},
 						"options": schema.StringAttribute{
 							CustomType: jsontypes.NormalizedType{},

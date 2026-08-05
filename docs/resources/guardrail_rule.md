@@ -47,10 +47,10 @@ resource "orq_guardrail_rule" "pii" {
 ### Optional
 
 - `description` (String) Optional description.
-- `enabled` (Boolean) Whether the rule is enabled. Defaults server-side when omitted.
+- `enabled` (Boolean) Whether the rule is enabled. Defaults server-side when omitted. An enabled rule with no `project_id` applies to EVERY inference request in the workspace, and a failing guardrail blocks the request (HTTP 400 `guardrail_error`), so enable deliberately.
 - `guardrails` (Block List) Referenced guardrail evaluators. (see [below for nested schema](#nestedblock--guardrails))
 - `project_id` (String) Owning project. Omit for a workspace-global rule. Changing this forces replacement (the update API does not accept `project_id`).
-- `timeout` (Number) Evaluation timeout in milliseconds.
+- `timeout` (Number) Evaluation timeout in milliseconds. Stored and returned, but NOT currently enforced at execution time — the effective limits come from the grader transport and sandbox instead.
 
 ### Read-Only
 
@@ -64,11 +64,11 @@ resource "orq_guardrail_rule" "pii" {
 Required:
 
 - `execute_on` (String) When to run: `input`, `output`, or `both`.
-- `id` (String) Guardrail evaluator ID.
+- `id` (String) What to run. Either a BUILT-IN guardrail slug — `orq_pii_detection` or `orq_secret_detection` — or the id of a custom evaluator, e.g. `orq_evaluator.my_judge.id`. The id is resolved at REQUEST time, not at apply time: an unresolvable custom id is not rejected here, it fails every matching inference request with a 500 once the rule is enabled.
 
 Optional:
 
-- `is_guardrail` (Boolean) Whether this reference is enforced as a guardrail (blocking).
+- `is_guardrail` (Boolean) `true` enforces the verdict: a failing check blocks the request. `false` observes only — the check runs asynchronously and its result lands in traces without affecting the response. NOTE for `python_eval` evaluators: a boolean `false` blocks only when the evaluator itself carries a guardrail config; `llm_eval` evaluators block on `false` without one.
 - `options` (String) Arbitrary per-guardrail configuration as a JSON object string (e.g. PII language/threshold/entities). Compared semantically, so key order and insignificant whitespace do not produce a diff. Preserved across updates.
 - `sample_rate` (Number) Fraction of requests to evaluate (0-1).
 
