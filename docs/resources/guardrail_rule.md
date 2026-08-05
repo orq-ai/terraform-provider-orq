@@ -23,7 +23,7 @@ resource "orq_guardrail_rule" "pii" {
   # free-form JSON object string (compared semantically) carrying that
   # evaluator's configuration.
   guardrails {
-    id           = "guardrail_pii"
+    id           = "orq_pii_detection"
     execute_on   = "both" # input | output | both
     sample_rate  = 1      # 0..1
     is_guardrail = true    # enforce (block) rather than just observe
