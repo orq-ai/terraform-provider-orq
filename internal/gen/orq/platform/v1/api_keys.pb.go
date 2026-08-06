@@ -2017,15 +2017,15 @@ const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"\tOwnerType\x12\x1a\n" +
 	"\x16OWNER_TYPE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fOWNER_TYPE_USER\x10\x01\x12\x1e\n" +
-	"\x1aOWNER_TYPE_SERVICE_ACCOUNT\x10\x022\x80\x17\n" +
+	"\x1aOWNER_TYPE_SERVICE_ACCOUNT\x10\x022\xc2\x16\n" +
 	"\x0eApiKeysService\x12\xef\x03\n" +
 	"\fCreateApiKey\x12$.orq.platform.v1.CreateApiKeyRequest\x1a%.orq.platform.v1.CreateApiKeyResponse\"\x91\x03\xbaG\xe0\x02\n" +
 	"\bAPI keys\x12\x14Create a new API key\x1a\xe8\x01Mints a new opaque API key (`sk-orq-<key_id>-<secret>`) in the workspace. The raw secret is returned ONCE in the response and is never retrievable afterwards. The stored record retains only `token_prefix` and a SHA-256 `token_hash`.*\fApiKeyCreatej\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\aapiKeysj%\n" +
 	"\x19x-speakeasy-name-override\x12\b\x12\x06create\x8a\xb5\x18\x12\n" +
-	"\x0eapi-key.create\x10\x03\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v2/api-keys\x12\xc6\x03\n" +
-	"\vListApiKeys\x12#.orq.platform.v1.ListApiKeysRequest\x1a$.orq.platform.v1.ListApiKeysResponse\"\xeb\x02\xbaG\xbf\x02\n" +
-	"\bAPI keys\x12\rList API keys\x1a\xd2\x01Returns API keys visible to the current workspace, ordered by creation time with the newest key first. The `api_key` and `token_hash` fields are never returned by this endpoint; only `token_prefix` is included.*\n" +
+	"\x0eapi-key.create\x10\x03\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v2/api-keys\x12\x88\x03\n" +
+	"\vListApiKeys\x12#.orq.platform.v1.ListApiKeysRequest\x1a$.orq.platform.v1.ListApiKeysResponse\"\xad\x02\xbaG\x81\x02\n" +
+	"\bAPI keys\x12\rList API keys\x1a\x94\x01Returns API keys visible to the current workspace as a JSON array. Raw tokens are never included; the `token` field contains a masked display value.*\n" +
 	"ApiKeyListj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\aapiKeysj#\n" +
 	"\x19x-speakeasy-name-override\x12\x06\x12\x04list\x8a\xb5\x18\x10\n" +

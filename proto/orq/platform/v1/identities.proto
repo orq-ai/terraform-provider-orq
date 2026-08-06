@@ -241,7 +241,9 @@ message Identity {
   // Free-form labels used to organize and filter identities.
   repeated string tags = 7;
   // Custom JSON metadata stored with the identity.
-  google.protobuf.Struct metadata = 8;
+  google.protobuf.Struct metadata = 8 [(openapi.v3.property) = {
+    additional_properties: {boolean: true}
+  }];
   // ISO timestamp for when the identity was created.
   string created = 9;
   // ISO timestamp for when the identity was last updated.
@@ -308,7 +310,9 @@ message CreateIdentityRequest {
   // Free-form labels used to organize and filter identities.
   repeated string tags = 5;
   // Custom JSON metadata stored with the identity.
-  google.protobuf.Struct metadata = 6;
+  google.protobuf.Struct metadata = 6 [(openapi.v3.property) = {
+    additional_properties: {boolean: true}
+  }];
 }
 
 message CreateIdentityResponse {
@@ -402,7 +406,9 @@ message UpdateIdentityRequest {
   // Replacement tag list. Leave empty to clear tags.
   repeated string tags = 5;
   // Replacement custom JSON metadata.
-  google.protobuf.Struct metadata = 6;
+  google.protobuf.Struct metadata = 6 [(openapi.v3.property) = {
+    additional_properties: {boolean: true}
+  }];
 }
 
 message UpdateIdentityResponse {

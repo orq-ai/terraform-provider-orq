@@ -2358,7 +2358,7 @@ var File_orq_platform_v1_budgets_proto protoreflect.FileDescriptor
 
 const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\n" +
-	"\x1dorq/platform/v1/budgets.proto\x12\x0forq.platform.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bopenapiv3/annotations.proto\x1a\x18orq/authz/v1/authz.proto\"\xda\x04\n" +
+	"\x1dorq/platform/v1/budgets.proto\x12\x0forq.platform.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bopenapiv3/annotations.proto\x1a\x18orq/authz/v1/authz.proto\"\x8e\x05\n" +
 	"\x06Budget\x12\x1b\n" +
 	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x122\n" +
 	"\x05scope\x18\x02 \x01(\v2\x1c.orq.platform.v1.BudgetScopeR\x05scope\x122\n" +
@@ -2375,7 +2375,9 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x127\n" +
 	"\x05usage\x18\n" +
 	" \x01(\v2\x1c.orq.platform.v1.BudgetUsageH\x01R\x05usage\x88\x01\x01\x124\n" +
-	"\x06alerts\x18\v \x03(\v2\x1c.orq.platform.v1.BudgetAlertR\x06alertsB\r\n" +
+	"\x06alerts\x18\v \x03(\v2\x1c.orq.platform.v1.BudgetAlertR\x06alerts:2\xbaG/\xba\x01\tbudget_id\xba\x01\x06limits\xba\x01\n" +
+	"created_at\xba\x01\n" +
+	"updated_atB\r\n" +
 	"\v_expires_atB\b\n" +
 	"\x06_usage\"\xf3\x01\n" +
 	"\vBudgetAlert\x12\x0e\n" +
@@ -2411,9 +2413,9 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\n" +
 	"api_key_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bapiKeyId\":\n" +
 	"\x13ProviderBudgetScope\x12#\n" +
-	"\bprovider\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bprovider\"6\n" +
+	"\bprovider\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bprovider\"F\n" +
 	"\x10ModelBudgetScope\x12\"\n" +
-	"\bmodel_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amodelId\"\xc3\x01\n" +
+	"\bmodel_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amodelId:\x0e\xbaG\v\xba\x01\bmodel_id\"\xc3\x01\n" +
 	"\fBudgetLimits\x125\n" +
 	"\x06period\x18\x01 \x01(\x0e2\x1d.orq.platform.v1.BudgetPeriodR\x06period\x12+\n" +
 	"\x06amount\x18\x02 \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x06amount\x88\x01\x01\x124\n" +
@@ -2437,13 +2439,13 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"R\x06alertsB\f\n" +
 	"\n" +
 	"_is_activeB\r\n" +
-	"\v_expires_at\"G\n" +
+	"\v_expires_at\"U\n" +
 	"\x14CreateBudgetResponse\x12/\n" +
-	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget\"8\n" +
+	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget:\f\xbaG\t\xba\x01\x06budget\"8\n" +
 	"\x10GetBudgetRequest\x12$\n" +
-	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\"D\n" +
+	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\"R\n" +
 	"\x11GetBudgetResponse\x12/\n" +
-	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget\"\xda\x03\n" +
+	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget:\f\xbaG\t\xba\x01\x06budget\"\xda\x03\n" +
 	"\x12ListBudgetsRequest\x12%\n" +
 	"\x05limit\x18\x01 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x01H\x00R\x05limit\x88\x01\x01\x12%\n" +
@@ -2460,11 +2462,11 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x10_scope_target_idB\f\n" +
 	"\n" +
 	"_is_activeB\b\n" +
-	"\x06_query\"\x95\x01\n" +
+	"\x06_query\"\x8a\x01\n" +
 	"\x13ListBudgetsResponse\x12\x16\n" +
 	"\x06object\x18\x01 \x01(\tR\x06object\x12+\n" +
 	"\x04data\x18\x02 \x03(\v2\x17.orq.platform.v1.BudgetR\x04data\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore:\x1e\xbaG\x1b\xba\x01\x06object\xba\x01\x04data\xba\x01\bhas_more\"\xa0\x04\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore:\x13\xbaG\x10\xba\x01\x06object\xba\x01\x04data\"\xa0\x04\n" +
 	"\x13UpdateBudgetRequest\x12$\n" +
 	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\x12:\n" +
 	"\x06limits\x18\x02 \x01(\v2\x1d.orq.platform.v1.BudgetLimitsH\x00R\x06limits\x88\x01\x01\x12>\n" +
@@ -2483,9 +2485,9 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\n" +
 	"_is_activeB\r\n" +
 	"\v_expires_atB\b\n" +
-	"\x06_match\"G\n" +
+	"\x06_match\"U\n" +
 	"\x14UpdateBudgetResponse\x12/\n" +
-	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget\";\n" +
+	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget:\f\xbaG\t\xba\x01\x06budget\";\n" +
 	"\x13DeleteBudgetRequest\x12$\n" +
 	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\"\x16\n" +
 	"\x14DeleteBudgetResponse\"E\n" +
@@ -2556,7 +2558,7 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x1dBUDGET_SORT_FIELD_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cBUDGET_SORT_FIELD_EXPIRES_AT\x10\x01\x12 \n" +
 	"\x1cBUDGET_SORT_FIELD_CREATED_AT\x10\x02\x12 \n" +
-	"\x1cBUDGET_SORT_FIELD_UPDATED_AT\x10\x032\xae \n" +
+	"\x1cBUDGET_SORT_FIELD_UPDATED_AT\x10\x032\xd5 \n" +
 	"\x0eBudgetsService\x12\xfe\x05\n" +
 	"\fCreateBudget\x12$.orq.platform.v1.CreateBudgetRequest\x1a%.orq.platform.v1.CreateBudgetResponse\"\xa0\x05\xbaG\xf1\x04\n" +
 	"\aBudgets\x12\x13Create a new budget\x1a\xc3\x02Creates a new budget in the workspace. Exactly one scope variant must be set (workspace / project / identity / api_key / provider / model). At least one of `limits.amount`, `limits.token_limit`, or `rate_limit.requests_per_minute` MUST be provided. Uniqueness is enforced across (workspace_id, scope_kind, scope_target_id).*\fBudgetCreatej\x1e\n" +
@@ -2593,11 +2595,13 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\aBudgets\x12\x18Reset budget consumption\x1a\x95\x01Clears the current-period cost, token, and request counters for the budget. The budget record itself is preserved; only the Redis counters are reset.*\x16BudgetResetConsumptionj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj/\n" +
 	"\x19x-speakeasy-name-override\x12\x12\x12\x10resetConsumption\x8a\xb5\x18\x11\n" +
-	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02.:\x01*\")/v2/budgets/{budget_id}/reset-consumption\x12\xe2\x03\n" +
-	"\x14GetBudgetConsumption\x12,.orq.platform.v1.GetBudgetConsumptionRequest\x1a-.orq.platform.v1.GetBudgetConsumptionResponse\"\xec\x02\xbaG\xaa\x02\n" +
-	"\aBudgets\x12\x1eGet current-period consumption\x1a\x99\x01Returns the current-period cost, token, and per-minute request counters for the budget. Values reflect the live Redis state for the active period bucket.*\x14BudgetGetConsumptionj\x1e\n" +
+	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02.:\x01*\")/v2/budgets/{budget_id}/reset-consumption\x12\x89\x04\n" +
+	"\x14GetBudgetConsumption\x12,.orq.platform.v1.GetBudgetConsumptionRequest\x1a-.orq.platform.v1.GetBudgetConsumptionResponse\"\x93\x03\xbaG\xd1\x02\n" +
+	"\aBudgets\n" +
+	"\aprivate\x12\x1eGet current-period consumption\x1a\x99\x01Returns the current-period cost, token, and per-minute request counters for the budget. Values reflect the live Redis state for the active period bucket.*\x14BudgetGetConsumptionj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj-\n" +
-	"\x19x-speakeasy-name-override\x12\x10\x12\x0egetConsumption\x8a\xb5\x18\x0f\n" +
+	"\x19x-speakeasy-name-override\x12\x10\x12\x0egetConsumptionj\x1c\n" +
+	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x0f\n" +
 	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02%\x12#/v2/budgets/{budget_id}/consumption\x12\xc4\x04\n" +
 	"\fCheckBudgets\x12$.orq.platform.v1.CheckBudgetsRequest\x1a%.orq.platform.v1.CheckBudgetsResponse\"\xe6\x03\xbaG\xc0\x03\n" +
 	"\aBudgets\n" +

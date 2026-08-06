@@ -191,7 +191,7 @@ service BudgetsService {
       summary: "Get current-period consumption"
       description: "Returns the current-period cost, token, and per-minute request counters for the budget. Values reflect the live Redis state for the active period bucket."
       operation_id: "BudgetGetConsumption"
-      tags: ["Budgets"]
+      tags: ["Budgets", "private"]
       specification_extension: [
         {
           name: "x-speakeasy-group"
@@ -200,6 +200,10 @@ service BudgetsService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "getConsumption"}
+        },
+        {
+          name: "x-speakeasy-ignore"
+          value: {yaml: "true"}
         }
       ]
     };
@@ -248,6 +252,15 @@ service BudgetsService {
 // It replaces the embedded `constraints.budget` on api-keys and the
 // legacy CONTACT-only `budgets.configs` collection (see ADR 0007).
 message Budget {
+  option (openapi.v3.schema) = {
+    required: [
+      "budget_id",
+      "limits",
+      "created_at",
+      "updated_at"
+    ]
+  };
+
   string budget_id = 1;
 
   // Denormalized metadata for UI rendering, list filters, and the
@@ -397,6 +410,10 @@ message ProviderBudgetScope {
 // it ("openai/gpt-4o", or "workspaceKey@openai/gpt-4o" for private
 // models) — NOT the Mongo `_id` of the model master-data document.
 message ModelBudgetScope {
+  option (openapi.v3.schema) = {
+    required: ["model_id"]
+  };
+
   string model_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
@@ -490,6 +507,10 @@ message CreateBudgetRequest {
 }
 
 message CreateBudgetResponse {
+  option (openapi.v3.schema) = {
+    required: ["budget"]
+  };
+
   // Newly created budget.
   Budget budget = 1;
 }
@@ -500,6 +521,10 @@ message GetBudgetRequest {
 }
 
 message GetBudgetResponse {
+  option (openapi.v3.schema) = {
+    required: ["budget"]
+  };
+
   // Requested budget.
   Budget budget = 1;
 }
@@ -546,8 +571,7 @@ message ListBudgetsResponse {
   option (openapi.v3.schema) = {
     required: [
       "object",
-      "data",
-      "has_more"
+      "data"
     ]
   };
 
@@ -596,6 +620,10 @@ message UpdateBudgetRequest {
 }
 
 message UpdateBudgetResponse {
+  option (openapi.v3.schema) = {
+    required: ["budget"]
+  };
+
   // Updated budget.
   Budget budget = 1;
 }

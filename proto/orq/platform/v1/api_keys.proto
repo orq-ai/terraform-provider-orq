@@ -55,7 +55,7 @@ service ApiKeysService {
     option (google.api.http) = {get: "/v2/api-keys"};
     option (openapi.v3.operation) = {
       summary: "List API keys"
-      description: "Returns API keys visible to the current workspace, ordered by creation time with the newest key first. The `api_key` and `token_hash` fields are never returned by this endpoint; only `token_prefix` is included."
+      description: "Returns API keys visible to the current workspace as a JSON array. Raw tokens are never included; the `token` field contains a masked display value."
       operation_id: "ApiKeyList"
       tags: ["API keys"]
       specification_extension: [

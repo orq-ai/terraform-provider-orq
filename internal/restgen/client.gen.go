@@ -3499,7 +3499,7 @@ type EvaluatorResponseFunction struct {
 	Key             string                                     `json:"key"`
 
 	// ProjectId Unique identifier of the project owning this evaluator.
-	ProjectId   string                        `json:"project_id"`
+	ProjectId   *string                       `json:"project_id,omitempty"`
 	Type        EvaluatorResponseFunctionType `json:"type"`
 	Updated     *string                       `json:"updated,omitempty"`
 	UpdatedById *string                       `json:"updated_by_id,omitempty"`
@@ -3835,7 +3835,7 @@ type EvaluatorResponseHttp struct {
 	Payload         map[string]interface{}                 `json:"payload"`
 
 	// ProjectId Unique identifier of the project owning this evaluator.
-	ProjectId   string                    `json:"project_id"`
+	ProjectId   *string                   `json:"project_id,omitempty"`
 	Type        EvaluatorResponseHttpType `json:"type"`
 	Updated     *string                   `json:"updated,omitempty"`
 	UpdatedById *string                   `json:"updated_by_id,omitempty"`
@@ -3899,7 +3899,7 @@ type EvaluatorResponseJsonSchema struct {
 	Key             string                                       `json:"key"`
 
 	// ProjectId Unique identifier of the project owning this evaluator.
-	ProjectId   string                          `json:"project_id"`
+	ProjectId   *string                         `json:"project_id,omitempty"`
 	Schema      string                          `json:"schema"`
 	Type        EvaluatorResponseJsonSchemaType `json:"type"`
 	Updated     *string                         `json:"updated,omitempty"`
@@ -3992,7 +3992,7 @@ type EvaluatorResponseLlm struct {
 	Model *string                  `json:"model,omitempty"`
 
 	// ProjectId Unique identifier of the project owning this evaluator.
-	ProjectId   string                   `json:"project_id"`
+	ProjectId   *string                  `json:"project_id,omitempty"`
 	Prompt      string                   `json:"prompt"`
 	Repetitions *int                     `json:"repetitions,omitempty"`
 	Type        EvaluatorResponseLlmType `json:"type"`
@@ -4061,7 +4061,7 @@ type EvaluatorResponsePython struct {
 	Key             string                                   `json:"key"`
 
 	// ProjectId Unique identifier of the project owning this evaluator.
-	ProjectId   string                      `json:"project_id"`
+	ProjectId   *string                     `json:"project_id,omitempty"`
 	Type        EvaluatorResponsePythonType `json:"type"`
 	Updated     *string                     `json:"updated,omitempty"`
 	UpdatedById *string                     `json:"updated_by_id,omitempty"`
@@ -4122,7 +4122,7 @@ type EvaluatorResponseRagas struct {
 	Model           string                                  `json:"model"`
 
 	// ProjectId Unique identifier of the project owning this evaluator.
-	ProjectId   string                            `json:"project_id"`
+	ProjectId   *string                           `json:"project_id,omitempty"`
 	RagasMetric EvaluatorResponseRagasRagasMetric `json:"ragas_metric"`
 	Type        EvaluatorResponseRagasType        `json:"type"`
 	Updated     *string                           `json:"updated,omitempty"`
@@ -4187,7 +4187,7 @@ type EvaluatorResponseTypescript struct {
 	Key             string                                       `json:"key"`
 
 	// ProjectId Unique identifier of the project owning this evaluator.
-	ProjectId   string                          `json:"project_id"`
+	ProjectId   *string                         `json:"project_id,omitempty"`
 	Type        EvaluatorResponseTypescriptType `json:"type"`
 	Updated     *string                         `json:"updated,omitempty"`
 	UpdatedById *string                         `json:"updated_by_id,omitempty"`
@@ -4359,6 +4359,7 @@ type ModelDocument struct {
 	InputCost            *float64                   `json:"input_cost"`
 	InputCurrency        string                     `json:"input_currency"`
 	IsActive             bool                       `json:"is_active"`
+	LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 	Metadata             ModelMetadata              `json:"metadata"`
 	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 	ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15131,6 +15132,7 @@ type ModelCreateResponse struct {
 		InputCost            *float64                   `json:"input_cost"`
 		InputCurrency        string                     `json:"input_currency"`
 		IsActive             bool                       `json:"is_active"`
+		LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 		Metadata             ModelMetadata              `json:"metadata"`
 		ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 		ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15164,6 +15166,7 @@ func (r ModelCreateResponse) GetJSON200() *struct {
 	InputCost            *float64                   `json:"input_cost"`
 	InputCurrency        string                     `json:"input_currency"`
 	IsActive             bool                       `json:"is_active"`
+	LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 	Metadata             ModelMetadata              `json:"metadata"`
 	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 	ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15230,6 +15233,7 @@ type ModelCreateAwsBedrockResponse struct {
 		InputCost            *float64                   `json:"input_cost"`
 		InputCurrency        string                     `json:"input_currency"`
 		IsActive             bool                       `json:"is_active"`
+		LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 		Metadata             ModelMetadata              `json:"metadata"`
 		ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 		ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15263,6 +15267,7 @@ func (r ModelCreateAwsBedrockResponse) GetJSON200() *struct {
 	InputCost            *float64                   `json:"input_cost"`
 	InputCurrency        string                     `json:"input_currency"`
 	IsActive             bool                       `json:"is_active"`
+	LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 	Metadata             ModelMetadata              `json:"metadata"`
 	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 	ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15363,6 +15368,7 @@ type ModelUpdateAwsBedrockResponse struct {
 		InputCost            *float64                   `json:"input_cost"`
 		InputCurrency        string                     `json:"input_currency"`
 		IsActive             bool                       `json:"is_active"`
+		LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 		Metadata             ModelMetadata              `json:"metadata"`
 		ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 		ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15396,6 +15402,7 @@ func (r ModelUpdateAwsBedrockResponse) GetJSON200() *struct {
 	InputCost            *float64                   `json:"input_cost"`
 	InputCurrency        string                     `json:"input_currency"`
 	IsActive             bool                       `json:"is_active"`
+	LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 	Metadata             ModelMetadata              `json:"metadata"`
 	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 	ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15591,6 +15598,7 @@ type ModelCreateOpenAILikeResponse struct {
 		InputCost            *float64                   `json:"input_cost"`
 		InputCurrency        string                     `json:"input_currency"`
 		IsActive             bool                       `json:"is_active"`
+		LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 		Metadata             ModelMetadata              `json:"metadata"`
 		ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 		ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15624,6 +15632,7 @@ func (r ModelCreateOpenAILikeResponse) GetJSON200() *struct {
 	InputCost            *float64                   `json:"input_cost"`
 	InputCurrency        string                     `json:"input_currency"`
 	IsActive             bool                       `json:"is_active"`
+	LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 	Metadata             ModelMetadata              `json:"metadata"`
 	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 	ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15690,6 +15699,7 @@ type ModelUpdateOpenAILikeResponse struct {
 		InputCost            *float64                   `json:"input_cost"`
 		InputCurrency        string                     `json:"input_currency"`
 		IsActive             bool                       `json:"is_active"`
+		LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 		Metadata             ModelMetadata              `json:"metadata"`
 		ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 		ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15723,6 +15733,7 @@ func (r ModelUpdateOpenAILikeResponse) GetJSON200() *struct {
 	InputCost            *float64                   `json:"input_cost"`
 	InputCurrency        string                     `json:"input_currency"`
 	IsActive             bool                       `json:"is_active"`
+	LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 	Metadata             ModelMetadata              `json:"metadata"`
 	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 	ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15823,6 +15834,7 @@ type ModelCreateVertexResponse struct {
 		InputCost            *float64                   `json:"input_cost"`
 		InputCurrency        string                     `json:"input_currency"`
 		IsActive             bool                       `json:"is_active"`
+		LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 		Metadata             ModelMetadata              `json:"metadata"`
 		ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 		ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15856,6 +15868,7 @@ func (r ModelCreateVertexResponse) GetJSON200() *struct {
 	InputCost            *float64                   `json:"input_cost"`
 	InputCurrency        string                     `json:"input_currency"`
 	IsActive             bool                       `json:"is_active"`
+	LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 	Metadata             ModelMetadata              `json:"metadata"`
 	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 	ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15956,6 +15969,7 @@ type ModelUpdateResponse struct {
 		InputCost            *float64                   `json:"input_cost"`
 		InputCurrency        string                     `json:"input_currency"`
 		IsActive             bool                       `json:"is_active"`
+		LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 		Metadata             ModelMetadata              `json:"metadata"`
 		ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 		ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -15989,6 +16003,7 @@ func (r ModelUpdateResponse) GetJSON200() *struct {
 	InputCost            *float64                   `json:"input_cost"`
 	InputCurrency        string                     `json:"input_currency"`
 	IsActive             bool                       `json:"is_active"`
+	LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 	Metadata             ModelMetadata              `json:"metadata"`
 	ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 	ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -18003,6 +18018,7 @@ func ParseModelCreateResponse(rsp *http.Response) (*ModelCreateResponse, error) 
 			InputCost            *float64                   `json:"input_cost"`
 			InputCurrency        string                     `json:"input_currency"`
 			IsActive             bool                       `json:"is_active"`
+			LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 			Metadata             ModelMetadata              `json:"metadata"`
 			ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 			ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -18064,6 +18080,7 @@ func ParseModelCreateAwsBedrockResponse(rsp *http.Response) (*ModelCreateAwsBedr
 			InputCost            *float64                   `json:"input_cost"`
 			InputCurrency        string                     `json:"input_currency"`
 			IsActive             bool                       `json:"is_active"`
+			LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 			Metadata             ModelMetadata              `json:"metadata"`
 			ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 			ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -18141,6 +18158,7 @@ func ParseModelUpdateAwsBedrockResponse(rsp *http.Response) (*ModelUpdateAwsBedr
 			InputCost            *float64                   `json:"input_cost"`
 			InputCurrency        string                     `json:"input_currency"`
 			IsActive             bool                       `json:"is_active"`
+			LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 			Metadata             ModelMetadata              `json:"metadata"`
 			ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 			ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -18298,6 +18316,7 @@ func ParseModelCreateOpenAILikeResponse(rsp *http.Response) (*ModelCreateOpenAIL
 			InputCost            *float64                   `json:"input_cost"`
 			InputCurrency        string                     `json:"input_currency"`
 			IsActive             bool                       `json:"is_active"`
+			LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 			Metadata             ModelMetadata              `json:"metadata"`
 			ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 			ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -18359,6 +18378,7 @@ func ParseModelUpdateOpenAILikeResponse(rsp *http.Response) (*ModelUpdateOpenAIL
 			InputCost            *float64                   `json:"input_cost"`
 			InputCurrency        string                     `json:"input_currency"`
 			IsActive             bool                       `json:"is_active"`
+			LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 			Metadata             ModelMetadata              `json:"metadata"`
 			ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 			ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -18436,6 +18456,7 @@ func ParseModelCreateVertexResponse(rsp *http.Response) (*ModelCreateVertexRespo
 			InputCost            *float64                   `json:"input_cost"`
 			InputCurrency        string                     `json:"input_currency"`
 			IsActive             bool                       `json:"is_active"`
+			LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 			Metadata             ModelMetadata              `json:"metadata"`
 			ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 			ModelFamily          *string                    `json:"model_family,omitempty"`
@@ -18513,6 +18534,7 @@ func ParseModelUpdateResponse(rsp *http.Response) (*ModelUpdateResponse, error) 
 			InputCost            *float64                   `json:"input_cost"`
 			InputCurrency        string                     `json:"input_currency"`
 			IsActive             bool                       `json:"is_active"`
+			LegacyUuid           *string                    `json:"legacy_uuid,omitempty"`
 			Metadata             ModelMetadata              `json:"metadata"`
 			ModelDeveloper       *string                    `json:"model_developer,omitempty"`
 			ModelFamily          *string                    `json:"model_family,omitempty"`

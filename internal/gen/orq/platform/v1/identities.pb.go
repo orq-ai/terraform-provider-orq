@@ -983,7 +983,7 @@ var File_orq_platform_v1_identities_proto protoreflect.FileDescriptor
 
 const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\n" +
-	" orq/platform/v1/identities.proto\x12\x0forq.platform.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1bopenapiv3/annotations.proto\x1a\x18orq/authz/v1/authz.proto\x1a\x1dorq/platform/v1/budgets.proto\"\xdb\x04\n" +
+	" orq/platform/v1/identities.proto\x12\x0forq.platform.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1bopenapiv3/annotations.proto\x1a\x18orq/authz/v1/authz.proto\x1a\x1dorq/platform/v1/budgets.proto\"\xe5\x04\n" +
 	"\bIdentity\x12\x0f\n" +
 	"\x02id\x18\x01 \x01(\tR\x03_id\x12*\n" +
 	"\vexternal_id\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18xR\n" +
@@ -993,8 +993,8 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\x05email\x18\x05 \x01(\tB\a\xbaH\x04r\x02`\x01H\x01R\x05email\x88\x01\x01\x12,\n" +
 	"\n" +
 	"avatar_url\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01H\x02R\tavatarUrl\x88\x01\x01\x12\x12\n" +
-	"\x04tags\x18\a \x03(\tR\x04tags\x123\n" +
-	"\bmetadata\x18\b \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12\x18\n" +
+	"\x04tags\x18\a \x03(\tR\x04tags\x12=\n" +
+	"\bmetadata\x18\b \x01(\v2\x17.google.protobuf.StructB\b\xbaG\x05\x82\x02\x02\x10\x01R\bmetadata\x12\x18\n" +
 	"\acreated\x18\t \x01(\tR\acreated\x12\x18\n" +
 	"\aupdated\x18\n" +
 	" \x01(\tR\aupdated\x12?\n" +
@@ -1016,7 +1016,7 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"total_cost\xba\x01\x0etotal_requests\xba\x01\n" +
 	"error_rate\"$\n" +
 	"\x0eIdentityFilter\x12\x12\n" +
-	"\x04tags\x18\x01 \x03(\tR\x04tags\"\xc3\x02\n" +
+	"\x04tags\x18\x01 \x03(\tR\x04tags\"\xcd\x02\n" +
 	"\x15CreateIdentityRequest\x12*\n" +
 	"\vexternal_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18xR\n" +
 	"externalId\x12&\n" +
@@ -1024,8 +1024,8 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\x05email\x18\x03 \x01(\tB\a\xbaH\x04r\x02`\x01H\x01R\x05email\x88\x01\x01\x12,\n" +
 	"\n" +
 	"avatar_url\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01H\x02R\tavatarUrl\x88\x01\x01\x12\x12\n" +
-	"\x04tags\x18\x05 \x03(\tR\x04tags\x123\n" +
-	"\bmetadata\x18\x06 \x01(\v2\x17.google.protobuf.StructR\bmetadata:\x11\xbaG\x0e\xba\x01\vexternal_idB\x0f\n" +
+	"\x04tags\x18\x05 \x03(\tR\x04tags\x12=\n" +
+	"\bmetadata\x18\x06 \x01(\v2\x17.google.protobuf.StructB\b\xbaG\x05\x82\x02\x02\x10\x01R\bmetadata:\x11\xbaG\x0e\xba\x01\vexternal_idB\x0f\n" +
 	"\r_display_nameB\b\n" +
 	"\x06_emailB\r\n" +
 	"\v_avatar_url\"_\n" +
@@ -1051,15 +1051,15 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\x0finclude_metrics\x18\x02 \x01(\bR\x0eincludeMetrics\x12%\n" +
 	"\x0einclude_budget\x18\x03 \x01(\bR\rincludeBudget:\b\xbaG\x05\xba\x01\x02id\"a\n" +
 	"\x18RetrieveIdentityResponse\x125\n" +
-	"\bidentity\x18\x01 \x01(\v2\x19.orq.platform.v1.IdentityR\bidentity:\x0e\xbaG\v\xba\x01\bidentity\"\xa7\x02\n" +
+	"\bidentity\x18\x01 \x01(\v2\x19.orq.platform.v1.IdentityR\bidentity:\x0e\xbaG\v\xba\x01\bidentity\"\xb1\x02\n" +
 	"\x15UpdateIdentityRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12&\n" +
 	"\fdisplay_name\x18\x02 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12\"\n" +
 	"\x05email\x18\x03 \x01(\tB\a\xbaH\x04r\x02`\x01H\x01R\x05email\x88\x01\x01\x12,\n" +
 	"\n" +
 	"avatar_url\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01H\x02R\tavatarUrl\x88\x01\x01\x12\x12\n" +
-	"\x04tags\x18\x05 \x03(\tR\x04tags\x123\n" +
-	"\bmetadata\x18\x06 \x01(\v2\x17.google.protobuf.StructR\bmetadata:\b\xbaG\x05\xba\x01\x02idB\x0f\n" +
+	"\x04tags\x18\x05 \x03(\tR\x04tags\x12=\n" +
+	"\bmetadata\x18\x06 \x01(\v2\x17.google.protobuf.StructB\b\xbaG\x05\x82\x02\x02\x10\x01R\bmetadata:\b\xbaG\x05\xba\x01\x02idB\x0f\n" +
 	"\r_display_nameB\b\n" +
 	"\x06_emailB\r\n" +
 	"\v_avatar_url\"_\n" +
