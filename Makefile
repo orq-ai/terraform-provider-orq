@@ -28,7 +28,7 @@ build:
 test:
 	go test ./...
 
-# Acceptance tests hit a real orq stack; require ORQ_URL + ORQ_API_KEY.
+# Acceptance tests hit a real orq stack; require ORQ_API_BASE_URL + ORQ_API_KEY.
 testacc:
 	TF_ACC=1 go test ./... -v -timeout 120m
 

@@ -18,7 +18,7 @@ import (
 
 const (
 	defaultURL = "https://my.orq.ai"
-	envURL     = "ORQ_URL"
+	envURL     = "ORQ_API_BASE_URL"
 	envAPIKey  = "ORQ_API_KEY"
 )
 
@@ -54,7 +54,7 @@ func (p *orqProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 		Attributes: map[string]schema.Attribute{
 			"url": schema.StringAttribute{
 				Optional: true,
-				MarkdownDescription: "Base URL of the orq API. Falls back to the `ORQ_URL` environment " +
+				MarkdownDescription: "Base URL of the orq API. Falls back to the `ORQ_API_BASE_URL` environment " +
 					"variable, then `https://my.orq.ai`. Override for on-prem installs or staging.",
 			},
 			"api_key": schema.StringAttribute{
@@ -89,7 +89,7 @@ func (p *orqProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	// time — fail clearly rather than silently falling back to an env var.
 	if cfg.URL.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(path.Root("url"), "Unknown provider URL",
-			"The url value is unknown at configuration time. Use a static value, ORQ_URL, or the default.")
+			"The url value is unknown at configuration time. Use a static value, ORQ_API_BASE_URL, or the default.")
 	}
 	if cfg.APIKey.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(path.Root("api_key"), "Unknown provider api_key",
@@ -117,7 +117,7 @@ func (p *orqProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	// rejected here rather than surfacing as an opaque dial error at first use.
 	if url == "" {
 		resp.Diagnostics.AddAttributeError(path.Root("url"), "Missing orq URL",
-			"Set the `url` attribute or the ORQ_URL environment variable.")
+			"Set the `url` attribute or the ORQ_API_BASE_URL environment variable.")
 	} else if _, err := client.ParseBaseURL(url); err != nil {
 		resp.Diagnostics.AddAttributeError(path.Root("url"), "Malformed orq URL", err.Error()+" (got: "+url+")")
 	}

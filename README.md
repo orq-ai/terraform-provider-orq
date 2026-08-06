@@ -1,12 +1,6 @@
 # terraform-provider-orq
 
-Terraform provider for [orq.ai](https://orq.ai) workspace resources (ENG-2440, phase 1).
-
-> **Status.** The repo lives at
-> [github.com/orq-ai/terraform-provider-orq](https://github.com/orq-ai/terraform-provider-orq).
-> Publication to the Terraform and OpenTofu registries is pending the first
-> tagged release (`vX.Y.Z`); until then the provider is installed from source
-> (see [DEVELOPMENT.md](./DEVELOPMENT.md)).
+Terraform provider for [orq.ai](https://orq.ai) workspace resources.
 
 ## Registry naming requirement
 
@@ -19,15 +13,15 @@ GitHub repo named `NAMESPACE/terraform-provider-NAME`**. This repo is
 
 ```hcl
 provider "orq" {
-  url     = "https://my.orq.ai" # optional; env ORQ_URL; defaults to https://my.orq.ai
-  api_key = "sk-orq-..."        # optional; env ORQ_API_KEY (like GOOGLE_CREDENTIALS)
+  url     = "https://my.orq.ai" # optional; env ORQ_API_BASE_URL; defaults to https://my.orq.ai
+  api_key = "sk-orq-..."        # optional; env ORQ_API_KEY
 }
 ```
 
 - The credential is an opaque `sk-orq-...` **management key**; the workspace is
   implied by the credential (no `workspace` argument).
 - Precedence: explicit `api_key` attribute **beats** `ORQ_API_KEY`; same for `url` /
-  `ORQ_URL`.
+  `ORQ_API_BASE_URL`.
 - Sent as `Authorization: Bearer <token>` on **both** transports.
 - **Lazy credential validation:** provider init only checks that `url`/`api_key`
   are structurally present and well-formed. It does **not** probe
@@ -46,9 +40,9 @@ dispatches each domain to its native transport:
 | Connect (connect-go) | `buf` (`buf.gen.yaml`) | `proto/` (committed copy) | `internal/gen` | projects, budgets, notifiers, management-keys, model-sharing, api-keys, identities |
 | REST | `oapi-codegen` (`openapi/oapi-codegen.yaml`) | `openapi/openapi.json` (committed copy) | `internal/restgen` | guardrail-rules, routing-rules, models, workspace-models |
 
-Connect calls go to `${ORQ_URL}/v3/rpc/platform` (the gateway strips that prefix
+Connect calls go to `${ORQ_API_BASE_URL}/v3/rpc/platform` (the gateway strips that prefix
 to the bare `/orq.platform.v1.<Service>/...` path). REST calls go to
-`${ORQ_URL}/v2/...`.
+`${ORQ_API_BASE_URL}/v2/...`.
 
 The REST client is expected to be retired over time; the `internal/client`
 interface is the seam that lets a domain move from REST to Connect without
@@ -86,7 +80,7 @@ in `openapi/oapi-codegen.yaml` (not a tag include) so the OpenAI-compatible
 |--------|---------|
 | `build` | compile the provider binary |
 | `test` | unit tests |
-| `testacc` | acceptance tests (`TF_ACC=1`; needs `ORQ_URL` + `ORQ_API_KEY`) |
+| `testacc` | acceptance tests (`TF_ACC=1`; needs `ORQ_API_BASE_URL` + `ORQ_API_KEY`) |
 | `generate` | regenerate both clients (buf + oapi-codegen) |
 | `check-generated` | CI guard: fail if generated code is stale |
 | `docs` | regenerate `docs/` for the registries (tfplugindocs) |

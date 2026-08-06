@@ -74,7 +74,7 @@ provider_installation {
 }
 EOF
 export TF_CLI_CONFIG_FILE=/tmp/orq-dev.tfrc
-export ORQ_URL=...          # your orq API base (e.g. https://my.orq.ai)
+export ORQ_API_BASE_URL=...          # your orq API base (e.g. https://my.orq.ai)
 export ORQ_API_KEY=sk-orq-...   # a management key
 # now `tofu plan/apply` in any dir — no `tofu init` needed (and no schema for the IDE)
 ```
