@@ -42,44 +42,6 @@ resource "orq_evaluator" "tone" {
   ]
 }
 
-# An llm_eval evaluator judged by a jury. `mode` cannot be changed in place —
-# switching between single and jury replaces the evaluator.
-resource "orq_evaluator" "factuality_jury" {
-  key        = "factuality"
-  type       = "llm_eval"
-  project_id = orq_project.evals.id
-  mode       = "jury"
-  prompt     = "Is the answer factually supported by the retrieved context?"
-
-  output_type = "boolean"
-
-  jury = {
-    # At least two judges are required.
-    judges = [
-      {
-        model = "openai/gpt-4o"
-        retry = {
-          count    = 3
-          on_codes = [429, 503]
-        }
-        # Fallback models are tried in order when this judge keeps failing.
-        fallbacks = ["openai/gpt-4o-mini"]
-      },
-      {
-        model = "anthropic/claude-sonnet-4-5"
-      },
-    ]
-
-    # Used only when a judge fails outright; counts towards min_successful_judges.
-    replacement_judges = [
-      { model = "google/gemini-2.5-pro" },
-    ]
-
-    # At least 2, never more than judges + replacement_judges.
-    min_successful_judges = 2
-  }
-}
-
 # A boolean llm_eval judge. The prompt can reference the evaluated log through
 # {{log.*}} variables ({{log.input}}, {{log.output}}, {{log.messages}},
 # {{log.retrievals}}, {{log.reference}}) — Terraform passes the double curly
