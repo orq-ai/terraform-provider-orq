@@ -8,11 +8,11 @@ resource "orq_project" "evals" {
 # lintable, testable and diffable, and load it with file(). The referenced
 # eval.py is the studio's default template: the runtime calls `evaluate(log)`
 # and the docstring lists every field available on `log`.
-resource "orq_evaluator" "reference_match" {
-  key         = "reference-match"
+resource "orq_evaluator" "cites_sources" {
+  key         = "cites-sources"
   type        = "python_eval"
   project_id  = orq_project.evals.id
-  description = "Passes when the output matches the reference and mentions an input keyword"
+  description = "True when the answer cites at least one source"
   output_type = "boolean" # python_eval: boolean | number
 
   code = file("${path.module}/eval.py")

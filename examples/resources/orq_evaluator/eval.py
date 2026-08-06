@@ -15,21 +15,14 @@ def evaluate(log):
       - bool           Pass/fail verdict (True = pass, False = fail)
     """
 
-    input_text = log["input"]
     output = log["output"]
-    reference = log["reference"]  # str or None
 
     # -----------------------------------------------------------------------
     # Write your evaluation logic below.
-    # Example: pass if the output matches the reference and mentions a key
-    # word from the input (returns bool)
+    # Example: pass if the output cites at least one source (returns bool)
     # -----------------------------------------------------------------------
 
     output_clean = output.strip().lower()
-    reference_clean = (reference or "").strip().lower()
-    input_words = set(input_text.strip().lower().split())
+    markers = ("http://", "https://", "source:", "[1]", "according to")
 
-    exact_match = output_clean == reference_clean
-    mentions_input_keyword = any(word in output_clean for word in input_words)
-
-    return exact_match and mentions_input_keyword
+    return any(marker in output_clean for marker in markers)
