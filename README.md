@@ -61,10 +61,13 @@ monorepo (`../orquesta-web` by default; override `MONOREPO=`):
 - `proto/orq/{authz,apikeys,managementkeys}/**` ← `libs/catalog/orq/...`
 - `openapi/openapi.json` ← `.openapi/v2/public/openapi.json`
 
-Re-sync with `make proto-sync` / `make openapi-sync`, then `make generate`. Each
-sync stamps [`SOURCE_COMMIT`](./SOURCE_COMMIT) with the exact orquesta-web git
-revision the copies were taken from, so drift between this repo's committed
-snapshot and the monorepo is auditable.
+Re-sync with `make proto-sync openapi-sync`, then `make generate`. The sources
+are read from git objects at `SOURCE_BRANCH` (default `main`; override with e.g.
+`make proto-sync openapi-sync SOURCE_BRANCH=staging` — any git rev works), so
+the monorepo checkout itself is never touched. Each sync stamps
+[`SOURCE_COMMIT`](./SOURCE_COMMIT) with the exact orquesta-web git revision the
+copies were taken from, so drift between this repo's committed snapshot and the
+monorepo is auditable.
 
 Codegen is byte-for-byte reproducible: the buf remote plugin versions are pinned
 in `buf.gen.yaml` (`protocolbuffers/go`, `connectrpc/gosimple`), the buf CLI is
@@ -84,7 +87,7 @@ in `openapi/oapi-codegen.yaml` (not a tag include) so the OpenAI-compatible
 | `generate` | regenerate both clients (buf + oapi-codegen) |
 | `check-generated` | CI guard: fail if generated code is stale |
 | `docs` | regenerate `docs/` for the registries (tfplugindocs) |
-| `proto-sync` / `openapi-sync` | re-copy codegen inputs from the monorepo |
+| `proto-sync` / `openapi-sync` | re-copy codegen inputs from the monorepo (`SOURCE_BRANCH=main` by default) |
 
 ## Prerequisites
 
