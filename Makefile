@@ -20,7 +20,7 @@ PLUGIN_DIR := $(HOME)/.terraform.d/plugins/registry.opentofu.org/orq-ai/orq/$(VE
 TFPLUGINDOCS := github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.25.0
 TF_VERSION   := 1.15.8
 
-.PHONY: build test testacc generate generate-connect generate-rest proto-sync openapi-sync record-source-commit check-generated docs tidy ide-install
+.PHONY: build test testacc generate generate-connect generate-rest proto-sync openapi-sync fetch-source record-source-commit check-generated docs tidy ide-install
 
 build:
 	go build -o $(BINARY) .
@@ -70,35 +70,48 @@ tidy:
 # --- codegen source sync (from the platform monorepo) ------------------------
 # proto/ and openapi/openapi.json are COMMITTED COPIES. Re-sync then regenerate.
 #
-# Every sync stamps SOURCE_COMMIT with the exact orquesta-web git revision the
+# Files are read from git objects at SOURCE_BRANCH (default main, override with
+# e.g. `make proto-sync openapi-sync SOURCE_BRANCH=staging`; any git rev works),
+# so the monorepo checkout's working tree and checked-out branch are never
+# touched. origin/SOURCE_BRANCH is fetched first and preferred; the local ref is
+# the offline fallback.
+#
+# Every sync stamps SOURCE_COMMIT with the exact orquesta-web revision the
 # copies were taken from, so drift between the committed proto/OpenAPI snapshot
-# and the monorepo is auditable. Sync BOTH (`make proto-sync openapi-sync`) from
-# the same checkout so the stamp is meaningful.
+# and the monorepo is auditable. Sync BOTH (`make proto-sync openapi-sync`) in
+# one invocation so the stamp is meaningful.
+SOURCE_BRANCH ?= main
 
-# record-source-commit writes the monorepo HEAD (with a dirty marker) into
-# SOURCE_COMMIT. Called by both sync targets.
-record-source-commit:
+fetch-source:
+	@git -C $(MONOREPO) fetch --quiet origin $(SOURCE_BRANCH) \
+		|| echo "warn: could not fetch origin/$(SOURCE_BRANCH); falling back to local refs"
+
+# record-source-commit resolves SOURCE_BRANCH to a commit and writes it into
+# SOURCE_COMMIT. The sync targets read the rev back from that stamp, so the
+# stamp and the copied files always come from the same commit.
+record-source-commit: fetch-source
 	@{ \
-		rev=$$(git -C $(MONOREPO) rev-parse HEAD); \
-		branch=$$(git -C $(MONOREPO) rev-parse --abbrev-ref HEAD); \
-		dirty=$$(git -C $(MONOREPO) status --porcelain | head -1); \
-		if [ -n "$$dirty" ]; then rev="$$rev (working tree dirty at sync time)"; fi; \
-		printf 'orquesta-web %s\nbranch %s\nsynced %s\n' "$$rev" "$$branch" "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > SOURCE_COMMIT; \
-		echo "recorded source commit $$rev"; \
+		rev=$$(git -C $(MONOREPO) rev-parse --verify --quiet "origin/$(SOURCE_BRANCH)" \
+			|| git -C $(MONOREPO) rev-parse --verify "$(SOURCE_BRANCH)"); \
+		printf 'orquesta-web %s\nbranch %s\nsynced %s\n' "$$rev" "$(SOURCE_BRANCH)" "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > SOURCE_COMMIT; \
+		echo "recorded source commit $$rev ($(SOURCE_BRANCH))"; \
 	}
 
 proto-sync: record-source-commit
 	@set -e; \
+	rev=$$(awk '/^orquesta-web /{print $$2}' SOURCE_COMMIT); \
 	for f in projects budgets management_keys notifiers model_sharing api_keys identities sharing workspace_settings; do \
-		cp $(MONOREPO)/apps/platform-api/proto/orq/platform/v1/$$f.proto proto/orq/platform/v1/; \
+		git -C $(MONOREPO) show $$rev:apps/platform-api/proto/orq/platform/v1/$$f.proto > proto/orq/platform/v1/$$f.proto; \
 	done; \
-	cp $(MONOREPO)/libs/catalog/orq/authz/v1/authz.proto proto/orq/authz/v1/; \
-	cp $(MONOREPO)/libs/catalog/orq/apikeys/v1/catalog.proto proto/orq/apikeys/v1/; \
-	cp $(MONOREPO)/libs/catalog/orq/managementkeys/v1/catalog.proto proto/orq/managementkeys/v1/; \
-	cp $(MONOREPO)/apps/platform-api/proto/openapiv3/OpenAPIv3.proto proto/openapiv3/; \
-	cp $(MONOREPO)/apps/platform-api/proto/openapiv3/annotations.proto proto/openapiv3/; \
-	echo "synced protos from $(MONOREPO)"
+	git -C $(MONOREPO) show $$rev:libs/catalog/orq/authz/v1/authz.proto > proto/orq/authz/v1/authz.proto; \
+	git -C $(MONOREPO) show $$rev:libs/catalog/orq/apikeys/v1/catalog.proto > proto/orq/apikeys/v1/catalog.proto; \
+	git -C $(MONOREPO) show $$rev:libs/catalog/orq/managementkeys/v1/catalog.proto > proto/orq/managementkeys/v1/catalog.proto; \
+	git -C $(MONOREPO) show $$rev:apps/platform-api/proto/openapiv3/OpenAPIv3.proto > proto/openapiv3/OpenAPIv3.proto; \
+	git -C $(MONOREPO) show $$rev:apps/platform-api/proto/openapiv3/annotations.proto > proto/openapiv3/annotations.proto; \
+	echo "synced protos from $(MONOREPO) at $$rev"
 
 openapi-sync: record-source-commit
-	cp $(MONOREPO)/.openapi/v2/public/openapi.json openapi/openapi.json
-	@echo "synced openapi.json from $(MONOREPO)"
+	@set -e; \
+	rev=$$(awk '/^orquesta-web /{print $$2}' SOURCE_COMMIT); \
+	git -C $(MONOREPO) show $$rev:.openapi/v2/public/openapi.json > openapi/openapi.json; \
+	echo "synced openapi.json from $(MONOREPO) at $$rev"
