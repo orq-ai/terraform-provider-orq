@@ -1,10 +1,78 @@
 package provider
 
 import (
+	"context"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
+
+// The server refuses a budget whose limits.period is UNSPECIFIED — on create and
+// on any update that carries limits (budgets/connect_routes.go: "limits.period
+// must be one of DAILY, WEEKLY, MONTHLY, YEARLY, ONE_TIME"). Optional made that
+// an apply-time 400; Required plus the enum validator catches it at plan time.
+func TestBudgetPeriodIsRequiredAndEnumValidated(t *testing.T) {
+	ctx := context.Background()
+	var sch resource.SchemaResponse
+	NewBudgetResource().Schema(ctx, resource.SchemaRequest{}, &sch)
+	if sch.Diagnostics.HasError() {
+		t.Fatalf("schema errors: %v", sch.Diagnostics)
+	}
+
+	limits := sch.Schema.Attributes["limits"].(schema.SingleNestedAttribute)
+	period := limits.Attributes["period"].(schema.StringAttribute)
+	if !period.Required {
+		t.Error("limits.period must be Required")
+	}
+	if period.Optional || period.Computed {
+		t.Error("limits.period must not be Optional or Computed — the server has no default")
+	}
+
+	rejected := func(value string) bool {
+		for _, v := range period.Validators {
+			var resp validator.StringResponse
+			v.ValidateString(ctx, validator.StringRequest{
+				Path:        path.Root("limits").AtName("period"),
+				ConfigValue: types.StringValue(value),
+			}, &resp)
+			if resp.Diagnostics.HasError() {
+				return true
+			}
+		}
+		return false
+	}
+	for _, value := range []string{"DAILY", "WEEKLY", "MONTHLY", "YEARLY", "ONE_TIME"} {
+		if rejected(value) {
+			t.Errorf("period %q must be accepted", value)
+		}
+	}
+	for _, value := range []string{"", "monthly", "HOURLY"} {
+		if !rejected(value) {
+			t.Errorf("period %q must be rejected at plan time", value)
+		}
+	}
+}
+
+// A Required period is always in the plan, so the write carries it verbatim.
+func TestBudgetWriteInputCarriesPeriod(t *testing.T) {
+	r := &budgetResource{}
+	in, err := r.writeInput(context.Background(), &budgetResourceModel{
+		Limits: &budgetLimitsModel{
+			Period: types.StringValue("MONTHLY"),
+			Amount: types.Float64Value(100),
+		},
+	})
+	if err != nil {
+		t.Fatalf("writeInput: %v", err)
+	}
+	if in.Period != "MONTHLY" {
+		t.Errorf("period = %q, want MONTHLY", in.Period)
+	}
+}
 
 // budgetAlert builds an alert model for the id-correlation tests. id "<unknown>"
 // is an unknown value, "" is null; dimension "<unknown>" is unknown, "" is null
