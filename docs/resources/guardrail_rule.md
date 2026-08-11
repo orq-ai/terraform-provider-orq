@@ -68,9 +68,9 @@ Required:
 
 Optional:
 
-- `is_guardrail` (Boolean) `true` enforces the verdict: a failing check blocks the request. `false` observes only — the check runs asynchronously and its result lands in traces without affecting the response. NOTE for `python_eval` evaluators: a boolean `false` blocks only when the evaluator itself carries a guardrail config; `llm_eval` evaluators block on `false` without one.
+- `is_guardrail` (Boolean) `true` enforces the verdict: a failing check blocks the request. `false` observes only — the check runs asynchronously and its result lands in traces without affecting the response. Omitted ENFORCES: the server resolves a missing flag to `true`, so observe-only mode needs an explicit `false`. NOTE for `python_eval` evaluators: a boolean `false` blocks only when the evaluator itself carries a guardrail config; `llm_eval` evaluators block on `false` without one.
 - `options` (String) Arbitrary per-guardrail configuration as a JSON object string (e.g. PII language/threshold/entities). Compared semantically, so key order and insignificant whitespace do not produce a diff. Preserved across updates.
-- `sample_rate` (Number) Fraction of requests to evaluate (0-1).
+- `sample_rate` (Number) Fraction of requests to evaluate (0-1). Omitted evaluates EVERY matching request — the server resolves a missing sample rate to 1.0.
 
 ## Import
 

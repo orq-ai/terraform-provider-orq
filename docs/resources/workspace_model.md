@@ -77,7 +77,7 @@ resource "orq_workspace_model" "gpt4o" {
 
 ### Required
 
-- `model_id` (String) The model to enable. The recommended form is the human-readable reference `provider/model_id` (e.g. `openai/gpt-4o`); a workspace-custom model uses `workspaceKey@provider/model_id` (e.g. `acme@openailike/my-model`). This is the `ref_id` field of an entry in `GET /v2/models`. A model DOCUMENT id (the `id` field, a UUID) is also accepted for compatibility and takes precedence when it exactly matches a document. If a ref matches more than one document (the same model_id under multiple providers), resolution fails as ambiguous — use the document id to select exactly one. Changing this forces replacement.
+- `model_id` (String) The model to enable. The recommended form is the human-readable reference `provider/model_id` (e.g. `openai/gpt-4o`); a workspace-custom model uses `workspaceKey@provider/model_id` (e.g. `acme@openailike/my-model`). This is the `ref_id` field of an entry in `GET /v2/models`. A model DOCUMENT id (the `id` field, a UUID) is also accepted for compatibility and takes precedence when it exactly matches a document. If a ref matches more than one document (the same model_id under multiple providers), resolution fails as ambiguous — use the document id to select exactly one. Changing this forces replacement, so an import by document id stores the canonical ref here instead (unless that ref is ambiguous), keeping a ref-based config from planning a destroy/recreate.
 - `sharing` (Attributes) Project sharing config. Exactly one of `all_projects` or `project_ids` must be set. (see [below for nested schema](#nestedatt--sharing))
 
 ### Read-Only
@@ -92,9 +92,9 @@ resource "orq_workspace_model" "gpt4o" {
 Optional:
 
 - `all_projects` (Boolean) Share with every project in the workspace. Mutually exclusive with `project_ids`.
-- `allow_fork` (Boolean) Allow consuming projects to fork this model into a project-owned copy.
-- `allow_version_pin` (Boolean) Allow consuming projects to pin a specific version.
-- `auto_grant_new_projects` (Boolean) Automatically grant new projects access. Only valid with `all_projects` (combining it with an explicit `project_ids` list is a perpetual-diff trap and is rejected).
+- `allow_fork` (Boolean) Allow consuming projects to fork this model into a project-owned copy. Omitted stores `false`.
+- `allow_version_pin` (Boolean) Allow consuming projects to pin a specific version. Omitted stores `false`.
+- `auto_grant_new_projects` (Boolean) Automatically grant new projects access. Omitted stores `false`. Only valid with `all_projects` (combining it with an explicit `project_ids` list is a perpetual-diff trap and is rejected).
 - `project_ids` (List of String) Share with exactly these projects. An empty list means shared with no project (still workspace-visible to admins). Mutually exclusive with `all_projects`.
 
 ## Import
@@ -105,6 +105,8 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 
 ```shell
 # Workspace models are imported by the model reference or by the catalog
-# document id — the same forms `model_id` accepts.
+# document id — the same forms `model_id` accepts. An import by document id
+# stores the canonical reference in `model_id`, so a config written with the
+# reference plans clean (`model_id` forces replacement).
 terraform import orq_workspace_model.example openai/gpt-4o
 ```

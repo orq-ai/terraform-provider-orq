@@ -87,9 +87,10 @@ func (r *managementKeyResource) Schema(_ context.Context, _ resource.SchemaReque
 					"`ACCESS_LEVEL_WRITE`). Required when `permission_mode` is `MANAGEMENT_PERMISSION_MODE_RESTRICTED`; must be omitted otherwise.",
 			},
 			"expires_at": schema.StringAttribute{
-				CustomType:          rfc3339InstantType{},
-				Optional:            true,
-				MarkdownDescription: "Optional expiration (RFC 3339). Must be in the future. Compared as an instant, so an equivalent value in a different UTC offset does not produce a diff.",
+				CustomType: rfc3339InstantType{},
+				Optional:   true,
+				MarkdownDescription: "Optional expiration (RFC 3339). Must be in the future. Omitted means the key " +
+					"never expires. Compared as an instant, so an equivalent value in a different UTC offset does not produce a diff.",
 			},
 			"token_prefix": schema.StringAttribute{
 				Computed:            true,

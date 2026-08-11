@@ -93,10 +93,13 @@ resource "orq_budget" "project_monthly" {
 <a id="nestedatt--limits"></a>
 ### Nested Schema for `limits`
 
+Required:
+
+- `period` (String) Rollover cadence: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`, or `ONE_TIME`. Required: a budget without a valid period is rejected at apply time.
+
 Optional:
 
 - `amount` (Number) Spend ceiling in USD.
-- `period` (String) Rollover cadence: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`, or `ONE_TIME`.
 - `token_limit` (Number) Token ceiling.
 
 

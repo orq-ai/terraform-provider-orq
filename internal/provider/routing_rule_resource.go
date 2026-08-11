@@ -116,8 +116,9 @@ func (r *routingRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 					"matches; removing the block from a managed rule clears it server-side.",
 				Attributes: map[string]schema.Attribute{
 					"mode": schema.StringAttribute{
-						Required:            true,
-						MarkdownDescription: "Load-balancing mode across `models`.",
+						Required: true,
+						MarkdownDescription: "Load-balancing mode across `models`: `fallback`, `latency_based`, " +
+							"`weighted`, or `round_robin`.",
 						Validators: []validator.String{
 							stringvalidator.OneOf("fallback", "latency_based", "weighted", "round_robin"),
 						},

@@ -116,17 +116,17 @@ func (r *workspaceModelResource) Schema(_ context.Context, _ resource.SchemaRequ
 					"allow_version_pin": schema.BoolAttribute{
 						Optional:            true,
 						Computed:            true,
-						MarkdownDescription: "Allow consuming projects to pin a specific version.",
+						MarkdownDescription: "Allow consuming projects to pin a specific version. Omitted stores `false`.",
 					},
 					"allow_fork": schema.BoolAttribute{
 						Optional:            true,
 						Computed:            true,
-						MarkdownDescription: "Allow consuming projects to fork this model into a project-owned copy.",
+						MarkdownDescription: "Allow consuming projects to fork this model into a project-owned copy. Omitted stores `false`.",
 					},
 					"auto_grant_new_projects": schema.BoolAttribute{
 						Optional: true,
 						Computed: true,
-						MarkdownDescription: "Automatically grant new projects access. Only valid with `all_projects` " +
+						MarkdownDescription: "Automatically grant new projects access. Omitted stores `false`. Only valid with `all_projects` " +
 							"(combining it with an explicit `project_ids` list is a perpetual-diff trap and is rejected).",
 					},
 				},
