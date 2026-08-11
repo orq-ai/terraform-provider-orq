@@ -113,7 +113,7 @@ func (r *budgetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					"period": schema.StringAttribute{
 						Required: true,
 						MarkdownDescription: "Rollover cadence: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`, or `ONE_TIME`. " +
-							"Required: a budget without a valid period is rejected at apply time.",
+							"Required: the server has no default, and any other value is rejected at plan time.",
 						Validators: []validator.String{
 							stringvalidator.OneOf("DAILY", "WEEKLY", "MONTHLY", "YEARLY", "ONE_TIME"),
 						},

@@ -95,7 +95,7 @@ resource "orq_budget" "project_monthly" {
 
 Required:
 
-- `period` (String) Rollover cadence: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`, or `ONE_TIME`. Required: a budget without a valid period is rejected at apply time.
+- `period` (String) Rollover cadence: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`, or `ONE_TIME`. Required: the server has no default, and any other value is rejected at plan time.
 
 Optional:
 
