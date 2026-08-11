@@ -4,11 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/float64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
@@ -28,20 +32,32 @@ type routingRuleResource struct {
 }
 
 type routingRuleResourceModel struct {
-	ID           types.String            `tfsdk:"id"`
-	DisplayName  types.String            `tfsdk:"display_name"`
-	Description  types.String            `tfsdk:"description"`
-	Enabled      types.Bool              `tfsdk:"enabled"`
-	ProjectID    types.String            `tfsdk:"project_id"`
-	Priority     types.Int64             `tfsdk:"priority"`
-	Expression   *routingExpressionModel `tfsdk:"expression"`
-	ModelsConfig modelsConfigValue       `tfsdk:"models_config"`
-	CreatedAt    types.String            `tfsdk:"created_at"`
-	UpdatedAt    types.String            `tfsdk:"updated_at"`
+	ID           types.String                  `tfsdk:"id"`
+	DisplayName  types.String                  `tfsdk:"display_name"`
+	Description  types.String                  `tfsdk:"description"`
+	Enabled      types.Bool                    `tfsdk:"enabled"`
+	ProjectID    types.String                  `tfsdk:"project_id"`
+	Priority     types.Int64                   `tfsdk:"priority"`
+	Expression   *routingExpressionModel       `tfsdk:"expression"`
+	ModelsConfig *routingRuleModelsConfigModel `tfsdk:"models_config"`
+	CreatedAt    types.String                  `tfsdk:"created_at"`
+	UpdatedAt    types.String                  `tfsdk:"updated_at"`
 }
 
 type routingExpressionModel struct {
 	Cel types.String `tfsdk:"cel"`
+}
+
+type routingRuleModelsConfigModel struct {
+	Mode   types.String               `tfsdk:"mode"`
+	Models []routingRuleModelRefModel `tfsdk:"models"`
+}
+
+type routingRuleModelRefModel struct {
+	Model         types.String  `tfsdk:"model"`
+	DisplayName   types.String  `tfsdk:"display_name"`
+	Weight        types.Float64 `tfsdk:"weight"`
+	IntegrationID types.String  `tfsdk:"integration_id"`
 }
 
 func (r *routingRuleResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -94,22 +110,51 @@ func (r *routingRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 					},
 				},
 			},
-			"models_config": schema.StringAttribute{
-				CustomType: modelsConfigType{},
-				Optional:   true,
-				Computed:   true,
-				// UseStateForUnknown keeps an unrelated update from marking this
-				// Optional+Computed value unknown and churning updated_at. It only
-				// acts on an unknown plan (null config) and never rewrites a non-null
-				// configured value, so it cannot reintroduce the AssertPlanValid bug.
-				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
-				MarkdownDescription: "Model routing configuration as a JSON object string " +
-					"(`{\"mode\":...,\"models\":[...]}`). Compared semantically, so key order and " +
-					"insignificant whitespace do not produce a diff. A model entry with an omitted or " +
-					"zero `weight` is stored by the server with `weight` = 0.5; the two forms are treated " +
-					"as equal, so a weight-less config does not drift against the server read-back. " +
-					"Optional+Computed: dropping it from config keeps the prior value (the update API " +
-					"cannot clear it).",
+			"models_config": schema.SingleNestedAttribute{
+				Optional: true,
+				MarkdownDescription: "Model routing configuration. Omit it entirely for a rule that only " +
+					"matches; removing the block from a managed rule clears it server-side.",
+				Attributes: map[string]schema.Attribute{
+					"mode": schema.StringAttribute{
+						Required:            true,
+						MarkdownDescription: "Load-balancing mode across `models`.",
+						Validators: []validator.String{
+							stringvalidator.OneOf("fallback", "latency_based", "weighted", "round_robin"),
+						},
+					},
+					"models": schema.ListNestedAttribute{
+						Required:            true,
+						MarkdownDescription: "Candidate models, in fallback order. At least one is required.",
+						Validators:          []validator.List{listvalidator.SizeAtLeast(1)},
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"model": schema.StringAttribute{
+									Required:            true,
+									MarkdownDescription: "Model reference, e.g. `openai/gpt-4o`.",
+									Validators:          []validator.String{stringvalidator.LengthAtLeast(1)},
+								},
+								"display_name": schema.StringAttribute{
+									Optional:            true,
+									Computed:            true,
+									MarkdownDescription: "Label shown in the routing UI. Omitted stores an empty label.",
+								},
+								"weight": schema.Float64Attribute{
+									Optional: true,
+									Computed: true,
+									MarkdownDescription: "Share of traffic for `weighted` mode. Omitted stores the " +
+										"server default of `0.5`. `0` is rejected here because the server rewrites " +
+										"it to `0.5`, which would make every apply inconsistent.",
+									Validators: []validator.Float64{float64validator.Between(0.001, 1)},
+								},
+								"integration_id": schema.StringAttribute{
+									Optional:            true,
+									Computed:            true,
+									MarkdownDescription: "Integration to serve this model through. Omitted stores none.",
+								},
+							},
+						},
+					},
+				},
 			},
 			"created_at": schema.StringAttribute{
 				Computed:            true,
@@ -153,9 +198,53 @@ func (r *routingRuleResource) apply(g *client.RoutingRule, m *routingRuleResourc
 	} else {
 		m.Expression = nil
 	}
-	m.ModelsConfig = modelsConfigFromRaw(g.ModelsConfig)
+	m.ModelsConfig = modelsConfigModel(g.ModelsConfig)
 	m.CreatedAt = types.StringValue(g.CreatedAt)
 	m.UpdatedAt = types.StringValue(g.UpdatedAt)
+}
+
+// modelsConfigModel is the authoritative read-back: every leaf comes from the
+// server, including the defaults it fills in for an omitted display_name,
+// weight, or integration_id (which is why those three are Optional+Computed).
+func modelsConfigModel(c *client.RoutingRuleModelsConfig) *routingRuleModelsConfigModel {
+	if c == nil {
+		return nil
+	}
+	out := &routingRuleModelsConfigModel{
+		Mode:   types.StringValue(c.Mode),
+		Models: make([]routingRuleModelRefModel, 0, len(c.Models)),
+	}
+	for _, m := range c.Models {
+		out.Models = append(out.Models, routingRuleModelRefModel{
+			Model:         types.StringValue(m.Model),
+			DisplayName:   types.StringValue(m.DisplayName),
+			Weight:        optFloat64Ptr(m.Weight),
+			IntegrationID: types.StringValue(m.IntegrationID),
+		})
+	}
+	return out
+}
+
+// modelsConfigInput builds the write shape. A nil model means the block is
+// absent from config: the write omits the field entirely (the server rejects an
+// explicit null) and an update clears any stored config instead.
+func (m *routingRuleModelsConfigModel) modelsConfigInput() *client.RoutingRuleModelsConfig {
+	if m == nil {
+		return nil
+	}
+	out := &client.RoutingRuleModelsConfig{
+		Mode:   m.Mode.ValueString(),
+		Models: make([]client.RoutingRuleModelRef, 0, len(m.Models)),
+	}
+	for _, e := range m.Models {
+		out.Models = append(out.Models, client.RoutingRuleModelRef{
+			Model:         e.Model.ValueString(),
+			DisplayName:   e.DisplayName.ValueString(),
+			Weight:        float64Ptr(e.Weight),
+			IntegrationID: e.IntegrationID.ValueString(),
+		})
+	}
+	return out
 }
 
 func (m *routingRuleResourceModel) expressionCEL() *string {
@@ -193,7 +282,7 @@ func (r *routingRuleResource) Create(ctx context.Context, req resource.CreateReq
 		ProjectID:     strPtr(plan.ProjectID),
 		Priority:      int64Ptr(plan.Priority),
 		ExpressionCEL: plan.expressionCEL(),
-		ModelsConfig:  plan.ModelsConfig.toRaw(),
+		ModelsConfig:  plan.ModelsConfig.modelsConfigInput(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to create routing rule", errDetail(err))
@@ -229,14 +318,16 @@ func (r *routingRuleResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 	name := plan.DisplayName.ValueString()
+	modelsConfig := plan.ModelsConfig.modelsConfigInput()
 	g, err := r.rules.Update(ctx, client.RoutingRuleUpdateInput{
-		ID:            plan.ID.ValueString(),
-		DisplayName:   &name,
-		Description:   strPtr(plan.Description),
-		Enabled:       boolPtr(plan.Enabled),
-		Priority:      int64Ptr(plan.Priority),
-		ExpressionCEL: plan.expressionCELForUpdate(),
-		ModelsConfig:  plan.ModelsConfig.toRaw(),
+		ID:                plan.ID.ValueString(),
+		DisplayName:       &name,
+		Description:       strPtr(plan.Description),
+		Enabled:           boolPtr(plan.Enabled),
+		Priority:          int64Ptr(plan.Priority),
+		ExpressionCEL:     plan.expressionCELForUpdate(),
+		ModelsConfig:      modelsConfig,
+		ClearModelsConfig: modelsConfig == nil,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to update routing rule", errDetail(err))

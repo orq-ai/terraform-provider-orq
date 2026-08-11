@@ -130,19 +130,25 @@ func TestRoutingRuleApplyExpressionAndModels(t *testing.T) {
 		DisplayName:   "route",
 		Priority:      3,
 		ExpressionCEL: `model == "gpt-4"`,
-		ModelsConfig:  []byte(`{"mode":"fallback"}`),
+		ModelsConfig: &client.RoutingRuleModelsConfig{
+			Mode:   "fallback",
+			Models: []client.RoutingRuleModelRef{{Model: "openai/gpt-4o"}},
+		},
 	}, &m)
 	if m.Expression == nil || m.Expression.Cel.ValueString() != `model == "gpt-4"` {
 		t.Errorf("expression not applied: %+v", m.Expression)
 	}
-	if m.ModelsConfig.IsNull() {
-		t.Errorf("models_config not applied")
+	if m.ModelsConfig == nil || m.ModelsConfig.Mode.ValueString() != "fallback" {
+		t.Errorf("models_config not applied: %+v", m.ModelsConfig)
 	}
-	// No expression => nil nested block.
+	// No expression / no models_config => nil nested blocks.
 	var m2 routingRuleResourceModel
 	r.apply(&client.RoutingRule{ID: "rrl_2"}, &m2)
 	if m2.Expression != nil {
 		t.Errorf("empty expression must be nil, got %+v", m2.Expression)
+	}
+	if m2.ModelsConfig != nil {
+		t.Errorf("absent models_config must be nil, got %+v", m2.ModelsConfig)
 	}
 }
 
