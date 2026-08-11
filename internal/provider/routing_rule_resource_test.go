@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -417,5 +418,47 @@ func TestRoutingRuleModelsConfigSchema(t *testing.T) {
 	}
 	if len(weight.Validators) == 0 {
 		t.Error("models[].weight needs a range validator")
+	}
+}
+
+// --- apply-time weight guard ------------------------------------------------
+
+// A weight that is only known at apply (an interpolated value) skips the schema
+// validator, and a zero would come back from the server as 0.5 — an inconsistent
+// result on an already-created rule. The pre-flight rejects it before any call.
+func TestRoutingRuleZeroWeightRejectedBeforeTheWrite(t *testing.T) {
+	ctx := context.Background()
+	s := routingRuleSchema(t)
+
+	zeroWeight := minimalModelsConfig()
+	zeroWeight.Models[0].Weight = types.Float64Value(0)
+	plan := routingRuleRaw(t, s, routingRulePlan(zeroWeight))
+
+	api := &fakeRoutingRules{}
+	createResp := resource.CreateResponse{State: tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}}
+	(&routingRuleResource{rules: api}).Create(ctx, resource.CreateRequest{Plan: tfsdk.Plan{Schema: s, Raw: plan}}, &createResp)
+	if !createResp.Diagnostics.HasError() {
+		t.Fatal("a zero weight must fail the create")
+	}
+	if api.created != nil {
+		t.Error("the rule must not be created before the weight is rejected")
+	}
+	if detail := createResp.Diagnostics.Errors()[0].Detail(); !strings.Contains(detail, "greater than 0") {
+		t.Errorf("the diagnostic must explain the constraint, got %q", detail)
+	}
+
+	// Same guard on update, so an interpolation cannot poison an existing rule.
+	prior := routingRuleCreate(t, s, api, routingRuleRaw(t, s, routingRulePlan(minimalModelsConfig())))
+	api.updated = nil
+	updateResp := resource.UpdateResponse{State: tfsdk.State{Schema: s, Raw: prior}}
+	(&routingRuleResource{rules: api}).Update(ctx, resource.UpdateRequest{
+		Plan:  tfsdk.Plan{Schema: s, Raw: plan},
+		State: tfsdk.State{Schema: s, Raw: prior},
+	}, &updateResp)
+	if !updateResp.Diagnostics.HasError() {
+		t.Fatal("a zero weight must fail the update")
+	}
+	if api.updated != nil {
+		t.Error("the rule must not be written before the weight is rejected")
 	}
 }

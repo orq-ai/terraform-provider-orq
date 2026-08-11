@@ -96,7 +96,7 @@ Optional:
 
 - `display_name` (String) Label shown in the routing UI. Omitted stores an empty label.
 - `integration_id` (String) Integration to serve this model through. Omitted stores none.
-- `weight` (Number) Share of traffic for `weighted` mode. Omitted stores the server default of `0.5`. `0` is rejected here because the server rewrites it to `0.5`, which would make every apply inconsistent.
+- `weight` (Number) Share of traffic for `weighted` mode. Omitted stores the server default of `0.5`. `0` is rejected — at plan time, and again before the write when the value is only known then — because the server rewrites it to `0.5`, which would make the apply inconsistent.
 
 ## Import
 
