@@ -62,7 +62,7 @@ output "ci_management_key_token" {
 ### Optional
 
 - `access` (Map of String) Per-domain access map (catalog domain id → `ACCESS_LEVEL_NONE` / `ACCESS_LEVEL_READ` / `ACCESS_LEVEL_WRITE`). Required when `permission_mode` is `MANAGEMENT_PERMISSION_MODE_RESTRICTED`; must be omitted otherwise.
-- `expires_at` (String) Optional expiration (RFC 3339). Must be in the future. Compared as an instant, so an equivalent value in a different UTC offset does not produce a diff.
+- `expires_at` (String) Optional expiration (RFC 3339). Must be in the future. Omitted means the key never expires. Compared as an instant, so an equivalent value in a different UTC offset does not produce a diff.
 - `permission_mode` (String) Permission preset. One of `MANAGEMENT_PERMISSION_MODE_ALL`, `MANAGEMENT_PERMISSION_MODE_RESTRICTED`, `MANAGEMENT_PERMISSION_MODE_READ_ONLY`. Defaults to `MANAGEMENT_PERMISSION_MODE_ALL`.
 
 ### Read-Only

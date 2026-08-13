@@ -9,14 +9,24 @@ resource "orq_routing_rule" "fallback" {
     cel = "model == \"gpt-4\""
   }
 
-  # `models_config` is a JSON object string. Each model entry uses the key
-  # `model` (a model slug) and an optional `weight` in 0..1 (a model with an
-  # omitted or zero weight is stored server-side as weight = 0.5).
-  models_config = jsonencode({
-    mode = "fallback"
+  # Optional. Omit the whole block for a rule that only matches; removing it
+  # from an existing rule clears the stored configuration.
+  models_config = {
+    mode = "weighted" # fallback | latency_based | weighted | round_robin
     models = [
       { model = "openai/gpt-4o", weight = 0.7 },
       { model = "openai/gpt-4o-mini", weight = 0.3 },
     ]
-  })
+  }
+}
+
+# The smallest usable configuration: a mode and one model. `display_name`,
+# `weight` (0.5) and `integration_id` are filled in by the server.
+resource "orq_routing_rule" "minimal" {
+  display_name = "Default route"
+
+  models_config = {
+    mode   = "fallback"
+    models = [{ model = "openai/gpt-4o" }]
+  }
 }

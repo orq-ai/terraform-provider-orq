@@ -6,7 +6,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
 )
@@ -315,5 +317,133 @@ func TestGuardrailOptionsModelRoundTrip(t *testing.T) {
 	if !eq {
 		t.Errorf("options did not round-trip: in=%s out=%s",
 			models[0].Options.ValueString(), back.Guardrails[0].Options.ValueString())
+	}
+}
+
+// --- workspace_model import canonicalization ------------------------------
+
+// catalogModels resolves a fixed catalog: by document id, and by ref_id when
+// exactly one document carries it (mirroring client.Resolve).
+type catalogModels struct{ docs []client.Model }
+
+func (c *catalogModels) Resolve(_ context.Context, ref string) (*client.Model, error) {
+	for i := range c.docs {
+		if c.docs[i].ID == ref {
+			return &c.docs[i], nil
+		}
+	}
+	var matches []*client.Model
+	for i := range c.docs {
+		if c.docs[i].RefID == ref {
+			matches = append(matches, &c.docs[i])
+		}
+	}
+	switch len(matches) {
+	case 1:
+		return matches[0], nil
+	case 0:
+		return nil, &client.Error{Code: client.CodeNotFound, Message: "no such model"}
+	default:
+		return nil, &client.Error{Code: client.CodeInvalid, Message: "ambiguous reference"}
+	}
+}
+
+// enabledWorkspaceModels answers every read with the same enabled model.
+type enabledWorkspaceModels struct{ gotID string }
+
+func (s *enabledWorkspaceModels) Enable(context.Context, string) error  { return nil }
+func (s *enabledWorkspaceModels) Disable(context.Context, string) error { return nil }
+func (s *enabledWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
+	s.gotID = modelID
+	return &client.WorkspaceModel{
+		ModelID:     modelID,
+		DisplayName: "GPT-4o",
+		Enabled:     true,
+		Sharing:     &client.SharingConfig{Mode: client.SharingModeAllProjects},
+	}, nil
+}
+func (s *enabledWorkspaceModels) SetSharing(context.Context, string, client.SharingInput) error {
+	return nil
+}
+
+// TestWorkspaceModelImportCanonicalizesDocumentID proves the import read
+// rewrites a DOCUMENT id into the human-readable ref. model_id is
+// RequiresReplace, so leaving the UUID in state made the first apply against a
+// ref-based config silently destroy and recreate the model.
+func TestWorkspaceModelImportCanonicalizesDocumentID(t *testing.T) {
+	ctx := context.Background()
+	docs := []client.Model{{ID: "doc_uuid_123", RefID: "openai/gpt-4o"}}
+	models := &enabledWorkspaceModels{}
+	r := &workspaceModelResource{models: models, resolver: &catalogModels{docs: docs}}
+
+	var sch resource.SchemaResponse
+	NewWorkspaceModelResource().Schema(ctx, resource.SchemaRequest{}, &sch)
+	s := sch.Schema
+
+	read := func(prior workspaceModelResourceModel) workspaceModelResourceModel {
+		t.Helper()
+		state := tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+		if diags := state.Set(ctx, &prior); diags.HasError() {
+			t.Fatalf("seeding state: %v", diags)
+		}
+		resp := resource.ReadResponse{State: state}
+		r.Read(ctx, resource.ReadRequest{State: state}, &resp)
+		if resp.Diagnostics.HasError() {
+			t.Fatalf("Read: %v", resp.Diagnostics)
+		}
+		var out workspaceModelResourceModel
+		if diags := resp.State.Get(ctx, &out); diags.HasError() {
+			t.Fatalf("reading state: %v", diags)
+		}
+		return out
+	}
+
+	// Imported by document id: ImportState seeds model_id alone.
+	imported := read(workspaceModelResourceModel{
+		ID:      types.StringNull(),
+		ModelID: types.StringValue("doc_uuid_123"),
+	})
+	if imported.ModelID.ValueString() != "openai/gpt-4o" {
+		t.Errorf("model_id = %q, want the canonical ref", imported.ModelID.ValueString())
+	}
+	if imported.ID.ValueString() != "doc_uuid_123" {
+		t.Errorf("id must stay the document uuid, got %q", imported.ID.ValueString())
+	}
+	if models.gotID != "doc_uuid_123" {
+		t.Errorf("the read must address the document id, got %q", models.gotID)
+	}
+
+	// Imported by ref: unchanged.
+	byRef := read(workspaceModelResourceModel{
+		ID:      types.StringNull(),
+		ModelID: types.StringValue("openai/gpt-4o"),
+	})
+	if byRef.ModelID.ValueString() != "openai/gpt-4o" {
+		t.Errorf("a ref import must be left alone, got %q", byRef.ModelID.ValueString())
+	}
+
+	// An ordinary refresh (id already in state) never rewrites the operator's
+	// own model_id, whichever form they wrote.
+	refreshed := read(workspaceModelResourceModel{
+		ID:      types.StringValue("doc_uuid_123"),
+		ModelID: types.StringValue("doc_uuid_123"),
+	})
+	if refreshed.ModelID.ValueString() != "doc_uuid_123" {
+		t.Errorf("a normal read must preserve model_id, got %q", refreshed.ModelID.ValueString())
+	}
+}
+
+// A ref shared by two documents cannot name one of them, so the document id has
+// to stay: rewriting would make the resource unrecreatable.
+func TestWorkspaceModelImportKeepsAmbiguousDocumentID(t *testing.T) {
+	ctx := context.Background()
+	r := &workspaceModelResource{resolver: &catalogModels{docs: []client.Model{
+		{ID: "doc_a", RefID: "openai/gpt-4o"},
+		{ID: "doc_b", RefID: "openai/gpt-4o"},
+	}}}
+
+	got := r.canonicalModelID(ctx, &client.Model{ID: "doc_a", RefID: "openai/gpt-4o"}, "doc_a")
+	if got.ValueString() != "doc_a" {
+		t.Errorf("an ambiguous ref must not replace the document id, got %q", got.ValueString())
 	}
 }

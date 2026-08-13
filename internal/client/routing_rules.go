@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -14,9 +15,7 @@ import (
 //
 // ExpressionCEL is the writable part of the rule's match expression (the server
 // enriches reads with a derived `config`, which the provider does not surface).
-// ModelsConfig is carried as raw JSON so its (evolving, deeply-nested) shape is
-// preserved end-to-end without the provider modeling every field; a nil value
-// means the field was absent.
+// A nil ModelsConfig means the rule has none.
 type RoutingRule struct {
 	ID            string
 	DisplayName   string
@@ -25,9 +24,28 @@ type RoutingRule struct {
 	ProjectID     string
 	Priority      int64
 	ExpressionCEL string
-	ModelsConfig  json.RawMessage
+	ModelsConfig  *RoutingRuleModelsConfig
 	CreatedAt     string
 	UpdatedAt     string
+}
+
+// RoutingRuleModelsConfig is a rule's model-selection block. Mode is one of
+// fallback / latency_based / weighted / round_robin and Models must be
+// non-empty; the server rejects anything else.
+type RoutingRuleModelsConfig struct {
+	Mode   string
+	Models []RoutingRuleModelRef
+}
+
+// RoutingRuleModelRef is one candidate model. DisplayName and IntegrationID
+// read back as "" when the server stored none. A nil Weight on a write lets the
+// server apply its 0.5 default; on a read it means the stored weight was zero
+// (only reachable for a legacy document).
+type RoutingRuleModelRef struct {
+	Model         string
+	DisplayName   string
+	Weight        *float64
+	IntegrationID string
 }
 
 // RoutingRulePage is one page of a cursor-paginated list.
@@ -44,21 +62,25 @@ type RoutingRuleCreateInput struct {
 	ProjectID     *string
 	Priority      *int64
 	ExpressionCEL *string
-	ModelsConfig  json.RawMessage
+	ModelsConfig  *RoutingRuleModelsConfig
 }
 
 // RoutingRuleUpdateInput is the update patch. There is no ProjectID: the update
 // API omits project_id (verified against apps/platform-api/routingrules/routes.go
 // — updateRoutingRuleRequest has no ProjectID field), so the resource marks it
 // RequiresReplace.
+//
+// A nil ModelsConfig leaves the stored one untouched; ClearModelsConfig removes
+// it (see routingRuleUpdatePayload).
 type RoutingRuleUpdateInput struct {
-	ID            string
-	DisplayName   *string
-	Description   *string
-	Enabled       *bool
-	Priority      *int64
-	ExpressionCEL *string
-	ModelsConfig  json.RawMessage
+	ID                string
+	DisplayName       *string
+	Description       *string
+	Enabled           *bool
+	Priority          *int64
+	ExpressionCEL     *string
+	ModelsConfig      *RoutingRuleModelsConfig
+	ClearModelsConfig bool
 }
 
 // RoutingRulesAPI is the per-resource seam for the routing-rules domain
@@ -76,7 +98,8 @@ type restRoutingRules struct {
 }
 
 // routingRuleWire mirrors the JSON body every routing-rule read/write returns.
-// models_config is kept as raw JSON so an update never drops or reshapes it.
+// The server emits proto zero values, so an absent models_config arrives as an
+// explicit `null` and its leaf strings as "".
 type routingRuleWire struct {
 	ID          string  `json:"_id"`
 	DisplayName string  `json:"display_name"`
@@ -87,9 +110,37 @@ type routingRuleWire struct {
 	Expression  *struct {
 		Cel string `json:"cel"`
 	} `json:"expression"`
-	ModelsConfig json.RawMessage `json:"models_config"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
+	ModelsConfig *modelsConfigWire `json:"models_config"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+}
+
+type modelsConfigWire struct {
+	Mode   string         `json:"mode"`
+	Models []modelRefWire `json:"models"`
+}
+
+type modelRefWire struct {
+	Model         string   `json:"model"`
+	DisplayName   string   `json:"display_name"`
+	Weight        *float64 `json:"weight"`
+	IntegrationID string   `json:"integration_id"`
+}
+
+func (w *modelsConfigWire) toConfig() *RoutingRuleModelsConfig {
+	if w == nil {
+		return nil
+	}
+	out := &RoutingRuleModelsConfig{Mode: w.Mode, Models: make([]RoutingRuleModelRef, 0, len(w.Models))}
+	for _, m := range w.Models {
+		out.Models = append(out.Models, RoutingRuleModelRef{
+			Model:         m.Model,
+			DisplayName:   m.DisplayName,
+			Weight:        m.Weight,
+			IntegrationID: m.IntegrationID,
+		})
+	}
+	return out
 }
 
 func (w *routingRuleWire) toRule() RoutingRule {
@@ -99,7 +150,7 @@ func (w *routingRuleWire) toRule() RoutingRule {
 		Enabled:      w.Enabled,
 		ProjectID:    w.ProjectID,
 		Priority:     w.Priority,
-		ModelsConfig: w.ModelsConfig,
+		ModelsConfig: w.ModelsConfig.toConfig(),
 		CreatedAt:    w.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:    w.UpdatedAt.UTC().Format(time.RFC3339),
 	}
@@ -121,18 +172,34 @@ func decodeRoutingRuleBody(body []byte) (*RoutingRule, error) {
 	return &r, nil
 }
 
-// modelsConfigToRest unmarshals a raw models_config blob into the generated REST
-// type. A nil blob yields nil (field omitted). A malformed blob is a validation
-// error, not a transport failure.
-func modelsConfigToRest(raw json.RawMessage) (*restgen.ModelsConfig, error) {
-	if len(raw) == 0 {
-		return nil, nil
+// modelsConfigToREST maps the domain config onto the generated request type. A
+// nil config yields nil, which the `models_config,omitempty` request field omits
+// entirely — the server rejects an explicit null.
+func modelsConfigToREST(c *RoutingRuleModelsConfig) *restgen.ModelsConfig {
+	if c == nil {
+		return nil
 	}
-	var mc restgen.ModelsConfig
-	if err := json.Unmarshal(raw, &mc); err != nil {
-		return nil, &Error{Code: CodeInvalid, Message: "invalid models_config: " + err.Error()}
+	models := make([]restgen.ModelRef, 0, len(c.Models))
+	for _, m := range c.Models {
+		ref := restgen.ModelRef{Model: m.Model, Weight: m.Weight}
+		if m.DisplayName != "" {
+			ref.DisplayName = &m.DisplayName
+		}
+		if m.IntegrationID != "" {
+			ref.IntegrationId = &m.IntegrationID
+		}
+		models = append(models, ref)
 	}
-	return &mc, nil
+	return &restgen.ModelsConfig{Mode: restgen.ModelsConfigMode(c.Mode), Models: &models}
+}
+
+// routingRuleUpdatePayload is the generated update body plus
+// clear_models_config, a request field the public OpenAPI spec hides
+// (x-orq-hidden) but the server honors — the only way a PATCH can remove a
+// stored models_config, since an omitted or null one is a no-op.
+type routingRuleUpdatePayload struct {
+	restgen.RoutingRuleUpdateJSONRequestBody
+	ClearModelsConfig bool `json:"clear_models_config,omitempty"`
 }
 
 func (p *restRoutingRules) List(ctx context.Context, params ListParams) (*RoutingRulePage, error) {
@@ -179,17 +246,13 @@ func (p *restRoutingRules) Get(ctx context.Context, id string) (*RoutingRule, er
 }
 
 func (p *restRoutingRules) Create(ctx context.Context, in RoutingRuleCreateInput) (*RoutingRule, error) {
-	mc, err := modelsConfigToRest(in.ModelsConfig)
-	if err != nil {
-		return nil, err
-	}
 	body := restgen.RoutingRuleCreateJSONRequestBody{
 		DisplayName:  in.DisplayName,
 		Description:  in.Description,
 		Enabled:      in.Enabled,
 		Priority:     in.Priority,
 		ProjectId:    in.ProjectID,
-		ModelsConfig: mc,
+		ModelsConfig: modelsConfigToREST(in.ModelsConfig),
 	}
 	if in.ExpressionCEL != nil {
 		body.Expression = &restgen.ExpressionInput{Cel: *in.ExpressionCEL}
@@ -205,21 +268,24 @@ func (p *restRoutingRules) Create(ctx context.Context, in RoutingRuleCreateInput
 }
 
 func (p *restRoutingRules) Update(ctx context.Context, in RoutingRuleUpdateInput) (*RoutingRule, error) {
-	mc, err := modelsConfigToRest(in.ModelsConfig)
-	if err != nil {
-		return nil, err
-	}
-	body := restgen.RoutingRuleUpdateJSONRequestBody{
-		DisplayName:  in.DisplayName,
-		Description:  in.Description,
-		Enabled:      in.Enabled,
-		Priority:     in.Priority,
-		ModelsConfig: mc,
+	payload := routingRuleUpdatePayload{
+		RoutingRuleUpdateJSONRequestBody: restgen.RoutingRuleUpdateJSONRequestBody{
+			DisplayName:  in.DisplayName,
+			Description:  in.Description,
+			Enabled:      in.Enabled,
+			Priority:     in.Priority,
+			ModelsConfig: modelsConfigToREST(in.ModelsConfig),
+		},
+		ClearModelsConfig: in.ClearModelsConfig && in.ModelsConfig == nil,
 	}
 	if in.ExpressionCEL != nil {
-		body.Expression = &restgen.ExpressionInput{Cel: *in.ExpressionCEL}
+		payload.Expression = &restgen.ExpressionInput{Cel: *in.ExpressionCEL}
 	}
-	resp, err := p.c.RoutingRuleUpdateWithResponse(ctx, in.ID, body)
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, &Error{Code: CodeInternal, Message: "encoding routing rule update request: " + err.Error()}
+	}
+	resp, err := p.c.RoutingRuleUpdateWithBodyWithResponse(ctx, in.ID, jsonContentType, bytes.NewReader(body))
 	if err != nil {
 		return nil, mapRESTTransportError("routing rule", err)
 	}

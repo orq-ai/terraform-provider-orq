@@ -130,14 +130,17 @@ func (r *guardrailRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 							},
 						},
 						"sample_rate": schema.Float64Attribute{
-							Optional:            true,
-							MarkdownDescription: "Fraction of requests to evaluate (0-1).",
+							Optional: true,
+							MarkdownDescription: "Fraction of requests to evaluate (0-1). Omitted evaluates EVERY " +
+								"matching request — the server resolves a missing sample rate to 1.0.",
 						},
 						"is_guardrail": schema.BoolAttribute{
 							Optional: true,
 							MarkdownDescription: "`true` enforces the verdict: a failing check blocks the request. " +
 								"`false` observes only — the check runs asynchronously and its result lands in " +
-								"traces without affecting the response. NOTE for `python_eval` evaluators: a " +
+								"traces without affecting the response. Omitted ENFORCES: the server resolves a " +
+								"missing flag to `true`, so observe-only mode needs an explicit `false`. " +
+								"NOTE for `python_eval` evaluators: a " +
 								"boolean `false` blocks only when the evaluator itself carries a guardrail " +
 								"config; `llm_eval` evaluators block on `false` without one.",
 						},

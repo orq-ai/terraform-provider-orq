@@ -81,7 +81,9 @@ func (r *workspaceModelResource) Schema(_ context.Context, _ resource.SchemaRequ
 					"field of an entry in `GET /v2/models`. A model DOCUMENT id (the `id` field, a UUID) is also " +
 					"accepted for compatibility and takes precedence when it exactly matches a document. If a ref " +
 					"matches more than one document (the same model_id under multiple providers), resolution fails " +
-					"as ambiguous — use the document id to select exactly one. Changing this forces replacement.",
+					"as ambiguous — use the document id to select exactly one. Changing this forces replacement, so " +
+					"an import by document id stores the canonical ref here instead (unless that ref is ambiguous), " +
+					"keeping a ref-based config from planning a destroy/recreate.",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"enabled": schema.BoolAttribute{
@@ -114,17 +116,17 @@ func (r *workspaceModelResource) Schema(_ context.Context, _ resource.SchemaRequ
 					"allow_version_pin": schema.BoolAttribute{
 						Optional:            true,
 						Computed:            true,
-						MarkdownDescription: "Allow consuming projects to pin a specific version.",
+						MarkdownDescription: "Allow consuming projects to pin a specific version. Omitted stores `false`.",
 					},
 					"allow_fork": schema.BoolAttribute{
 						Optional:            true,
 						Computed:            true,
-						MarkdownDescription: "Allow consuming projects to fork this model into a project-owned copy.",
+						MarkdownDescription: "Allow consuming projects to fork this model into a project-owned copy. Omitted stores `false`.",
 					},
 					"auto_grant_new_projects": schema.BoolAttribute{
 						Optional: true,
 						Computed: true,
-						MarkdownDescription: "Automatically grant new projects access. Only valid with `all_projects` " +
+						MarkdownDescription: "Automatically grant new projects access. Omitted stores `false`. Only valid with `all_projects` " +
 							"(combining it with an explicit `project_ids` list is a perpetual-diff trap and is rejected).",
 					},
 				},
@@ -224,6 +226,27 @@ func applySharing(cfg *client.SharingConfig, m *workspaceModelResourceModel) {
 		out.ProjectIDs = stringListValue(cfg.ProjectIDs) // non-nil => [] when empty
 	}
 	m.Sharing = out
+}
+
+// canonicalModelID picks the model_id to store for a freshly imported resource.
+// A document id imports cleanly but plans as a replacement against the ref a
+// config normally carries — and model_id is RequiresReplace, so the next apply
+// would silently destroy and recreate the model. Storing the ref instead makes
+// such a config plan clean.
+//
+// The ref is only adopted when it resolves back to the SAME document: a ref
+// shared by several documents is ambiguous, and only the document id can name
+// this one. This runs on the import read alone; an ordinary read keeps whichever
+// form the operator wrote.
+func (r *workspaceModelResource) canonicalModelID(ctx context.Context, doc *client.Model, given string) types.String {
+	if doc.RefID == "" || doc.RefID == given {
+		return types.StringValue(given)
+	}
+	back, err := r.resolver.Resolve(ctx, doc.RefID)
+	if err != nil || back.ID != doc.ID {
+		return types.StringValue(given)
+	}
+	return types.StringValue(doc.RefID)
 }
 
 func (r *workspaceModelResource) applyModel(wm *client.WorkspaceModel, m *workspaceModelResourceModel) {
@@ -330,6 +353,7 @@ func (r *workspaceModelResource) Read(ctx context.Context, req resource.ReadRequ
 			return
 		}
 		docID = doc.ID
+		state.ModelID = r.canonicalModelID(ctx, doc, state.ModelID.ValueString())
 	}
 
 	wm, err := r.models.Get(ctx, docID)

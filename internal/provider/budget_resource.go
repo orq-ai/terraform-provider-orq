@@ -111,8 +111,9 @@ func (r *budgetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				MarkdownDescription: "Per-period spend and token ceilings. At least one of `amount`, `token_limit`, or `rate_limit_per_minute` must be set.",
 				Attributes: map[string]schema.Attribute{
 					"period": schema.StringAttribute{
-						Optional:            true,
-						MarkdownDescription: "Rollover cadence: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`, or `ONE_TIME`.",
+						Required: true,
+						MarkdownDescription: "Rollover cadence: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`, or `ONE_TIME`. " +
+							"Required: the server has no default, and any other value is rejected at plan time.",
 						Validators: []validator.String{
 							stringvalidator.OneOf("DAILY", "WEEKLY", "MONTHLY", "YEARLY", "ONE_TIME"),
 						},
@@ -240,13 +241,11 @@ func validateBudgetScopeXOR(scope *budgetScopeModel, matchCEL types.String) diag
 
 func (r *budgetResource) writeInput(ctx context.Context, m *budgetResourceModel) (client.BudgetWriteInput, error) {
 	in := client.BudgetWriteInput{
+		Period:     m.Limits.Period.ValueString(),
 		Amount:     float64Ptr(m.Limits.Amount),
 		TokenLimit: float64Ptr(m.Limits.TokenLimit),
 		IsActive:   boolPtr(m.IsActive),
 		ExpiresAt:  m.ExpiresAt.ValueString(),
-	}
-	if !m.Limits.Period.IsNull() && !m.Limits.Period.IsUnknown() {
-		in.Period = m.Limits.Period.ValueString()
 	}
 	if m.Scope != nil {
 		in.ScopeKind = m.Scope.Kind.ValueString()
@@ -298,7 +297,9 @@ func (r *budgetResource) apply(b *client.Budget, m *budgetResourceModel) {
 		m.MatchCEL = optString(b.MatchCEL)
 	}
 	m.Limits = &budgetLimitsModel{
-		Period:     optString(b.Period),
+		// period is Required, so the server always echoes one; a null here would
+		// contradict the config and abort the apply.
+		Period:     types.StringValue(b.Period),
 		Amount:     float64OrNull(b.Amount),
 		TokenLimit: float64OrNull(b.TokenLimit),
 	}

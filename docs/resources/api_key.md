@@ -58,7 +58,7 @@ output "app_api_key_token" {
 ### Optional
 
 - `access` (Map of String) Per-domain access map (catalog domain id → `ACCESS_LEVEL_NONE` / `ACCESS_LEVEL_READ` / `ACCESS_LEVEL_WRITE`). Required when `permission_mode` is `PERMISSION_MODE_RESTRICTED`; must be omitted otherwise.
-- `expires_at` (String) Optional expiration (RFC 3339). Compared as an instant, so an equivalent value in a different UTC offset does not produce a diff.
+- `expires_at` (String) Optional expiration (RFC 3339). Must be in the future. Omitted means the key never expires. Compared as an instant, so an equivalent value in a different UTC offset does not produce a diff.
 - `permission_mode` (String) Permission preset. One of `PERMISSION_MODE_ALL`, `PERMISSION_MODE_RESTRICTED`, `PERMISSION_MODE_READ_ONLY`. Defaults to `PERMISSION_MODE_ALL`.
 - `project_id` (String) Single-project scope. Omit for an all-projects key. Mutable (updates in place).
 

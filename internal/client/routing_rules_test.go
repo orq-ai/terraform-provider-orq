@@ -50,12 +50,14 @@ func TestRoutingRules_CreateRoundTrip(t *testing.T) {
 
 	pid := "proj_7"
 	cel := `model == "gpt-4"`
-	mc := json.RawMessage(`{"mode":"fallback","models":[{"model":"m1"}]}`)
 	rule, err := c.RoutingRules().Create(context.Background(), RoutingRuleCreateInput{
 		DisplayName:   "route",
 		ProjectID:     &pid,
 		ExpressionCEL: &cel,
-		ModelsConfig:  mc,
+		ModelsConfig: &RoutingRuleModelsConfig{
+			Mode:   "fallback",
+			Models: []RoutingRuleModelRef{{Model: "m1"}},
+		},
 	})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -69,8 +71,17 @@ func TestRoutingRules_CreateRoundTrip(t *testing.T) {
 	if exp, ok := gotBody["expression"].(map[string]any); !ok || exp["cel"] != cel {
 		t.Errorf("expression.cel not sent: %v", gotBody["expression"])
 	}
-	if _, ok := gotBody["models_config"].(map[string]any); !ok {
-		t.Errorf("models_config not sent: %v", gotBody["models_config"])
+	sentConfig, ok := gotBody["models_config"].(map[string]any)
+	if !ok {
+		t.Fatalf("models_config not sent: %v", gotBody["models_config"])
+	}
+	// A model carrying only `model` must not drag empty defaults along: the
+	// server would store "" / reject them rather than apply its own.
+	sentModel := sentConfig["models"].([]any)[0].(map[string]any)
+	for _, key := range []string{"display_name", "integration_id", "weight"} {
+		if _, present := sentModel[key]; present {
+			t.Errorf("an unset %q must be omitted from the payload, got %v", key, sentModel)
+		}
 	}
 	if rule.ID != "rrl_1" || rule.ProjectID != "proj_7" || !rule.Enabled || rule.Priority != 5 {
 		t.Errorf("read-back wrong: %+v", rule)
@@ -79,8 +90,75 @@ func TestRoutingRules_CreateRoundTrip(t *testing.T) {
 	if rule.ExpressionCEL != cel {
 		t.Errorf("expression cel read-back wrong: %q", rule.ExpressionCEL)
 	}
-	if len(rule.ModelsConfig) == 0 {
-		t.Errorf("models_config not read back: %s", rule.ModelsConfig)
+	if rule.ModelsConfig == nil || rule.ModelsConfig.Mode != "fallback" || len(rule.ModelsConfig.Models) != 1 {
+		t.Fatalf("models_config not read back: %+v", rule.ModelsConfig)
+	}
+	if got := rule.ModelsConfig.Models[0]; got.Model != "m1" || got.Weight == nil || *got.Weight != 0.5 {
+		t.Errorf("model read-back wrong: %+v", got)
+	}
+}
+
+// The create body must OMIT models_config when there is none: the server
+// rejects an explicit null ("models_config must be a JSON object, got null").
+func TestRoutingRules_CreateOmitsAbsentModelsConfig(t *testing.T) {
+	var gotBody map[string]any
+	c := newRoutingServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(routingRuleJSON(""))
+	})
+
+	if _, err := c.RoutingRules().Create(context.Background(), RoutingRuleCreateInput{DisplayName: "route"}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, present := gotBody["models_config"]; present {
+		t.Errorf("models_config must be absent, got %v", gotBody["models_config"])
+	}
+}
+
+// Removing the block from config must actually clear the stored one, which only
+// the (spec-hidden) clear_models_config flag can do.
+func TestRoutingRules_UpdateClearsModelsConfig(t *testing.T) {
+	var gotBody map[string]any
+	c := newRoutingServer(t, func(w http.ResponseWriter, r *http.Request) {
+		gotBody = nil // decoding into a live map would merge the two requests
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		rule := routingRuleJSON("")
+		rule["models_config"] = nil
+		_ = json.NewEncoder(w).Encode(rule)
+	})
+
+	rule, err := c.RoutingRules().Update(context.Background(), RoutingRuleUpdateInput{
+		ID:                "rrl_1",
+		ClearModelsConfig: true,
+	})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if gotBody["clear_models_config"] != true {
+		t.Errorf("clear_models_config not sent: %v", gotBody)
+	}
+	if _, present := gotBody["models_config"]; present {
+		t.Errorf("a clearing update must not also send models_config: %v", gotBody["models_config"])
+	}
+	// A server-emitted `"models_config": null` must read back as absent, not as
+	// an empty config the next write would echo.
+	if rule.ModelsConfig != nil {
+		t.Errorf("null models_config must read back as nil, got %+v", rule.ModelsConfig)
+	}
+
+	// A write that carries a config never asks for a clear.
+	if _, err := c.RoutingRules().Update(context.Background(), RoutingRuleUpdateInput{
+		ID:                "rrl_1",
+		ModelsConfig:      &RoutingRuleModelsConfig{Mode: "fallback", Models: []RoutingRuleModelRef{{Model: "m1"}}},
+		ClearModelsConfig: true,
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if _, present := gotBody["clear_models_config"]; present {
+		t.Errorf("clear_models_config must not accompany a models_config write: %v", gotBody)
 	}
 }
 

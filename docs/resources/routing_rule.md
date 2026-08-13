@@ -24,16 +24,26 @@ resource "orq_routing_rule" "fallback" {
     cel = "model == \"gpt-4\""
   }
 
-  # `models_config` is a JSON object string. Each model entry uses the key
-  # `model` (a model slug) and an optional `weight` in 0..1 (a model with an
-  # omitted or zero weight is stored server-side as weight = 0.5).
-  models_config = jsonencode({
-    mode = "fallback"
+  # Optional. Omit the whole block for a rule that only matches; removing it
+  # from an existing rule clears the stored configuration.
+  models_config = {
+    mode = "weighted" # fallback | latency_based | weighted | round_robin
     models = [
       { model = "openai/gpt-4o", weight = 0.7 },
       { model = "openai/gpt-4o-mini", weight = 0.3 },
     ]
-  })
+  }
+}
+
+# The smallest usable configuration: a mode and one model. `display_name`,
+# `weight` (0.5) and `integration_id` are filled in by the server.
+resource "orq_routing_rule" "minimal" {
+  display_name = "Default route"
+
+  models_config = {
+    mode   = "fallback"
+    models = [{ model = "openai/gpt-4o" }]
+  }
 }
 ```
 
@@ -49,7 +59,7 @@ resource "orq_routing_rule" "fallback" {
 - `description` (String) Optional description.
 - `enabled` (Boolean) Whether the rule is enabled. Defaults server-side when omitted.
 - `expression` (Attributes) Match expression. Only `cel` is writable; the server-derived `config` is not surfaced. (see [below for nested schema](#nestedatt--expression))
-- `models_config` (String) Model routing configuration as a JSON object string (`{"mode":...,"models":[...]}`). Compared semantically, so key order and insignificant whitespace do not produce a diff. A model entry with an omitted or zero `weight` is stored by the server with `weight` = 0.5; the two forms are treated as equal, so a weight-less config does not drift against the server read-back. Optional+Computed: dropping it from config keeps the prior value (the update API cannot clear it).
+- `models_config` (Attributes) Model routing configuration. Omit it entirely for a rule that only matches; removing the block from a managed rule clears it server-side. (see [below for nested schema](#nestedatt--models_config))
 - `priority` (Number) Evaluation priority (>= 0). Defaults server-side when omitted.
 - `project_id` (String) Owning project. Omit for a workspace-global rule. Changing this forces replacement (the update API does not accept `project_id`).
 
@@ -65,6 +75,28 @@ resource "orq_routing_rule" "fallback" {
 Required:
 
 - `cel` (String) CEL match expression.
+
+
+<a id="nestedatt--models_config"></a>
+### Nested Schema for `models_config`
+
+Required:
+
+- `mode` (String) Load-balancing mode across `models`: `fallback`, `latency_based`, `weighted`, or `round_robin`.
+- `models` (Attributes List) Candidate models, in fallback order. At least one is required. (see [below for nested schema](#nestedatt--models_config--models))
+
+<a id="nestedatt--models_config--models"></a>
+### Nested Schema for `models_config.models`
+
+Required:
+
+- `model` (String) Model reference, e.g. `openai/gpt-4o`.
+
+Optional:
+
+- `display_name` (String) Label shown in the routing UI. Omitted stores an empty label.
+- `integration_id` (String) Integration to serve this model through. Omitted stores none.
+- `weight` (Number) Share of traffic for `weighted` mode. Omitted stores the server default of `0.5`. `0` is rejected — at plan time, and again before the write when the value is only known then — because the server rewrites it to `0.5`, which would make the apply inconsistent.
 
 ## Import
 
