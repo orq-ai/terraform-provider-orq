@@ -237,35 +237,9 @@ func (s *workspaceModelSharingModel) validateSharing() diag.Diagnostics {
 	case !shareAll && !selected:
 		diags.AddAttributeError(allProjects, invalidSharingComboSummary, "No attribute specified "+sharingExactlyOneOf)
 	}
-	diags.Append(validateProjectIDElements(s.ProjectIDs)...)
+	diags.Append(uniqueNonNullStrings(s.ProjectIDs, path.Root("sharing").AtName("project_ids"),
+		invalidSharingSummary, invalidDuplicateProjectIDDetail, invalidNullProjectIDDetail)...)
 	diags.Append(validateSharingAutoGrant(s)...)
-	return diags
-}
-
-// validateProjectIDElements rejects the element-level shapes the write cannot
-// survive: a repeated id (the server 400s) and a null element (ElementsAs fails).
-// Both would otherwise land AFTER the enable, leaving the model fail-open.
-func validateProjectIDElements(l types.List) diag.Diagnostics {
-	var diags diag.Diagnostics
-	if l.IsNull() || l.IsUnknown() {
-		return diags
-	}
-	ids := path.Root("sharing").AtName("project_ids")
-	seen := make(map[string]bool, len(l.Elements()))
-	for i, e := range l.Elements() {
-		v, ok := e.(types.String)
-		if !ok || v.IsUnknown() {
-			continue
-		}
-		switch {
-		case v.IsNull():
-			diags.AddAttributeError(ids.AtListIndex(i), invalidSharingSummary, invalidNullProjectIDDetail)
-		case seen[v.ValueString()]:
-			diags.AddAttributeError(ids.AtListIndex(i), invalidSharingSummary, invalidDuplicateProjectIDDetail)
-		default:
-			seen[v.ValueString()] = true
-		}
-	}
 	return diags
 }
 

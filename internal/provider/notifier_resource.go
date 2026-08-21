@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -72,9 +74,14 @@ func (r *notifierResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"emails": schema.ListAttribute{
-				Optional:            true,
-				ElementType:         types.StringType,
-				MarkdownDescription: "Email recipients. Required when `type` is `EMAIL`.",
+				Optional:    true,
+				ElementType: types.StringType,
+				MarkdownDescription: "Email recipients. Required when `type` is `EMAIL`. Addresses must be unique " +
+					"and non-null — the server stores a deduplicated list.",
+				Validators: []validator.List{
+					listvalidator.UniqueValues(),
+					listvalidator.NoNullValues(),
+				},
 			},
 			"incoming_webhook_url": schema.StringAttribute{
 				Optional:            true,
@@ -112,20 +119,36 @@ func (r *notifierResource) Configure(_ context.Context, req resource.ConfigureRe
 	r.notifiers = c.Notifiers()
 }
 
+// apply projects the server record onto the model, which still holds the planned
+// (create/update) or prior (read) values. An empty result on the wire cannot be
+// told apart from an unset field, so the configured empty-vs-absent shape is
+// preserved: `emails = []` must not read back as null, and neither must an
+// explicitly empty URL.
 func (r *notifierResource) apply(n *client.Notifier, m *notifierResourceModel) {
 	m.ID = types.StringValue(n.ID)
 	m.DisplayName = types.StringValue(n.DisplayName)
 	m.Type = types.StringValue(n.Type)
-	m.ProjectID = optString(n.ProjectID)
-	if len(n.Emails) == 0 {
-		m.Emails = types.ListNull(types.StringType)
-	} else {
-		m.Emails = stringListValue(n.Emails)
-	}
-	m.IncomingWebhookURL = optString(n.IncomingWebhookURL)
-	m.WebhookURL = optString(n.WebhookURL)
+	m.ProjectID = preserveEmptyString(m.ProjectID, n.ProjectID)
+	m.Emails = preserveEmptyList(m.Emails, n.Emails)
+	m.IncomingWebhookURL = preserveEmptyString(m.IncomingWebhookURL, n.IncomingWebhookURL)
+	m.WebhookURL = preserveEmptyString(m.WebhookURL, n.WebhookURL)
 	m.CreatedAt = types.StringValue(n.CreatedAt)
 	m.UpdatedAt = types.StringValue(n.UpdatedAt)
+}
+
+const (
+	invalidNotifierEmailsSummary = "Invalid emails"
+	duplicateNotifierEmailDetail = "emails must not repeat an address. The server stores a deduplicated list, so " +
+		"the extra element vanishes from the read-back and taints the notifier."
+	nullNotifierEmailDetail = "emails must not contain a null element. Remove it, or use an empty list for no recipients."
+)
+
+// validateNotifierEmails is the apply-time backstop for the schema validators,
+// which defer on an interpolated list. It runs before the write, so a rejected
+// config never orphans a notifier.
+func validateNotifierEmails(l types.List) diag.Diagnostics {
+	return uniqueNonNullStrings(l, path.Root("emails"),
+		invalidNotifierEmailsSummary, duplicateNotifierEmailDetail, nullNotifierEmailDetail)
 }
 
 func (r *notifierResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -135,6 +158,7 @@ func (r *notifierResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
+	resp.Diagnostics.Append(validateNotifierEmails(plan.Emails)...)
 	emails, diags := stringSlice(ctx, plan.Emails)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -197,6 +221,7 @@ func (r *notifierResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
+	resp.Diagnostics.Append(validateNotifierEmails(plan.Emails)...)
 	emails, diags := stringSlice(ctx, plan.Emails)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

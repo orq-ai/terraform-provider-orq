@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
@@ -67,6 +68,59 @@ func preserveListOrder(prior types.List, srv []string) types.List {
 		return prior
 	}
 	return stringListValue(srv)
+}
+
+// preserveEmptyList keeps the configured empty-vs-absent shape when the server
+// returns no elements: a KNOWN empty list stays [], an absent one stays null.
+// The wire cannot tell the two apart, and collapsing [] to null is an
+// inconsistent result the operator can never converge away from.
+func preserveEmptyList(prior types.List, srv []string) types.List {
+	if len(srv) > 0 {
+		return preserveListOrder(prior, srv)
+	}
+	if prior.IsNull() || prior.IsUnknown() {
+		return types.ListNull(types.StringType)
+	}
+	return stringListValue(nil)
+}
+
+// preserveEmptyString is the same idea for a string the server returns as "":
+// a KNOWN empty planned/prior value is kept rather than collapsed to null.
+func preserveEmptyString(prior types.String, srv string) types.String {
+	if srv != "" {
+		return types.StringValue(srv)
+	}
+	if !prior.IsNull() && !prior.IsUnknown() && prior.ValueString() == "" {
+		return prior
+	}
+	return types.StringNull()
+}
+
+// uniqueNonNullStrings rejects the element shapes a string-list write cannot
+// survive: a repeated value (a server that stores a set drops it, or 400s) and a
+// null element (ElementsAs fails). Unknown elements are left to the plan-time
+// validator, which is the only place they can exist.
+func uniqueNonNullStrings(l types.List, attribute path.Path, summary, duplicateDetail, nullDetail string) diag.Diagnostics {
+	var diags diag.Diagnostics
+	if l.IsNull() || l.IsUnknown() {
+		return diags
+	}
+	seen := make(map[string]bool, len(l.Elements()))
+	for i, e := range l.Elements() {
+		v, ok := e.(types.String)
+		if !ok || v.IsUnknown() {
+			continue
+		}
+		switch {
+		case v.IsNull():
+			diags.AddAttributeError(attribute.AtListIndex(i), summary, nullDetail)
+		case seen[v.ValueString()]:
+			diags.AddAttributeError(attribute.AtListIndex(i), summary, duplicateDetail)
+		default:
+			seen[v.ValueString()] = true
+		}
+	}
+	return diags
 }
 
 // errDetail renders a normalized client error into a diagnostic detail.
