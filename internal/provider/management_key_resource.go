@@ -85,6 +85,9 @@ func (r *managementKeyResource) Schema(_ context.Context, _ resource.SchemaReque
 				ElementType: types.StringType,
 				MarkdownDescription: "Per-domain access map (catalog domain id → `ACCESS_LEVEL_NONE` / `ACCESS_LEVEL_READ` / " +
 					"`ACCESS_LEVEL_WRITE`). Required when `permission_mode` is `MANAGEMENT_PERMISSION_MODE_RESTRICTED`; must be omitted otherwise.",
+				Validators: []validator.Map{
+					nonEmptyMapValidator{remedy: "Omit access unless permission_mode is MANAGEMENT_PERMISSION_MODE_RESTRICTED."},
+				},
 			},
 			"expires_at": schema.StringAttribute{
 				CustomType: rfc3339InstantType{},

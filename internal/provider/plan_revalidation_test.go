@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -92,6 +93,19 @@ func TestRevalidatePlanRejectsResolvedValues(t *testing.T) {
 			wantPath: "alerts[0].dimension",
 		},
 		{
+			name: "budget match_cel resolved empty", resource: NewBudgetResource(),
+			model:    &budgetResourceModel{MatchCEL: types.StringValue(""), Limits: limits},
+			wantPath: "match_cel",
+		},
+		{
+			name: "budget scope target resolved empty", resource: NewBudgetResource(),
+			model: &budgetResourceModel{
+				Scope:  &budgetScopeModel{Kind: types.StringValue(client.BudgetScopeWorkspace), Target: types.StringValue("")},
+				Limits: limits,
+			},
+			wantPath: "scope.target",
+		},
+		{
 			name: "notifier type resolved lowercase", resource: NewNotifierResource(),
 			model: &notifierResourceModel{
 				DisplayName: types.StringValue("alerts"),
@@ -99,6 +113,59 @@ func TestRevalidatePlanRejectsResolvedValues(t *testing.T) {
 				Emails:      types.ListNull(types.StringType),
 			},
 			wantPath: "type",
+		},
+		{
+			name: "notifier project_id resolved empty", resource: NewNotifierResource(),
+			model: &notifierResourceModel{
+				DisplayName: types.StringValue("alerts"),
+				Type:        types.StringValue(client.NotifierTypeEmail),
+				ProjectID:   types.StringValue(""),
+				Emails:      types.ListNull(types.StringType),
+			},
+			wantPath: "project_id",
+		},
+		{
+			name: "api_key project_id resolved empty", resource: NewAPIKeyResource(),
+			model: &apiKeyResourceModel{
+				Name:      types.StringValue("ci"),
+				ProjectID: types.StringValue(""),
+				Access:    types.MapNull(types.StringType),
+			},
+			wantPath: "project_id",
+		},
+		{
+			name: "api_key access resolved empty", resource: NewAPIKeyResource(),
+			model: &apiKeyResourceModel{
+				Name:   types.StringValue("ci"),
+				Access: types.MapValueMust(types.StringType, map[string]attr.Value{}),
+			},
+			wantPath: "access",
+		},
+		{
+			name: "management_key access resolved empty", resource: NewManagementKeyResource(),
+			model: &managementKeyResourceModel{
+				Name:   types.StringValue("ci"),
+				Access: types.MapValueMust(types.StringType, map[string]attr.Value{}),
+			},
+			wantPath: "access",
+		},
+		{
+			name: "routing_rule project_id resolved empty", resource: NewRoutingRuleResource(),
+			model:    &routingRuleResourceModel{DisplayName: types.StringValue("route"), ProjectID: types.StringValue("")},
+			wantPath: "project_id",
+		},
+		{
+			name: "routing_rule expression cel resolved empty", resource: NewRoutingRuleResource(),
+			model: &routingRuleResourceModel{
+				DisplayName: types.StringValue("route"),
+				Expression:  &routingExpressionModel{Cel: types.StringValue("")},
+			},
+			wantPath: "expression.cel",
+		},
+		{
+			name: "guardrail_rule project_id resolved empty", resource: NewGuardrailRuleResource(),
+			model:    &guardrailRuleResourceModel{DisplayName: types.StringValue("pii"), ProjectID: types.StringValue("")},
+			wantPath: "project_id",
 		},
 		{
 			name: "workspace_model all_projects resolved false", resource: NewWorkspaceModelResource(),

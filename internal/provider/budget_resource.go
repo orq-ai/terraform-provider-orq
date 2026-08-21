@@ -99,12 +99,18 @@ func (r *budgetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 						Optional: true,
 						MarkdownDescription: "Scope target (project ID, identity external ID, api-key ID, provider, " +
 							"or model reference). Omit for `WORKSPACE`.",
+						Validators: []validator.String{
+							nonEmptyStringValidator{remedy: "Omit target for a WORKSPACE scope."},
+						},
 					},
 				},
 			},
 			"match_cel": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Raw CEL matching expression for a dynamic budget. Mutually exclusive with `scope`.",
+				Validators: []validator.String{
+					nonEmptyStringValidator{remedy: "An empty expression matches everything; use a scope block instead."},
+				},
 			},
 			"limits": schema.SingleNestedAttribute{
 				Required:            true,

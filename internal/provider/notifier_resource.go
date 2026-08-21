@@ -70,6 +70,9 @@ func (r *notifierResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Computed:            true,
 				MarkdownDescription: "Containing project. Omit for a workspace-wide notifier.",
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				Validators: []validator.String{
+					nonEmptyStringValidator{remedy: "Omit project_id for a workspace-wide notifier."},
+				},
 			},
 			"emails": schema.ListAttribute{
 				Optional:    true,

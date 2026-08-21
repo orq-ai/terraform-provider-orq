@@ -91,6 +91,9 @@ func (r *guardrailRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 				MarkdownDescription: "Owning project. Omit for a workspace-global rule. Changing this " +
 					"forces replacement (the update API does not accept `project_id`).",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				Validators: []validator.String{
+					nonEmptyStringValidator{remedy: "Omit project_id for a workspace-global rule."},
+				},
 			},
 			"timeout": schema.Int64Attribute{
 				Optional: true,

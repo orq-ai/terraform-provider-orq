@@ -124,6 +124,50 @@ func uniqueNonNullStrings(l types.List, attribute path.Path, summary, duplicateD
 	return diags
 }
 
+// nonEmptyStringValidator rejects an explicitly empty string for an attribute
+// where "" carries no meaning: the server stores it as absence and reads it back
+// as null, which fails the apply with an inconsistent result on an already
+// created resource. The remedy is per-attribute, so the caller supplies it.
+type nonEmptyStringValidator struct{ remedy string }
+
+func (nonEmptyStringValidator) Description(context.Context) string {
+	return "must not be an empty string"
+}
+
+func (v nonEmptyStringValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v nonEmptyStringValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() || req.ConfigValue.ValueString() != "" {
+		return
+	}
+	resp.Diagnostics.AddAttributeError(req.Path, "Invalid empty value", emptyValueDetail(v.remedy))
+}
+
+// nonEmptyMapValidator is the same rule for a map the server cannot store empty.
+type nonEmptyMapValidator struct{ remedy string }
+
+func (nonEmptyMapValidator) Description(context.Context) string {
+	return "must not be an empty map"
+}
+
+func (v nonEmptyMapValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v nonEmptyMapValidator) ValidateMap(_ context.Context, req validator.MapRequest, resp *validator.MapResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() || len(req.ConfigValue.Elements()) > 0 {
+		return
+	}
+	resp.Diagnostics.AddAttributeError(req.Path, "Invalid empty value", emptyValueDetail(v.remedy))
+}
+
+func emptyValueDetail(remedy string) string {
+	return "An empty value means nothing here: the server stores it as absence and reads it back as null, " +
+		"which fails the apply with an inconsistent result. " + remedy
+}
+
 // uniqueStringsValidator is uniqueNonNullStrings as a schema validator, so the
 // rule is enforced at plan time AND — via revalidatePlan — again at apply on the
 // resolved value. The messages are per-attribute because the consequence is.

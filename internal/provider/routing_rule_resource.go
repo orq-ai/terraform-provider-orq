@@ -95,6 +95,9 @@ func (r *routingRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 				MarkdownDescription: "Owning project. Omit for a workspace-global rule. Changing this " +
 					"forces replacement (the update API does not accept `project_id`).",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				Validators: []validator.String{
+					nonEmptyStringValidator{remedy: "Omit project_id for a workspace-global rule."},
+				},
 			},
 			"priority": schema.Int64Attribute{
 				Optional:            true,
@@ -108,6 +111,9 @@ func (r *routingRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 					"cel": schema.StringAttribute{
 						Required:            true,
 						MarkdownDescription: "CEL match expression.",
+						Validators: []validator.String{
+							nonEmptyStringValidator{remedy: "Remove the expression block to clear the rule's expression."},
+						},
 					},
 				},
 			},
