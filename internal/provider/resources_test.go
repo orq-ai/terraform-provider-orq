@@ -259,16 +259,18 @@ func TestWorkspaceModelAllProjectsOnlyAcceptsTrue(t *testing.T) {
 	}
 }
 
-// countingWorkspaceModels records the write calls so a pre-flight rejection can
-// be proven to land before any of them.
+// countingWorkspaceModels and countingResolver record every call the resource
+// could make, so a pre-flight rejection can be proven to land before any of them.
 type countingWorkspaceModels struct {
 	enables  int
 	sharings int
+	gets     int
 }
 
 func (s *countingWorkspaceModels) Enable(context.Context, string) error  { s.enables++; return nil }
 func (s *countingWorkspaceModels) Disable(context.Context, string) error { return nil }
 func (s *countingWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
+	s.gets++
 	return &client.WorkspaceModel{
 		ModelID: modelID,
 		Enabled: true,
@@ -280,60 +282,111 @@ func (s *countingWorkspaceModels) SetSharing(context.Context, string, client.Sha
 	return nil
 }
 
-// An all_projects only known at apply (an interpolated value) skips the schema
-// validator, and a false would be written as selected-with-no-projects and read
-// back as all_projects = null — an inconsistent result on an already-enabled
-// model. The pre-flight rejects it before any call.
-func TestWorkspaceModelAllProjectsFalseRejectedBeforeTheWrite(t *testing.T) {
+type countingResolver struct {
+	catalogModels
+	resolves int
+}
+
+func (c *countingResolver) Resolve(ctx context.Context, ref string) (*client.Model, error) {
+	c.resolves++
+	return c.catalogModels.Resolve(ctx, ref)
+}
+
+// TestWorkspaceModelSharingShapeRejectedBeforeTheWrite covers the shapes the
+// plan-time validators DEFER on: every one of them skips an unknown value, and
+// the framework never re-runs them at apply, so an interpolation that resolves
+// badly reaches the server, comes back normalized, and taints the resource. The
+// Create/Update pre-flight re-checks the resolved shape before any call.
+func TestWorkspaceModelSharingShapeRejectedBeforeTheWrite(t *testing.T) {
 	ctx := context.Background()
 	s := workspaceModelSchema(t)
 
-	raw := workspaceModelRaw(t, s, workspaceModelResourceModel{
-		ID:          types.StringValue("doc_uuid_123"),
-		ModelID:     types.StringValue("openai/gpt-4o"),
-		Enabled:     types.BoolValue(true),
-		DisplayName: types.StringNull(),
-		Sharing: &workspaceModelSharingModel{
-			AllProjects:          types.BoolValue(false), // an interpolation that resolved to false
-			ProjectIDs:           types.ListNull(types.StringType),
-			AllowVersionPin:      types.BoolValue(false),
-			AllowFork:            types.BoolValue(false),
-			AutoGrantNewProjects: types.BoolValue(false),
+	cases := []struct {
+		name    string
+		sharing workspaceModelSharingModel
+		want    string
+	}{
+		{
+			// The schema validator catches this one too, unless it was interpolated.
+			name:    "all_projects resolved to false",
+			sharing: workspaceModelSharingModel{AllProjects: types.BoolValue(false), ProjectIDs: types.ListNull(types.StringType)},
+			want:    "all_projects only accepts true",
 		},
-	})
-	plan := tfsdk.Plan{Schema: s, Raw: raw}
-	emptyState := func() tfsdk.State {
-		return tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
-	}
-	newResource := func(api client.WorkspaceModelsAPI) *workspaceModelResource {
-		return &workspaceModelResource{
-			models:   api,
-			resolver: &catalogModels{docs: []client.Model{{ID: "doc_uuid_123", RefID: "openai/gpt-4o"}}},
-		}
-	}
-
-	api := &countingWorkspaceModels{}
-	createResp := resource.CreateResponse{State: emptyState()}
-	newResource(api).Create(ctx, resource.CreateRequest{Plan: plan}, &createResp)
-	if !createResp.Diagnostics.HasError() {
-		t.Fatal("all_projects = false must fail the create")
-	}
-	if api.enables != 0 || api.sharings != 0 {
-		t.Errorf("nothing must be written before the rejection, got %d enables and %d sharing writes", api.enables, api.sharings)
-	}
-	if detail := createResp.Diagnostics.Errors()[0].Detail(); !strings.Contains(detail, "all_projects only accepts true") {
-		t.Errorf("the diagnostic must explain the constraint, got %q", detail)
+		{
+			// sharingInput would pick all-projects and silently drop project_ids.
+			name:    "all_projects resolved to true alongside project_ids",
+			sharing: workspaceModelSharingModel{AllProjects: types.BoolValue(true), ProjectIDs: boolList("p1")},
+			want:    "2 attributes specified",
+		},
+		{
+			// sharingInput would turn the absent list into [], which reads back non-null.
+			name:    "project_ids resolved to null with no all_projects",
+			sharing: workspaceModelSharingModel{AllProjects: types.BoolNull(), ProjectIDs: types.ListNull(types.StringType)},
+			want:    "No attribute specified",
+		},
+		{
+			name: "auto_grant resolved to true alongside project_ids",
+			sharing: workspaceModelSharingModel{
+				AllProjects:          types.BoolNull(),
+				ProjectIDs:           boolList("p1"),
+				AutoGrantNewProjects: types.BoolValue(true),
+			},
+			want: "auto_grant_new_projects = true cannot be combined",
+		},
 	}
 
-	// Same guard on update, so an interpolation cannot poison a live model grant.
-	api = &countingWorkspaceModels{}
-	updateResp := resource.UpdateResponse{State: emptyState()}
-	newResource(api).Update(ctx, resource.UpdateRequest{Plan: plan, State: emptyState()}, &updateResp)
-	if !updateResp.Diagnostics.HasError() {
-		t.Fatal("all_projects = false must fail the update")
-	}
-	if api.sharings != 0 {
-		t.Errorf("sharing must not be written before the rejection, got %d writes", api.sharings)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sharing := tc.sharing
+			sharing.AllowVersionPin = types.BoolValue(false)
+			sharing.AllowFork = types.BoolValue(false)
+			if sharing.AutoGrantNewProjects.IsNull() {
+				sharing.AutoGrantNewProjects = types.BoolValue(false)
+			}
+			plan := tfsdk.Plan{Schema: s, Raw: workspaceModelRaw(t, s, workspaceModelResourceModel{
+				ID:          types.StringValue("doc_uuid_123"),
+				ModelID:     types.StringValue("openai/gpt-4o"),
+				Enabled:     types.BoolValue(true),
+				DisplayName: types.StringNull(),
+				Sharing:     &sharing,
+			})}
+			emptyState := func() tfsdk.State {
+				return tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+			}
+			newResource := func() (*workspaceModelResource, *countingWorkspaceModels, *countingResolver) {
+				api := &countingWorkspaceModels{}
+				res := &countingResolver{catalogModels: catalogModels{docs: []client.Model{{ID: "doc_uuid_123", RefID: "openai/gpt-4o"}}}}
+				return &workspaceModelResource{models: api, resolver: res}, api, res
+			}
+			check := func(diags diag.Diagnostics, api *countingWorkspaceModels, res *countingResolver) {
+				t.Helper()
+				if !diags.HasError() {
+					t.Fatal("the resolved sharing shape must be rejected")
+				}
+				var details []string
+				for _, e := range diags.Errors() {
+					details = append(details, e.Detail())
+				}
+				if !strings.Contains(strings.Join(details, "\n"), tc.want) {
+					t.Errorf("the diagnostic must explain the constraint, got %q", details)
+				}
+				if res.resolves != 0 || api.enables != 0 || api.sharings != 0 || api.gets != 0 {
+					t.Errorf("nothing must be called before the rejection: %d resolves, %d enables, %d sharing writes, %d gets",
+						res.resolves, api.enables, api.sharings, api.gets)
+				}
+			}
+
+			r, api, res := newResource()
+			createResp := resource.CreateResponse{State: emptyState()}
+			r.Create(ctx, resource.CreateRequest{Plan: plan}, &createResp)
+			check(createResp.Diagnostics, api, res)
+
+			// Same guard on update, so an interpolation cannot poison a live grant.
+			r, api, res = newResource()
+			updateResp := resource.UpdateResponse{State: emptyState()}
+			r.Update(ctx, resource.UpdateRequest{Plan: plan, State: emptyState()}, &updateResp)
+			check(updateResp.Diagnostics, api, res)
+		})
 	}
 }
 

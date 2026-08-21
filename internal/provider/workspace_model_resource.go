@@ -169,9 +169,17 @@ func (r *workspaceModelResource) ValidateConfig(ctx context.Context, req resourc
 // and was written as selected-with-no-projects, whose read-back normalizes to
 // all_projects = null — an inconsistent result that taints the resource.
 const (
-	invalidAllProjectsSummary = "Invalid sharing config"
-	invalidAllProjectsDetail  = "all_projects only accepts true. To share with no project set project_ids = []; " +
+	invalidSharingSummary    = "Invalid sharing config"
+	invalidAllProjectsDetail = "all_projects only accepts true. To share with no project set project_ids = []; " +
 		"to share with specific projects list them in project_ids."
+	invalidAutoGrantDetail = "auto_grant_new_projects = true cannot be combined with an explicit project_ids list " +
+		"(it would mutate the stored list on new-project creation, causing a perpetual diff). " +
+		"Use it only with all_projects = true."
+
+	// Mirrors the wording boolvalidator.ExactlyOneOf emits at plan time, so the
+	// apply-time backstop reads identically.
+	invalidSharingComboSummary = "Invalid Attribute Combination"
+	sharingExactlyOneOf        = "when one (and only one) of [sharing.all_projects,sharing.project_ids] is required"
 )
 
 type allProjectsTrueValidator struct{}
@@ -188,22 +196,38 @@ func (allProjectsTrueValidator) ValidateBool(_ context.Context, req validator.Bo
 	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() || req.ConfigValue.ValueBool() {
 		return
 	}
-	resp.Diagnostics.AddAttributeError(req.Path, invalidAllProjectsSummary, invalidAllProjectsDetail)
+	resp.Diagnostics.AddAttributeError(req.Path, invalidSharingSummary, invalidAllProjectsDetail)
 }
 
-// validateAllProjects re-checks all_projects before the write. The schema
-// validator only sees values known at plan time, so an interpolated false
-// reaches apply unchecked. Called before any API call, so nothing is created.
-func (s *workspaceModelSharingModel) validateAllProjects() diag.Diagnostics {
+// validateSharing re-checks the whole resolved sharing shape before the write.
+// Every plan-time validator DEFERS on an unknown value and the framework never
+// re-runs them at apply, so an interpolation that resolves badly would otherwise
+// be written, normalized on read-back, and taint the resource. Called before any
+// API call, so nothing is created. Unknowns cannot reach apply; they are skipped
+// defensively rather than guessed at.
+func (s *workspaceModelSharingModel) validateSharing() diag.Diagnostics {
 	var diags diag.Diagnostics
-	if s == nil || s.AllProjects.IsNull() || s.AllProjects.IsUnknown() || s.AllProjects.ValueBool() {
+	if s == nil {
 		return diags
 	}
-	diags.AddAttributeError(
-		path.Root("sharing").AtName("all_projects"),
-		invalidAllProjectsSummary,
-		invalidAllProjectsDetail,
-	)
+	allProjects := path.Root("sharing").AtName("all_projects")
+	allProjectsKnown := !s.AllProjects.IsUnknown()
+	idsKnown := !s.ProjectIDs.IsUnknown()
+	shareAll := allProjectsKnown && !s.AllProjects.IsNull() && s.AllProjects.ValueBool()
+	shareNone := allProjectsKnown && !s.AllProjects.IsNull() && !s.AllProjects.ValueBool()
+	selected := idsKnown && !s.ProjectIDs.IsNull()
+
+	switch {
+	case shareNone:
+		diags.AddAttributeError(allProjects, invalidSharingSummary, invalidAllProjectsDetail)
+	case !allProjectsKnown || !idsKnown:
+		// The pairing cannot be decided on a placeholder.
+	case shareAll && selected:
+		diags.AddAttributeError(allProjects, invalidSharingComboSummary, "2 attributes specified "+sharingExactlyOneOf)
+	case !shareAll && !selected:
+		diags.AddAttributeError(allProjects, invalidSharingComboSummary, "No attribute specified "+sharingExactlyOneOf)
+	}
+	diags.Append(validateSharingAutoGrant(s)...)
 	return diags
 }
 
@@ -221,10 +245,8 @@ func validateSharingAutoGrant(s *workspaceModelSharingModel) diag.Diagnostics {
 	if s.AutoGrantNewProjects.ValueBool() && !s.ProjectIDs.IsNull() {
 		diags.AddAttributeError(
 			path.Root("sharing").AtName("auto_grant_new_projects"),
-			"Invalid sharing config",
-			"auto_grant_new_projects = true cannot be combined with an explicit project_ids list "+
-				"(it would mutate the stored list on new-project creation, causing a perpetual diff). "+
-				"Use it only with all_projects = true.",
+			invalidSharingSummary,
+			invalidAutoGrantDetail,
 		)
 	}
 	return diags
@@ -312,7 +334,7 @@ func (r *workspaceModelResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	resp.Diagnostics.Append(plan.Sharing.validateAllProjects()...)
+	resp.Diagnostics.Append(plan.Sharing.validateSharing()...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -427,7 +449,7 @@ func (r *workspaceModelResource) Update(ctx context.Context, req resource.Update
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	resp.Diagnostics.Append(plan.Sharing.validateAllProjects()...)
+	resp.Diagnostics.Append(plan.Sharing.validateSharing()...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
