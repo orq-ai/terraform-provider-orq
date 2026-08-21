@@ -72,7 +72,7 @@ func TestResourcesRegistered(t *testing.T) {
 	}
 }
 
-func boolList(ss ...string) types.List {
+func stringList(ss ...string) types.List {
 	return stringListValue(ss)
 }
 
@@ -88,7 +88,7 @@ func TestValidateSharingAutoGrant(t *testing.T) {
 			name: "auto_grant with project_ids rejected",
 			sharing: &workspaceModelSharingModel{
 				AutoGrantNewProjects: types.BoolValue(true),
-				ProjectIDs:           boolList("p1"),
+				ProjectIDs:           stringList("p1"),
 				AllProjects:          types.BoolNull(),
 			},
 			wantError: true,
@@ -106,7 +106,7 @@ func TestValidateSharingAutoGrant(t *testing.T) {
 			name: "selected without auto_grant allowed",
 			sharing: &workspaceModelSharingModel{
 				AutoGrantNewProjects: types.BoolValue(false),
-				ProjectIDs:           boolList("p1", "p2"),
+				ProjectIDs:           stringList("p1", "p2"),
 				AllProjects:          types.BoolNull(),
 			},
 			wantError: false,
@@ -216,7 +216,7 @@ func TestWorkspaceModelAllProjectsOnlyAcceptsTrue(t *testing.T) {
 	}{
 		{"true accepted", types.BoolValue(true), types.ListNull(types.StringType), false},
 		{"false rejected", types.BoolValue(false), types.ListNull(types.StringType), true},
-		{"null accepted with project_ids", types.BoolNull(), boolList("p1"), false},
+		{"null accepted with project_ids", types.BoolNull(), stringList("p1"), false},
 		{"null accepted with an empty project_ids", types.BoolNull(), stringListValue([]string{}), false},
 		// The pairing rule still belongs to ExactlyOneOf: neither set is an error.
 		{"neither set rejected", types.BoolNull(), types.ListNull(types.StringType), true},
@@ -315,7 +315,7 @@ func TestWorkspaceModelSharingShapeRejectedBeforeTheWrite(t *testing.T) {
 		{
 			// sharingInput would pick all-projects and silently drop project_ids.
 			name:    "all_projects resolved to true alongside project_ids",
-			sharing: workspaceModelSharingModel{AllProjects: types.BoolValue(true), ProjectIDs: boolList("p1")},
+			sharing: workspaceModelSharingModel{AllProjects: types.BoolValue(true), ProjectIDs: stringList("p1")},
 			want:    "2 attributes specified",
 		},
 		{
@@ -328,7 +328,7 @@ func TestWorkspaceModelSharingShapeRejectedBeforeTheWrite(t *testing.T) {
 			name: "auto_grant resolved to true alongside project_ids",
 			sharing: workspaceModelSharingModel{
 				AllProjects:          types.BoolNull(),
-				ProjectIDs:           boolList("p1"),
+				ProjectIDs:           stringList("p1"),
 				AutoGrantNewProjects: types.BoolValue(true),
 			},
 			want: "auto_grant_new_projects = true cannot be combined",
