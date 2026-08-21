@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -66,6 +68,56 @@ func planAfterMarking(t *testing.T, r resource.Resource, model any) tfsdk.Plan {
 	return tfsdk.Plan{Schema: plan.Schema, Raw: markComputedNilsAsUnknown(t, s, plan.Raw)}
 }
 
+// syntheticValue builds a fully populated value of a type: every object holds
+// every attribute, every collection holds one element, every primitive is
+// concrete. The walk is value-driven — it descends into a nested object only
+// when that object is present, and into list elements only when there are any —
+// so a census run against a null plan would never reach a nested kind at all.
+func syntheticValue(typ tftypes.Type) tftypes.Value {
+	switch {
+	case typ.Is(tftypes.String):
+		return tftypes.NewValue(typ, "x")
+	case typ.Is(tftypes.Bool):
+		return tftypes.NewValue(typ, true)
+	case typ.Is(tftypes.Number):
+		return tftypes.NewValue(typ, big.NewFloat(1))
+	}
+	switch t := typ.(type) {
+	case tftypes.Object:
+		attrs := make(map[string]tftypes.Value, len(t.AttributeTypes))
+		for name, at := range t.AttributeTypes {
+			attrs[name] = syntheticValue(at)
+		}
+		return tftypes.NewValue(t, attrs)
+	case tftypes.List:
+		return tftypes.NewValue(t, []tftypes.Value{syntheticValue(t.ElementType)})
+	case tftypes.Set:
+		return tftypes.NewValue(t, []tftypes.Value{syntheticValue(t.ElementType)})
+	case tftypes.Map:
+		return tftypes.NewValue(t, map[string]tftypes.Value{"k": syntheticValue(t.ElementType)})
+	case tftypes.Tuple:
+		elems := make([]tftypes.Value, 0, len(t.ElementTypes))
+		for _, et := range t.ElementTypes {
+			elems = append(elems, syntheticValue(et))
+		}
+		return tftypes.NewValue(t, elems)
+	}
+	return tftypes.NewValue(typ, nil)
+}
+
+// census runs the real walker over a fully populated value, so every nested
+// object and list element is visited and every attribute kind reaches the
+// walker's dispatch. Only the unhandled list is of interest; the diagnostics the
+// synthetic values provoke are meaningless and ignored.
+func census(t *testing.T, s schema.Schema) []string {
+	t.Helper()
+	ctx := context.Background()
+	w := &planWalker{cfg: tfsdk.Config{Schema: s, Raw: syntheticValue(s.Type().TerraformType(ctx))}}
+	w.attributes(ctx, path.Empty(), s.Attributes)
+	w.blocks(ctx, path.Empty(), s.Blocks)
+	return w.unhandled
+}
+
 // TestRevalidatePlanWalksEverySchemaKind fails the build when a resource grows
 // an attribute or block kind the walker cannot descend into — silently losing
 // apply-time coverage for everything nested under it.
@@ -77,14 +129,39 @@ func TestRevalidatePlanWalksEverySchemaKind(t *testing.T) {
 		r.Metadata(ctx, resource.MetadataRequest{ProviderTypeName: "orq"}, &meta)
 		var sch resource.SchemaResponse
 		r.Schema(ctx, resource.SchemaRequest{}, &sch)
-		s := sch.Schema
 
-		w := &planWalker{cfg: tfsdk.Config{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}}
-		w.attributes(ctx, path.Empty(), s.Attributes)
-		w.blocks(ctx, path.Empty(), s.Blocks)
-		if len(w.unhandled) > 0 {
-			t.Errorf("%s: revalidatePlan cannot walk %v", meta.TypeName, w.unhandled)
+		if unhandled := census(t, sch.Schema); len(unhandled) > 0 {
+			t.Errorf("%s: revalidatePlan cannot walk %v", meta.TypeName, unhandled)
 		}
+	}
+}
+
+// TestPlanWalkerReportsUnsupportedNestedKind is the census's own guard: an
+// unsupported kind buried two levels down must be reported, not passed over.
+// Without it a green census would prove only that the walk never got there.
+func TestPlanWalkerReportsUnsupportedNestedKind(t *testing.T) {
+	nested := schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"outer": schema.SingleNestedAttribute{
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"inner": schema.ListNestedAttribute{
+						Optional: true,
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								// The walker has no Set case, so this must surface.
+								"tags": schema.SetAttribute{Optional: true, ElementType: types.StringType},
+								"name": schema.StringAttribute{Optional: true},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	unhandled := census(t, nested)
+	if len(unhandled) != 1 || !strings.Contains(unhandled[0], "outer.inner[0].tags") {
+		t.Fatalf("the census must report the nested Set attribute, got %v", unhandled)
 	}
 }
 
