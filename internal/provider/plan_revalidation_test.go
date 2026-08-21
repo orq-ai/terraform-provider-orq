@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"strings"
 	"testing"
@@ -11,8 +12,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
@@ -162,6 +165,81 @@ func TestPlanWalkerReportsUnsupportedNestedKind(t *testing.T) {
 	unhandled := census(t, nested)
 	if len(unhandled) != 1 || !strings.Contains(unhandled[0], "outer.inner[0].tags") {
 		t.Fatalf("the census must report the nested Set attribute, got %v", unhandled)
+	}
+}
+
+// rejectingStringValidator reports whatever value it is handed, so a test can
+// tell "the validator ran" from "the validator was skipped".
+type rejectingStringValidator struct{}
+
+func (rejectingStringValidator) Description(context.Context) string { return "always reports" }
+func (v rejectingStringValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+func (rejectingStringValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	resp.Diagnostics.AddAttributeError(req.Path, "Saw the value", req.ConfigValue.ValueString())
+}
+
+// unreadableStringType stands in for any custom type the walk cannot turn into a
+// value — the case that must be RECORDED rather than passed over.
+type unreadableStringType struct{ basetypes.StringType }
+
+func (unreadableStringType) ValueFromTerraform(context.Context, tftypes.Value) (attr.Value, error) {
+	return nil, errors.New("this type cannot be read")
+}
+
+// TestPlanWalkerValidatesCustomTypedAttributes covers the pass's blind spot:
+// reading every attribute into the BASE type it wraps fails for a custom-typed
+// one — rfc3339Instant on expires_at, jsontypes.Normalized on guardrail options
+// — so its validators were skipped, and skipped silently. Reading through the
+// attribute's own type reaches them.
+//
+// No validator lives on those attributes today, which is why this uses a
+// test-only schema: it pins the mechanism without inventing a rule (an
+// expires-in-the-future check would put a clock in the suite).
+func TestPlanWalkerValidatesCustomTypedAttributes(t *testing.T) {
+	ctx := context.Background()
+	s := schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"expires_at": schema.StringAttribute{
+				CustomType: rfc3339InstantType{},
+				Optional:   true,
+				Validators: []validator.String{rejectingStringValidator{}},
+			},
+		},
+	}
+	raw := tftypes.NewValue(s.Type().TerraformType(ctx), map[string]tftypes.Value{
+		"expires_at": tftypes.NewValue(tftypes.String, "2030-01-01T00:00:00Z"),
+	})
+
+	diags := revalidatePlan(ctx, tfsdk.Plan{Schema: s, Raw: raw})
+	if !diags.HasError() {
+		t.Fatal("a validator on a custom-typed attribute must run")
+	}
+	if got := diags.Errors()[0].Detail(); got != "2030-01-01T00:00:00Z" {
+		t.Errorf("the validator must receive the planned value, got %q", got)
+	}
+}
+
+// A value the walk cannot read must land in unhandled, so the census fails
+// rather than quietly dropping the attribute from the pass.
+func TestPlanWalkerRecordsUnreadableAttribute(t *testing.T) {
+	ctx := context.Background()
+	s := schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"opaque": schema.StringAttribute{
+				CustomType: unreadableStringType{},
+				Optional:   true,
+				Validators: []validator.String{rejectingStringValidator{}},
+			},
+		},
+	}
+	w := &planWalker{cfg: tfsdk.Config{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), map[string]tftypes.Value{
+		"opaque": tftypes.NewValue(tftypes.String, "x"),
+	})}}
+	w.attributes(ctx, path.Empty(), s.Attributes)
+	if len(w.unhandled) != 1 || !strings.Contains(w.unhandled[0], "opaque: unreadable") {
+		t.Fatalf("an unreadable value must be recorded, got %v", w.unhandled)
 	}
 }
 
