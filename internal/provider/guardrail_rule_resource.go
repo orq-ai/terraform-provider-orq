@@ -222,18 +222,26 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 	}
 	// The server normalizes an empty options object to absent, so a planned
 	// "{}" must survive the read-back or apply reports an inconsistent result.
-	emptyOptions := make(map[string]bool, len(m.Guardrails))
-	for _, prior := range m.Guardrails {
+	// The planned ref is found by POSITION — the list is compared positionally
+	// anyway — and confirmed by id and phase; keying by id and phase alone made
+	// two references to the same guardrail collide, restoring "{}" onto the one
+	// that never asked for it.
+	plannedEmptyOptions := func(i int, ref client.GuardrailRef) bool {
+		if i >= len(m.Guardrails) {
+			return false
+		}
+		prior := m.Guardrails[i]
+		if prior.ID.ValueString() != ref.ID || prior.ExecuteOn.ValueString() != ref.ExecuteOn {
+			return false
+		}
 		if prior.Options.IsNull() || prior.Options.IsUnknown() {
-			continue
+			return false
 		}
 		var opts map[string]any
-		if json.Unmarshal([]byte(prior.Options.ValueString()), &opts) == nil && len(opts) == 0 {
-			emptyOptions[prior.ID.ValueString()+"|"+prior.ExecuteOn.ValueString()] = true
-		}
+		return json.Unmarshal([]byte(prior.Options.ValueString()), &opts) == nil && len(opts) == 0
 	}
 	refs := make([]guardrailRefModel, 0, len(g.Guardrails))
-	for _, ref := range g.Guardrails {
+	for i, ref := range g.Guardrails {
 		rm := guardrailRefModel{
 			ID:        types.StringValue(ref.ID),
 			ExecuteOn: types.StringValue(ref.ExecuteOn),
@@ -258,7 +266,7 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 			} else {
 				rm.Options = jsontypes.NewNormalizedNull()
 			}
-		case emptyOptions[ref.ID+"|"+ref.ExecuteOn]:
+		case plannedEmptyOptions(i, ref):
 			rm.Options = jsontypes.NewNormalizedValue("{}")
 		default:
 			rm.Options = jsontypes.NewNormalizedNull()
