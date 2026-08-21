@@ -91,7 +91,7 @@ resource "orq_workspace_model" "gpt4o" {
 
 Optional:
 
-- `all_projects` (Boolean) Share with every project in the workspace. Mutually exclusive with `project_ids`.
+- `all_projects` (Boolean) Share with every project in the workspace. Only accepts `true` — to share with no project set `project_ids = []` instead. Mutually exclusive with `project_ids`.
 - `allow_fork` (Boolean) Allow consuming projects to fork this model into a project-owned copy. Omitted stores `false`.
 - `allow_version_pin` (Boolean) Allow consuming projects to pin a specific version. Omitted stores `false`.
 - `auto_grant_new_projects` (Boolean) Automatically grant new projects access. Omitted stores `false`. Only valid with `all_projects` (combining it with an explicit `project_ids` list is a perpetual-diff trap and is rejected).

@@ -2,10 +2,15 @@ package provider
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
@@ -171,6 +176,164 @@ func TestWorkspaceModelApplyModelSetsResolvedID(t *testing.T) {
 	}
 	if m.DisplayName.ValueString() != "GPT-4o" {
 		t.Errorf("display_name not applied: %q", m.DisplayName.ValueString())
+	}
+}
+
+// --- workspace_model all_projects = false ----------------------------------
+
+func workspaceModelSchema(t *testing.T) schema.Schema {
+	t.Helper()
+	var sch resource.SchemaResponse
+	NewWorkspaceModelResource().Schema(context.Background(), resource.SchemaRequest{}, &sch)
+	return sch.Schema
+}
+
+func workspaceModelRaw(t *testing.T, s schema.Schema, m workspaceModelResourceModel) tftypes.Value {
+	t.Helper()
+	ctx := context.Background()
+	state := tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+	if diags := state.Set(ctx, &m); diags.HasError() {
+		t.Fatalf("building value: %v", diags)
+	}
+	return state.Raw
+}
+
+// TestWorkspaceModelAllProjectsOnlyAcceptsTrue drives every validator the schema
+// hangs on sharing.all_projects, so it covers both the new true-only rule and the
+// ExactlyOneOf pairing it must not displace. all_projects = false used to pass
+// validation, be written as selected-with-no-projects, and read back as
+// all_projects = null — an inconsistent result that tainted the resource.
+func TestWorkspaceModelAllProjectsOnlyAcceptsTrue(t *testing.T) {
+	ctx := context.Background()
+	sharingAttr := workspaceModelSchema(t).Attributes["sharing"].(schema.SingleNestedAttribute)
+	validators := sharingAttr.Attributes["all_projects"].(schema.BoolAttribute).Validators
+
+	cases := []struct {
+		name        string
+		allProjects types.Bool
+		projectIDs  types.List
+		wantError   bool
+	}{
+		{"true accepted", types.BoolValue(true), types.ListNull(types.StringType), false},
+		{"false rejected", types.BoolValue(false), types.ListNull(types.StringType), true},
+		{"null accepted with project_ids", types.BoolNull(), boolList("p1"), false},
+		{"null accepted with an empty project_ids", types.BoolNull(), stringListValue([]string{}), false},
+		// The pairing rule still belongs to ExactlyOneOf: neither set is an error.
+		{"neither set rejected", types.BoolNull(), types.ListNull(types.StringType), true},
+		// Only known at apply — deferred here, caught by the Create/Update pre-flight.
+		{"unknown deferred", types.BoolUnknown(), types.ListNull(types.StringType), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := workspaceModelSchema(t)
+			raw := workspaceModelRaw(t, s, workspaceModelResourceModel{
+				ModelID: types.StringValue("openai/gpt-4o"),
+				Sharing: &workspaceModelSharingModel{
+					AllProjects: tc.allProjects,
+					ProjectIDs:  tc.projectIDs,
+				},
+			})
+			req := validator.BoolRequest{
+				Path:           path.Root("sharing").AtName("all_projects"),
+				PathExpression: path.MatchRoot("sharing").AtName("all_projects"),
+				Config:         tfsdk.Config{Schema: s, Raw: raw},
+				ConfigValue:    tc.allProjects,
+			}
+			var diags diag.Diagnostics
+			for _, v := range validators {
+				resp := &validator.BoolResponse{}
+				v.ValidateBool(ctx, req, resp)
+				diags.Append(resp.Diagnostics...)
+			}
+			if diags.HasError() != tc.wantError {
+				t.Fatalf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
+			}
+			if tc.name != "false rejected" {
+				return
+			}
+			detail := diags.Errors()[0].Detail()
+			if !strings.Contains(detail, "all_projects only accepts true") || !strings.Contains(detail, "project_ids = []") {
+				t.Errorf("the diagnostic must point at project_ids = [], got %q", detail)
+			}
+		})
+	}
+}
+
+// countingWorkspaceModels records the write calls so a pre-flight rejection can
+// be proven to land before any of them.
+type countingWorkspaceModels struct {
+	enables  int
+	sharings int
+}
+
+func (s *countingWorkspaceModels) Enable(context.Context, string) error  { s.enables++; return nil }
+func (s *countingWorkspaceModels) Disable(context.Context, string) error { return nil }
+func (s *countingWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
+	return &client.WorkspaceModel{
+		ModelID: modelID,
+		Enabled: true,
+		Sharing: &client.SharingConfig{Mode: client.SharingModeAllProjects},
+	}, nil
+}
+func (s *countingWorkspaceModels) SetSharing(context.Context, string, client.SharingInput) error {
+	s.sharings++
+	return nil
+}
+
+// An all_projects only known at apply (an interpolated value) skips the schema
+// validator, and a false would be written as selected-with-no-projects and read
+// back as all_projects = null — an inconsistent result on an already-enabled
+// model. The pre-flight rejects it before any call.
+func TestWorkspaceModelAllProjectsFalseRejectedBeforeTheWrite(t *testing.T) {
+	ctx := context.Background()
+	s := workspaceModelSchema(t)
+
+	raw := workspaceModelRaw(t, s, workspaceModelResourceModel{
+		ID:          types.StringValue("doc_uuid_123"),
+		ModelID:     types.StringValue("openai/gpt-4o"),
+		Enabled:     types.BoolValue(true),
+		DisplayName: types.StringNull(),
+		Sharing: &workspaceModelSharingModel{
+			AllProjects:          types.BoolValue(false), // an interpolation that resolved to false
+			ProjectIDs:           types.ListNull(types.StringType),
+			AllowVersionPin:      types.BoolValue(false),
+			AllowFork:            types.BoolValue(false),
+			AutoGrantNewProjects: types.BoolValue(false),
+		},
+	})
+	plan := tfsdk.Plan{Schema: s, Raw: raw}
+	emptyState := func() tfsdk.State {
+		return tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+	}
+	newResource := func(api client.WorkspaceModelsAPI) *workspaceModelResource {
+		return &workspaceModelResource{
+			models:   api,
+			resolver: &catalogModels{docs: []client.Model{{ID: "doc_uuid_123", RefID: "openai/gpt-4o"}}},
+		}
+	}
+
+	api := &countingWorkspaceModels{}
+	createResp := resource.CreateResponse{State: emptyState()}
+	newResource(api).Create(ctx, resource.CreateRequest{Plan: plan}, &createResp)
+	if !createResp.Diagnostics.HasError() {
+		t.Fatal("all_projects = false must fail the create")
+	}
+	if api.enables != 0 || api.sharings != 0 {
+		t.Errorf("nothing must be written before the rejection, got %d enables and %d sharing writes", api.enables, api.sharings)
+	}
+	if detail := createResp.Diagnostics.Errors()[0].Detail(); !strings.Contains(detail, "all_projects only accepts true") {
+		t.Errorf("the diagnostic must explain the constraint, got %q", detail)
+	}
+
+	// Same guard on update, so an interpolation cannot poison a live model grant.
+	api = &countingWorkspaceModels{}
+	updateResp := resource.UpdateResponse{State: emptyState()}
+	newResource(api).Update(ctx, resource.UpdateRequest{Plan: plan, State: emptyState()}, &updateResp)
+	if !updateResp.Diagnostics.HasError() {
+		t.Fatal("all_projects = false must fail the update")
+	}
+	if api.sharings != 0 {
+		t.Errorf("sharing must not be written before the rejection, got %d writes", api.sharings)
 	}
 }
 

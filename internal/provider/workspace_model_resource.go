@@ -99,12 +99,14 @@ func (r *workspaceModelResource) Schema(_ context.Context, _ resource.SchemaRequ
 				MarkdownDescription: "Project sharing config. Exactly one of `all_projects` or `project_ids` must be set.",
 				Attributes: map[string]schema.Attribute{
 					"all_projects": schema.BoolAttribute{
-						Optional:            true,
-						MarkdownDescription: "Share with every project in the workspace. Mutually exclusive with `project_ids`.",
+						Optional: true,
+						MarkdownDescription: "Share with every project in the workspace. Only accepts `true` — to share with " +
+							"no project set `project_ids = []` instead. Mutually exclusive with `project_ids`.",
 						Validators: []validator.Bool{
 							boolvalidator.ExactlyOneOf(
 								path.MatchRelative().AtParent().AtName("project_ids"),
 							),
+							allProjectsTrueValidator{},
 						},
 					},
 					"project_ids": schema.ListAttribute{
@@ -160,6 +162,49 @@ func (r *workspaceModelResource) ValidateConfig(ctx context.Context, req resourc
 		return
 	}
 	resp.Diagnostics.Append(validateSharingAutoGrant(cfg.Sharing)...)
+}
+
+// all_projects has no false form: sharing with nobody is project_ids = []. A
+// false slipped past ExactlyOneOf (which counts a present-but-false bool as set)
+// and was written as selected-with-no-projects, whose read-back normalizes to
+// all_projects = null — an inconsistent result that taints the resource.
+const (
+	invalidAllProjectsSummary = "Invalid sharing config"
+	invalidAllProjectsDetail  = "all_projects only accepts true. To share with no project set project_ids = []; " +
+		"to share with specific projects list them in project_ids."
+)
+
+type allProjectsTrueValidator struct{}
+
+func (allProjectsTrueValidator) Description(context.Context) string {
+	return "must be true when set (use project_ids = [] to share with no project)"
+}
+
+func (v allProjectsTrueValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (allProjectsTrueValidator) ValidateBool(_ context.Context, req validator.BoolRequest, resp *validator.BoolResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() || req.ConfigValue.ValueBool() {
+		return
+	}
+	resp.Diagnostics.AddAttributeError(req.Path, invalidAllProjectsSummary, invalidAllProjectsDetail)
+}
+
+// validateAllProjects re-checks all_projects before the write. The schema
+// validator only sees values known at plan time, so an interpolated false
+// reaches apply unchecked. Called before any API call, so nothing is created.
+func (s *workspaceModelSharingModel) validateAllProjects() diag.Diagnostics {
+	var diags diag.Diagnostics
+	if s == nil || s.AllProjects.IsNull() || s.AllProjects.IsUnknown() || s.AllProjects.ValueBool() {
+		return diags
+	}
+	diags.AddAttributeError(
+		path.Root("sharing").AtName("all_projects"),
+		invalidAllProjectsSummary,
+		invalidAllProjectsDetail,
+	)
+	return diags
 }
 
 // validateSharingAutoGrant rejects auto_grant_new_projects = true combined with
@@ -263,6 +308,11 @@ func (r *workspaceModelResource) applyModel(wm *client.WorkspaceModel, m *worksp
 func (r *workspaceModelResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan workspaceModelResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(plan.Sharing.validateAllProjects()...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -374,6 +424,10 @@ func (r *workspaceModelResource) Read(ctx context.Context, req resource.ReadRequ
 func (r *workspaceModelResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan workspaceModelResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(plan.Sharing.validateAllProjects()...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
