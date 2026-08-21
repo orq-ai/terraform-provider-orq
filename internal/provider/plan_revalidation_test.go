@@ -168,6 +168,21 @@ func TestRevalidatePlanRejectsResolvedValues(t *testing.T) {
 			wantPath: "project_id",
 		},
 		{
+			name: "bedrock_model model_family resolved empty", resource: NewBedrockModelResource(),
+			model:    &bedrockModelResourceModel{DisplayName: types.StringValue("bedrock"), ModelFamily: types.StringValue("")},
+			wantPath: "model_family",
+		},
+		{
+			name: "bedrock_model assume_role_arn resolved empty", resource: NewBedrockModelResource(),
+			model:    &bedrockModelResourceModel{DisplayName: types.StringValue("bedrock"), AssumeRoleArn: types.StringValue("")},
+			wantPath: "assume_role_arn",
+		},
+		{
+			name: "workspace_settings display_name resolved padded", resource: NewWorkspaceSettingsResource(),
+			model:    &workspaceSettingsResourceModel{DisplayName: types.StringValue(" Acme ")},
+			wantPath: "display_name",
+		},
+		{
 			name: "workspace_model all_projects resolved false", resource: NewWorkspaceModelResource(),
 			model: &workspaceModelResourceModel{
 				ModelID: types.StringValue("openai/gpt-4o"),
