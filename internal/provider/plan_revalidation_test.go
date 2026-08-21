@@ -481,6 +481,18 @@ func TestRevalidatePlanRejectsResolvedValues(t *testing.T) {
 			wantPath: "jury.judges[1].retry.count",
 		},
 		{
+			// Why applyRead does not preserve an empty code or prompt: neither can
+			// be "" in the first place.
+			name: "evaluator code resolved empty", resource: NewEvaluatorResource(),
+			model: &evaluatorResourceModel{
+				Key:       types.StringValue("my-eval"),
+				Type:      types.StringValue(client.EvaluatorTypePython),
+				ProjectID: types.StringValue("01JMDPA3QW5C1V0NJ1PW34T4E5"),
+				Code:      types.StringValue(""),
+			},
+			wantPath: "code",
+		},
+		{
 			// The numeric validators are wired through their own request types;
 			// without a case each, an Int64 or Float64 attribute could drop out of
 			// the pass unnoticed.
