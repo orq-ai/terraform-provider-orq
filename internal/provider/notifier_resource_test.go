@@ -63,10 +63,19 @@ func (f *fakeNotifiers) Create(_ context.Context, in client.NotifierCreateInput)
 }
 func (f *fakeNotifiers) Update(_ context.Context, in client.NotifierUpdateInput) (*client.Notifier, error) {
 	f.updates++
+	deref := func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return *p
+	}
 	return f.store(client.NotifierCreateInput{
-		DisplayName: *in.DisplayName,
-		Type:        *in.Type,
-		Emails:      in.Emails,
+		ProjectID:          deref(in.ProjectID),
+		DisplayName:        deref(in.DisplayName),
+		Type:               deref(in.Type),
+		Emails:             in.Emails,
+		IncomingWebhookURL: deref(in.IncomingWebhookURL),
+		WebhookURL:         deref(in.WebhookURL),
 	}), nil
 }
 func (f *fakeNotifiers) Delete(context.Context, string) error { return nil }
@@ -154,6 +163,26 @@ func TestNotifierPreservesEmptyEmails(t *testing.T) {
 			if !refreshed.Emails.Equal(created.Emails) {
 				t.Errorf("a refresh must not change emails: %v -> %v", created.Emails, refreshed.Emails)
 			}
+
+			// And so must an update: it maps the write response through the same
+			// projection, so the shape has to survive that path too.
+			updatePlan := notifierPlan(tc.emails)
+			updatePlan.ID = created.ID
+			updateResp := resource.UpdateResponse{State: tfsdk.State{Schema: s, Raw: notifierRaw(t, s, created)}}
+			r.Update(ctx, resource.UpdateRequest{
+				Plan:  tfsdk.Plan{Schema: s, Raw: notifierRaw(t, s, updatePlan)},
+				State: tfsdk.State{Schema: s, Raw: notifierRaw(t, s, created)},
+			}, &updateResp)
+			if updateResp.Diagnostics.HasError() {
+				t.Fatalf("Update: %v", updateResp.Diagnostics)
+			}
+			var updated notifierResourceModel
+			if diags := updateResp.State.Get(ctx, &updated); diags.HasError() {
+				t.Fatalf("reading state: %v", diags)
+			}
+			if !updated.Emails.Equal(created.Emails) {
+				t.Errorf("an update must not change emails: %v -> %v", created.Emails, updated.Emails)
+			}
 		})
 	}
 }
@@ -174,6 +203,45 @@ func TestNotifierPreservesEmptyStrings(t *testing.T) {
 	}
 	if !m.IncomingWebhookURL.IsNull() {
 		t.Error("an unset string must stay null")
+	}
+}
+
+// An explicitly empty webhook URL has to survive the update path as well, which
+// maps the write response rather than a read.
+func TestNotifierUpdateKeepsEmptyWebhookURL(t *testing.T) {
+	ctx := context.Background()
+	s := notifierSchema(t)
+	model := notifierResourceModel{
+		ID:                 types.StringValue("nf_1"),
+		DisplayName:        types.StringValue("hook"),
+		Type:               types.StringValue(client.NotifierTypeWebhook),
+		ProjectID:          types.StringNull(),
+		Emails:             types.ListNull(types.StringType),
+		IncomingWebhookURL: types.StringNull(),
+		WebhookURL:         types.StringValue(""),
+		CreatedAt:          types.StringNull(),
+		UpdatedAt:          types.StringNull(),
+	}
+	raw := notifierRaw(t, s, model)
+
+	api := &fakeNotifiers{}
+	resp := resource.UpdateResponse{State: tfsdk.State{Schema: s, Raw: raw}}
+	(&notifierResource{notifiers: api}).Update(ctx, resource.UpdateRequest{
+		Plan:  tfsdk.Plan{Schema: s, Raw: raw},
+		State: tfsdk.State{Schema: s, Raw: raw},
+	}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Update: %v", resp.Diagnostics)
+	}
+	var updated notifierResourceModel
+	if diags := resp.State.Get(ctx, &updated); diags.HasError() {
+		t.Fatalf("reading state: %v", diags)
+	}
+	if updated.WebhookURL.IsNull() {
+		t.Error("a configured empty webhook_url must survive an update")
+	}
+	if !updated.IncomingWebhookURL.IsNull() {
+		t.Error("an unset url must stay null")
 	}
 }
 
