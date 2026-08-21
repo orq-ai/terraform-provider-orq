@@ -430,6 +430,7 @@ func (r *modelResource) createInput(plan *modelResourceModel) client.ModelCreate
 func (r *modelResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan modelResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -480,6 +481,7 @@ func (r *modelResource) Read(ctx context.Context, req resource.ReadRequest, resp
 func (r *modelResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan modelResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

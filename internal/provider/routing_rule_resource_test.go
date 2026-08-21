@@ -443,7 +443,10 @@ func TestRoutingRuleZeroWeightRejectedBeforeTheWrite(t *testing.T) {
 	if api.created != nil {
 		t.Error("the rule must not be created before the weight is rejected")
 	}
-	if detail := createResp.Diagnostics.Errors()[0].Detail(); !strings.Contains(detail, "greater than 0") {
+	// Either guard may report it first — revalidatePlan re-runs the schema range
+	// validator on the resolved plan, and validateWeights is the semantic backstop
+	// behind it — so assert on the constraint both messages name.
+	if detail := createResp.Diagnostics.Errors()[0].Detail(); !strings.Contains(detail, "0.001") {
 		t.Errorf("the diagnostic must explain the constraint, got %q", detail)
 	}
 

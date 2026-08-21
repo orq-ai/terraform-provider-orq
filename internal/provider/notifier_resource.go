@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -78,10 +76,11 @@ func (r *notifierResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				ElementType: types.StringType,
 				MarkdownDescription: "Email recipients. Required when `type` is `EMAIL`. Addresses must be unique " +
 					"and non-null — the server stores a deduplicated list.",
-				Validators: []validator.List{
-					listvalidator.UniqueValues(),
-					listvalidator.NoNullValues(),
-				},
+				Validators: []validator.List{uniqueStringsValidator{
+					summary:         invalidNotifierEmailsSummary,
+					duplicateDetail: duplicateNotifierEmailDetail,
+					nullDetail:      nullNotifierEmailDetail,
+				}},
 			},
 			"incoming_webhook_url": schema.StringAttribute{
 				Optional:            true,
@@ -143,22 +142,14 @@ const (
 	nullNotifierEmailDetail = "emails must not contain a null element. Remove it, or use an empty list for no recipients."
 )
 
-// validateNotifierEmails is the apply-time backstop for the schema validators,
-// which defer on an interpolated list. It runs before the write, so a rejected
-// config never orphans a notifier.
-func validateNotifierEmails(l types.List) diag.Diagnostics {
-	return uniqueNonNullStrings(l, path.Root("emails"),
-		invalidNotifierEmailsSummary, duplicateNotifierEmailDetail, nullNotifierEmailDetail)
-}
-
 func (r *notifierResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan notifierResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	resp.Diagnostics.Append(validateNotifierEmails(plan.Emails)...)
 	emails, diags := stringSlice(ctx, plan.Emails)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -217,11 +208,11 @@ func (r *notifierResource) Read(ctx context.Context, req resource.ReadRequest, r
 func (r *notifierResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan notifierResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	resp.Diagnostics.Append(validateNotifierEmails(plan.Emails)...)
 	emails, diags := stringSlice(ctx, plan.Emails)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

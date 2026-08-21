@@ -300,6 +300,7 @@ func (m *routingRuleResourceModel) expressionCELForUpdate() *string {
 func (r *routingRuleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan routingRuleResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	resp.Diagnostics.Append(plan.ModelsConfig.validateWeights()...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -343,6 +344,7 @@ func (r *routingRuleResource) Read(ctx context.Context, req resource.ReadRequest
 func (r *routingRuleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan routingRuleResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	resp.Diagnostics.Append(plan.ModelsConfig.validateWeights()...)
 	if resp.Diagnostics.HasError() {
 		return

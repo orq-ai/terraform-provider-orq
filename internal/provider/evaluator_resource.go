@@ -324,6 +324,7 @@ func (r *evaluatorResource) Configure(_ context.Context, req resource.ConfigureR
 func (r *evaluatorResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan, cfg evaluatorResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	// The CONFIG decides what is written; the plan carries what lands in state.
 	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
 	// ValidateConfig may have deferred checks on an unknown value, and the
@@ -389,6 +390,7 @@ func (r *evaluatorResource) Read(ctx context.Context, req resource.ReadRequest, 
 func (r *evaluatorResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, cfg, state evaluatorResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	resp.Diagnostics.Append(validateEvaluatorConfig(ctx, req.Config)...)

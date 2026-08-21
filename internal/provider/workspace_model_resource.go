@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/boolvalidator"
-	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -116,10 +115,11 @@ func (r *workspaceModelResource) Schema(_ context.Context, _ resource.SchemaRequ
 						MarkdownDescription: "Share with exactly these projects. An empty list means shared with no " +
 							"project (still workspace-visible to admins). Ids must be unique and non-null — the server " +
 							"rejects a repeated one. Mutually exclusive with `all_projects`.",
-						Validators: []validator.List{
-							listvalidator.UniqueValues(),
-							listvalidator.NoNullValues(),
-						},
+						Validators: []validator.List{uniqueStringsValidator{
+							summary:         invalidSharingSummary,
+							duplicateDetail: invalidDuplicateProjectIDDetail,
+							nullDetail:      invalidNullProjectIDDetail,
+						}},
 					},
 					"allow_version_pin": schema.BoolAttribute{
 						Optional:            true,
@@ -237,8 +237,6 @@ func (s *workspaceModelSharingModel) validateSharing() diag.Diagnostics {
 	case !shareAll && !selected:
 		diags.AddAttributeError(allProjects, invalidSharingComboSummary, "No attribute specified "+sharingExactlyOneOf)
 	}
-	diags.Append(uniqueNonNullStrings(s.ProjectIDs, path.Root("sharing").AtName("project_ids"),
-		invalidSharingSummary, invalidDuplicateProjectIDDetail, invalidNullProjectIDDetail)...)
 	diags.Append(validateSharingAutoGrant(s)...)
 	return diags
 }
@@ -347,6 +345,7 @@ func (r *workspaceModelResource) applyModel(wm *client.WorkspaceModel, m *worksp
 func (r *workspaceModelResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan workspaceModelResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -486,6 +485,7 @@ func (r *workspaceModelResource) Read(ctx context.Context, req resource.ReadRequ
 func (r *workspaceModelResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan workspaceModelResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

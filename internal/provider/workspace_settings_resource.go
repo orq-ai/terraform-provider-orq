@@ -243,6 +243,9 @@ func (r *workspaceSettingsResource) Update(ctx context.Context, req resource.Upd
 }
 
 func (r *workspaceSettingsResource) adoptOrUpdate(ctx context.Context, plan tfsdk.Plan, config tfsdk.Config, state *tfsdk.State, errSummary string) diag.Diagnostics {
+	if diags := revalidatePlan(ctx, plan); diags.HasError() {
+		return diags
+	}
 	var diags diag.Diagnostics
 	var planned, cfg workspaceSettingsResourceModel
 	diags.Append(plan.Get(ctx, &planned)...)

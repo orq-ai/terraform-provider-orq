@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
@@ -121,6 +122,27 @@ func uniqueNonNullStrings(l types.List, attribute path.Path, summary, duplicateD
 		}
 	}
 	return diags
+}
+
+// uniqueStringsValidator is uniqueNonNullStrings as a schema validator, so the
+// rule is enforced at plan time AND — via revalidatePlan — again at apply on the
+// resolved value. The messages are per-attribute because the consequence is.
+type uniqueStringsValidator struct {
+	summary         string
+	duplicateDetail string
+	nullDetail      string
+}
+
+func (uniqueStringsValidator) Description(context.Context) string {
+	return "must contain unique, non-null values"
+}
+
+func (v uniqueStringsValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v uniqueStringsValidator) ValidateList(_ context.Context, req validator.ListRequest, resp *validator.ListResponse) {
+	resp.Diagnostics.Append(uniqueNonNullStrings(req.ConfigValue, req.Path, v.summary, v.duplicateDetail, v.nullDetail)...)
 }
 
 // errDetail renders a normalized client error into a diagnostic detail.
