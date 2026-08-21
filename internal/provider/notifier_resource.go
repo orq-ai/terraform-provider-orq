@@ -125,12 +125,13 @@ func (r *notifierResource) Configure(_ context.Context, req resource.ConfigureRe
 // (create/update) or prior (read) values. An empty result on the wire cannot be
 // told apart from an unset field, so the configured empty-vs-absent shape is
 // preserved: `emails = []` must not read back as null, and neither must an
-// explicitly empty URL.
+// explicitly empty URL. project_id needs no such care — it carries a non-empty
+// validator, so "" never reaches state to be preserved.
 func (r *notifierResource) apply(n *client.Notifier, m *notifierResourceModel) {
 	m.ID = types.StringValue(n.ID)
 	m.DisplayName = types.StringValue(n.DisplayName)
 	m.Type = types.StringValue(n.Type)
-	m.ProjectID = preserveEmptyString(m.ProjectID, n.ProjectID)
+	m.ProjectID = optString(n.ProjectID)
 	m.Emails = preserveEmptyList(m.Emails, n.Emails)
 	m.IncomingWebhookURL = preserveEmptyString(m.IncomingWebhookURL, n.IncomingWebhookURL)
 	m.WebhookURL = preserveEmptyString(m.WebhookURL, n.WebhookURL)

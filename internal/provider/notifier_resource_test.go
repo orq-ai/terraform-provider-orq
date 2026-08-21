@@ -187,18 +187,19 @@ func TestNotifierPreservesEmptyEmails(t *testing.T) {
 	}
 }
 
-// The same empty-vs-absent hazard applies to every optional string the server
-// echoes back as "".
+// The same empty-vs-absent hazard applies to the webhook URLs, which take any
+// string. project_id is not covered because it cannot be "": it carries a
+// non-empty validator, at plan time and again on the resolved plan.
 func TestNotifierPreservesEmptyStrings(t *testing.T) {
 	r := &notifierResource{}
 	m := notifierResourceModel{
-		ProjectID:          types.StringValue(""),
+		ProjectID:          types.StringNull(),
 		WebhookURL:         types.StringValue(""),
 		IncomingWebhookURL: types.StringNull(),
 		Emails:             types.ListNull(types.StringType),
 	}
 	r.apply(&client.Notifier{ID: "nf_1", Type: client.NotifierTypeWebhook}, &m)
-	if m.ProjectID.IsNull() || m.WebhookURL.IsNull() {
+	if m.WebhookURL.IsNull() {
 		t.Error("a configured empty string must not read back as null")
 	}
 	if !m.IncomingWebhookURL.IsNull() {
