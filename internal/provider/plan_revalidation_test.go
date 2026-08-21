@@ -481,6 +481,50 @@ func TestRevalidatePlanRejectsResolvedValues(t *testing.T) {
 			wantPath: "jury.judges[1].retry.count",
 		},
 		{
+			// The numeric validators are wired through their own request types;
+			// without a case each, an Int64 or Float64 attribute could drop out of
+			// the pass unnoticed.
+			name: "evaluator repetitions resolved to zero", resource: NewEvaluatorResource(),
+			model: &evaluatorResourceModel{
+				Key:         types.StringValue("my-eval"),
+				Type:        types.StringValue(client.EvaluatorTypePython),
+				ProjectID:   types.StringValue("01JMDPA3QW5C1V0NJ1PW34T4E5"),
+				Repetitions: types.Int64Value(0),
+			},
+			wantPath: "repetitions",
+		},
+		{
+			name: "bedrock_model max_tokens resolved to zero", resource: NewBedrockModelResource(),
+			model: &bedrockModelResourceModel{
+				DisplayName: types.StringValue("bedrock"),
+				MaxTokens:   types.Int64Value(0),
+			},
+			wantPath: "max_tokens",
+		},
+		{
+			name: "bedrock_model temperature resolved out of range", resource: NewBedrockModelResource(),
+			model: &bedrockModelResourceModel{
+				DisplayName: types.StringValue("bedrock"),
+				Temperature: types.Float64Value(2.5),
+			},
+			wantPath: "temperature",
+		},
+		{
+			name: "workspace_settings pii threshold resolved out of range", resource: NewWorkspaceSettingsResource(),
+			model: &workspaceSettingsResourceModel{
+				PiiRedaction: &workspaceSettingsPiiModel{
+					Enabled: types.BoolValue(true),
+					Config: &workspaceSettingsPiiConfigModel{
+						Language:  types.StringNull(),
+						Entities:  types.ListNull(types.StringType),
+						OnFailure: types.StringNull(),
+						Threshold: types.Float64Value(1.5),
+					},
+				},
+			},
+			wantPath: "pii_redaction.config.threshold",
+		},
+		{
 			name: "workspace_model all_projects resolved false", resource: NewWorkspaceModelResource(),
 			model: &workspaceModelResourceModel{
 				ModelID: types.StringValue("openai/gpt-4o"),
