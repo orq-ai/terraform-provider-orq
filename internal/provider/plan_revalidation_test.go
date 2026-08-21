@@ -4,9 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
@@ -27,6 +29,41 @@ func planFor(t *testing.T, r resource.Resource, model any) tfsdk.Plan {
 		t.Fatalf("building plan: %v", diags)
 	}
 	return tfsdk.Plan{Schema: s, Raw: state.Raw}
+}
+
+// markComputedNilsAsUnknown mirrors what the framework does to a plan before it
+// reaches Create: every Computed attribute the config left null becomes
+// "known after apply". A plan built without this is not a plan the resource
+// would ever be handed.
+func markComputedNilsAsUnknown(t *testing.T, s schema.Schema, raw tftypes.Value) tftypes.Value {
+	t.Helper()
+	ctx := context.Background()
+	out, err := tftypes.Transform(raw, func(p *tftypes.AttributePath, v tftypes.Value) (tftypes.Value, error) {
+		if len(p.Steps()) == 0 || !v.IsNull() {
+			return v, nil
+		}
+		a, err := s.AttributeAtTerraformPath(ctx, p)
+		if err != nil {
+			return v, nil // not an attribute path (an object inside a list, say)
+		}
+		if !a.IsComputed() {
+			return v, nil
+		}
+		return tftypes.NewValue(v.Type(), tftypes.UnknownValue), nil
+	})
+	if err != nil {
+		t.Fatalf("marking computed nils: %v", err)
+	}
+	return out
+}
+
+// planAfterMarking is planFor plus the framework's computed-nil marking — the
+// shape a Create actually receives.
+func planAfterMarking(t *testing.T, r resource.Resource, model any) tfsdk.Plan {
+	t.Helper()
+	plan := planFor(t, r, model)
+	s := plan.Schema.(schema.Schema)
+	return tfsdk.Plan{Schema: plan.Schema, Raw: markComputedNilsAsUnknown(t, s, plan.Raw)}
 }
 
 // TestRevalidatePlanWalksEverySchemaKind fails the build when a resource grows
@@ -56,6 +93,9 @@ func TestRevalidatePlanWalksEverySchemaKind(t *testing.T) {
 // those validators at apply, so each of these used to reach the server, come
 // back normalized (uppercased enum, "" stored as absence) and fail the apply
 // with an inconsistent result on an already-created resource.
+// orq_project is deliberately absent: it declares no attribute validators at
+// all, so there is no resolved value for this pass to reject. Its accept case
+// still proves the walk runs over it.
 func TestRevalidatePlanRejectsResolvedValues(t *testing.T) {
 	ctx := context.Background()
 	limits := &budgetLimitsModel{Period: types.StringValue("MONTHLY"), Amount: types.Float64Value(10)}
@@ -183,6 +223,109 @@ func TestRevalidatePlanRejectsResolvedValues(t *testing.T) {
 			wantPath: "display_name",
 		},
 		{
+			name: "management_key permission_mode resolved lowercase", resource: NewManagementKeyResource(),
+			model: &managementKeyResourceModel{
+				Name:           types.StringValue("ci"),
+				PermissionMode: types.StringValue("management_permission_mode_all"),
+				Access:         types.MapNull(types.StringType),
+			},
+			wantPath: "permission_mode",
+		},
+		{
+			name: "guardrail_rule execute_on resolved capitalized", resource: NewGuardrailRuleResource(),
+			model: &guardrailRuleResourceModel{
+				DisplayName: types.StringValue("pii"),
+				Guardrails: []guardrailRefModel{{
+					ID:        types.StringValue("orq_pii_detection"),
+					ExecuteOn: types.StringValue("Input"),
+					Options:   jsontypes.NewNormalizedNull(),
+				}},
+			},
+			wantPath: "guardrails[0].execute_on",
+		},
+		{
+			name: "routing_rule models_config mode resolved capitalized", resource: NewRoutingRuleResource(),
+			model: &routingRuleResourceModel{
+				DisplayName: types.StringValue("route"),
+				ModelsConfig: &routingRuleModelsConfigModel{
+					Mode: types.StringValue("Weighted"),
+					Models: []routingRuleModelRefModel{{
+						Model:         types.StringValue("openai/gpt-4o"),
+						DisplayName:   types.StringNull(),
+						Weight:        types.Float64Null(),
+						IntegrationID: types.StringNull(),
+					}},
+				},
+			},
+			wantPath: "models_config.mode",
+		},
+		{
+			name: "model region resolved empty", resource: NewModelResource(),
+			model: &modelResourceModel{
+				DisplayName: types.StringValue("my model"),
+				ModelID:     types.StringValue("liquid/lfm2.5-1.2b"),
+				ModelType:   types.StringValue("chat"),
+				Region:      types.StringValue(""),
+				BaseURL:     types.StringValue("https://models.example.test/v1"),
+				APIKey:      types.StringValue("sk-test"),
+			},
+			wantPath: "region",
+		},
+		{
+			name: "bedrock_model auth_mode resolved unknown value", resource: NewBedrockModelResource(),
+			model: &bedrockModelResourceModel{
+				DisplayName: types.StringValue("bedrock"),
+				AuthMode:    types.StringValue("none"),
+			},
+			wantPath: "auth_mode",
+		},
+		{
+			name: "workspace_settings pii language resolved unsupported", resource: NewWorkspaceSettingsResource(),
+			model: &workspaceSettingsResourceModel{
+				PiiRedaction: &workspaceSettingsPiiModel{
+					Enabled: types.BoolValue(true),
+					Config: &workspaceSettingsPiiConfigModel{
+						Language:  types.StringValue("fr"),
+						Entities:  types.ListNull(types.StringType),
+						OnFailure: types.StringNull(),
+						Threshold: types.Float64Null(),
+					},
+				},
+			},
+			wantPath: "pii_redaction.config.language",
+		},
+		{
+			name: "evaluator type resolved uppercase", resource: NewEvaluatorResource(),
+			model: &evaluatorResourceModel{
+				Key:       types.StringValue("my-eval"),
+				Type:      types.StringValue("LLM_EVAL"),
+				ProjectID: types.StringValue("01JMDPA3QW5C1V0NJ1PW34T4E5"),
+			},
+			wantPath: "type",
+		},
+		{
+			// Deep inside two nested lists and an object — the walk has to descend
+			// the whole way for the retry budget to be re-checked at all.
+			name: "evaluator judge retry count resolved out of range", resource: NewEvaluatorResource(),
+			model: &evaluatorResourceModel{
+				Key:       types.StringValue("jury-eval"),
+				Type:      types.StringValue(client.EvaluatorTypeLLM),
+				ProjectID: types.StringValue("01JMDPA3QW5C1V0NJ1PW34T4E5"),
+				Mode:      types.StringValue("jury"),
+				Jury: &evaluatorJuryModel{
+					Judges: []evaluatorJudgeModel{
+						{Model: types.StringValue("openai/gpt-4o")},
+						{
+							Model: types.StringValue("anthropic/claude-sonnet-4"),
+							Retry: &evaluatorRetryModel{Count: types.Int64Value(9)},
+						},
+					},
+					MinSuccessfulJudges: types.Int64Value(2),
+				},
+			},
+			wantPath: "jury.judges[1].retry.count",
+		},
+		{
 			name: "workspace_model all_projects resolved false", resource: NewWorkspaceModelResource(),
 			model: &workspaceModelResourceModel{
 				ModelID: types.StringValue("openai/gpt-4o"),
@@ -228,37 +371,389 @@ func slicesContains(ss []string, want string) bool {
 	return false
 }
 
-// A valid plan must stay valid: the pass re-runs the same validators the plan
-// phase already ran, so it can only reject what was unknown back then.
+// The create variant above is only meaningful if the marking really happens:
+// a helper that silently no-opped would test the update shape twice.
+func TestMarkComputedNilsAsUnknown(t *testing.T) {
+	ctx := context.Background()
+	plan := planAfterMarking(t, NewAPIKeyResource(), &apiKeyResourceModel{
+		Name:   types.StringValue("ci"),
+		Access: types.MapNull(types.StringType),
+	})
+	var m apiKeyResourceModel
+	if diags := plan.Get(ctx, &m); diags.HasError() {
+		t.Fatalf("reading plan: %v", diags)
+	}
+	if !m.ID.IsUnknown() || !m.TokenPrefix.IsUnknown() {
+		t.Errorf("Computed nils must become known-after-apply, got id=%v token_prefix=%v", m.ID, m.TokenPrefix)
+	}
+	if !m.PermissionMode.IsUnknown() {
+		t.Errorf("an Optional+Computed nil must become known-after-apply, got %v", m.PermissionMode)
+	}
+	if m.Name.ValueString() != "ci" || !m.Access.IsNull() {
+		t.Errorf("a written value and a non-Computed nil must be left alone: name=%v access=%v", m.Name, m.Access)
+	}
+}
+
+// TestRevalidatePlanAcceptsValidPlans is the other half of the contract: the
+// pass re-runs the validators the plan phase already ran, so a plan the operator
+// could legitimately produce must survive it. Every registered resource is
+// covered, in both shapes it is handed at apply — a create, where the framework
+// has marked every Computed nil "known after apply", and an update, where those
+// attributes carry the values a previous apply left in state.
 func TestRevalidatePlanAcceptsValidPlans(t *testing.T) {
 	ctx := context.Background()
-	for _, tc := range []struct {
+	const ulid = "01JMDPA3QW5C1V0NJ1PW34T4E5"
+
+	judge := func(model string) evaluatorJudgeModel {
+		return evaluatorJudgeModel{
+			Model:     types.StringValue(model),
+			Retry:     &evaluatorRetryModel{Count: types.Int64Value(3), OnCodes: []types.Int64{types.Int64Value(429), types.Int64Value(500)}},
+			Fallbacks: []types.String{types.StringValue("openai/gpt-4o-mini")},
+		}
+	}
+	budgetLimits := func() *budgetLimitsModel {
+		return &budgetLimitsModel{Period: types.StringValue("MONTHLY"), Amount: types.Float64Value(10)}
+	}
+	routingModels := func(weight types.Float64, name, integration types.String) []routingRuleModelRefModel {
+		return []routingRuleModelRefModel{{
+			Model:         types.StringValue("openai/gpt-4o"),
+			DisplayName:   name,
+			Weight:        weight,
+			IntegrationID: integration,
+		}}
+	}
+	accessMap := stringMapValue(map[string]string{"project": client.AccessLevelWrite})
+
+	// config is what the operator wrote; prior, when given, is the same resource
+	// after an apply — the Optional+Computed attributes now holding server values.
+	cases := []struct {
 		name     string
 		resource resource.Resource
-		model    any
+		config   any
+		prior    any
 	}{
-		{"budget", NewBudgetResource(), &budgetResourceModel{
-			Scope:  &budgetScopeModel{Kind: types.StringValue(client.BudgetScopeWorkspace)},
-			Limits: &budgetLimitsModel{Period: types.StringValue("MONTHLY"), Amount: types.Float64Value(10)},
-		}},
-		{"notifier", NewNotifierResource(), &notifierResourceModel{
-			DisplayName: types.StringValue("alerts"),
-			Type:        types.StringValue(client.NotifierTypeEmail),
-			Emails:      stringList("ops@x.io"),
-		}},
-		{"workspace_model", NewWorkspaceModelResource(), &workspaceModelResourceModel{
-			ModelID: types.StringValue("openai/gpt-4o"),
-			Sharing: &workspaceModelSharingModel{AllProjects: types.BoolValue(true), ProjectIDs: types.ListNull(types.StringType)},
-		}},
-		{"api_key", NewAPIKeyResource(), &apiKeyResourceModel{
-			Name:           types.StringValue("ci"),
-			PermissionMode: types.StringValue(client.PermissionModeAll),
-			Access:         types.MapNull(types.StringType),
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if diags := revalidatePlan(ctx, planFor(t, tc.resource, tc.model)); diags.HasError() {
-				t.Errorf("a valid plan must pass: %v", diags)
+		{
+			name: "project", resource: NewProjectResource(),
+			config: &projectResourceModel{
+				Name:        types.StringValue("Acme"),
+				Description: types.StringValue("the acme workspace"),
+				Teams:       stringList("team_1"),
+			},
+		},
+		{
+			name: "budget workspace scope", resource: NewBudgetResource(),
+			config: &budgetResourceModel{
+				Scope:  &budgetScopeModel{Kind: types.StringValue(client.BudgetScopeWorkspace)},
+				Limits: budgetLimits(),
+			},
+		},
+		{
+			name: "budget match_cel with alerts", resource: NewBudgetResource(),
+			config: &budgetResourceModel{
+				MatchCEL:        types.StringValue(`provider == "openai"`),
+				Limits:          budgetLimits(),
+				RateLimitPerMin: types.Int64Value(60),
+				Alerts: []budgetAlertModel{{
+					ThresholdPercent: types.Int64Value(80),
+					NotifierIDs:      stringList("nf_1"),
+				}},
+			},
+			prior: &budgetResourceModel{
+				MatchCEL:        types.StringValue(`provider == "openai"`),
+				Limits:          budgetLimits(),
+				RateLimitPerMin: types.Int64Value(60),
+				IsActive:        types.BoolValue(true),
+				Alerts: []budgetAlertModel{{
+					ID:               types.StringValue("bal_1"),
+					ThresholdPercent: types.Int64Value(80),
+					NotifierIDs:      stringList("nf_1"),
+					Dimension:        types.StringValue("COST"),
+				}},
+			},
+		},
+		{
+			name: "notifier email", resource: NewNotifierResource(),
+			config: &notifierResourceModel{
+				DisplayName: types.StringValue("alerts"),
+				Type:        types.StringValue(client.NotifierTypeEmail),
+				Emails:      stringList("ops@x.io"),
+			},
+			prior: &notifierResourceModel{
+				DisplayName: types.StringValue("alerts"),
+				Type:        types.StringValue(client.NotifierTypeEmail),
+				Emails:      stringList("ops@x.io"),
+				ProjectID:   types.StringValue("proj_1"),
+			},
+		},
+		{
+			name: "notifier webhook with no recipients", resource: NewNotifierResource(),
+			config: &notifierResourceModel{
+				DisplayName: types.StringValue("hook"),
+				Type:        types.StringValue(client.NotifierTypeWebhook),
+				Emails:      stringList(),
+				WebhookURL:  types.StringValue("https://example.test/hook"),
+			},
+		},
+		{
+			name: "guardrail_rule built-in and custom evaluator", resource: NewGuardrailRuleResource(),
+			config: &guardrailRuleResourceModel{
+				DisplayName: types.StringValue("pii"),
+				ProjectID:   types.StringValue(ulid),
+				Guardrails: []guardrailRefModel{
+					{
+						ID:         types.StringValue("orq_pii_detection"),
+						ExecuteOn:  types.StringValue("input"),
+						Options:    jsontypes.NewNormalizedValue(`{"threshold":0.5}`),
+						SampleRate: types.Float64Value(1),
+					},
+					{
+						ID:          types.StringValue(ulid),
+						ExecuteOn:   types.StringValue("output"),
+						Options:     jsontypes.NewNormalizedNull(),
+						IsGuardrail: types.BoolValue(true),
+					},
+				},
+			},
+		},
+		{
+			name: "workspace_model all projects", resource: NewWorkspaceModelResource(),
+			config: &workspaceModelResourceModel{
+				ModelID: types.StringValue("openai/gpt-4o"),
+				Sharing: &workspaceModelSharingModel{AllProjects: types.BoolValue(true), ProjectIDs: types.ListNull(types.StringType)},
+			},
+			prior: &workspaceModelResourceModel{
+				ModelID: types.StringValue("openai/gpt-4o"),
+				Sharing: &workspaceModelSharingModel{
+					AllProjects:          types.BoolValue(true),
+					ProjectIDs:           types.ListNull(types.StringType),
+					AllowVersionPin:      types.BoolValue(false),
+					AllowFork:            types.BoolValue(false),
+					AutoGrantNewProjects: types.BoolValue(true),
+				},
+			},
+		},
+		{
+			name: "workspace_model selected projects", resource: NewWorkspaceModelResource(),
+			config: &workspaceModelResourceModel{
+				ModelID: types.StringValue("openai/gpt-4o"),
+				Sharing: &workspaceModelSharingModel{AllProjects: types.BoolNull(), ProjectIDs: stringList("p2", "p1")},
+			},
+		},
+		{
+			name: "routing_rule with expression and models_config", resource: NewRoutingRuleResource(),
+			config: &routingRuleResourceModel{
+				DisplayName: types.StringValue("route"),
+				ProjectID:   types.StringValue(ulid),
+				Expression:  &routingExpressionModel{Cel: types.StringValue(`model == "gpt-4"`)},
+				ModelsConfig: &routingRuleModelsConfigModel{
+					Mode:   types.StringValue("weighted"),
+					Models: routingModels(types.Float64Null(), types.StringNull(), types.StringNull()),
+				},
+			},
+			prior: &routingRuleResourceModel{
+				DisplayName: types.StringValue("route"),
+				ProjectID:   types.StringValue(ulid),
+				Description: types.StringValue("from the server"),
+				Enabled:     types.BoolValue(true),
+				Priority:    types.Int64Value(0),
+				Expression:  &routingExpressionModel{Cel: types.StringValue(`model == "gpt-4"`)},
+				ModelsConfig: &routingRuleModelsConfigModel{
+					Mode:   types.StringValue("weighted"),
+					Models: routingModels(types.Float64Value(0.5), types.StringValue(""), types.StringValue("")),
+				},
+			},
+		},
+		{
+			name: "routing_rule match only", resource: NewRoutingRuleResource(),
+			config: &routingRuleResourceModel{
+				DisplayName: types.StringValue("match-only"),
+			},
+		},
+		{
+			name: "api_key all projects", resource: NewAPIKeyResource(),
+			config: &apiKeyResourceModel{
+				Name:           types.StringValue("ci"),
+				PermissionMode: types.StringValue(client.PermissionModeAll),
+				Access:         types.MapNull(types.StringType),
+			},
+		},
+		{
+			name: "api_key restricted", resource: NewAPIKeyResource(),
+			config: &apiKeyResourceModel{
+				Name:           types.StringValue("ci"),
+				ProjectID:      types.StringValue(ulid),
+				PermissionMode: types.StringValue(client.PermissionModeRestricted),
+				Access:         accessMap,
+			},
+		},
+		{
+			name: "management_key all", resource: NewManagementKeyResource(),
+			config: &managementKeyResourceModel{
+				Name:           types.StringValue("ci"),
+				PermissionMode: types.StringValue(client.ManagementPermissionModeAll),
+				Access:         types.MapNull(types.StringType),
+			},
+		},
+		{
+			name: "management_key restricted", resource: NewManagementKeyResource(),
+			config: &managementKeyResourceModel{
+				Name:           types.StringValue("ci"),
+				PermissionMode: types.StringValue(client.ManagementPermissionModeRestricted),
+				Access:         accessMap,
+			},
+		},
+		{
+			name: "model custom openai-like", resource: NewModelResource(),
+			config: &modelResourceModel{
+				DisplayName: types.StringValue("my model"),
+				ModelID:     types.StringValue("liquid/lfm2.5-1.2b"),
+				ModelType:   types.StringValue("chat"),
+				Region:      types.StringValue("europe"),
+				BaseURL:     types.StringValue("https://models.example.test/v1"),
+				APIKey:      types.StringValue("sk-test"),
+			},
+			prior: &modelResourceModel{
+				DisplayName: types.StringValue("my model"),
+				ModelID:     types.StringValue("liquid/lfm2.5-1.2b"),
+				ModelType:   types.StringValue("chat"),
+				Region:      types.StringValue("europe"),
+				BaseURL:     types.StringValue("https://models.example.test/v1"),
+				APIKey:      types.StringValue("sk-test"),
+				Description: types.StringValue(""),
+				InputCost:   types.Float64Value(0),
+				OutputCost:  types.Float64Value(0),
+				MaxTokens:   types.Int64Value(4096),
+				Temperature: types.Float64Value(0.7),
+			},
+		},
+		{
+			name: "bedrock_model pod identity", resource: NewBedrockModelResource(),
+			config: &bedrockModelResourceModel{
+				DisplayName:          types.StringValue("bedrock"),
+				ModelID:              types.StringValue("arn:aws:bedrock:eu-central-1:123456789012:application-inference-profile/abc123"),
+				Region:               types.StringValue("eu-central-1"),
+				ModelDeveloper:       types.StringValue("anthropic"),
+				AuthMode:             types.StringValue(client.BedrockAuthModePodIdentity),
+				AssumeRoleArn:        types.StringValue("arn:aws:iam::123456789012:role/bedrock"),
+				AssumeRoleExternalID: types.StringValue("ext-1"),
+			},
+			prior: &bedrockModelResourceModel{
+				DisplayName:          types.StringValue("bedrock"),
+				ModelID:              types.StringValue("arn:aws:bedrock:eu-central-1:123456789012:application-inference-profile/abc123"),
+				Region:               types.StringValue("eu-central-1"),
+				ModelDeveloper:       types.StringValue("anthropic"),
+				AuthMode:             types.StringValue(client.BedrockAuthModePodIdentity),
+				AssumeRoleArn:        types.StringValue("arn:aws:iam::123456789012:role/bedrock"),
+				AssumeRoleExternalID: types.StringValue("ext-1"),
+				ModelType:            types.StringValue("chat"),
+				ModelFamily:          types.StringValue("claude"),
+				Description:          types.StringValue(""),
+			},
+		},
+		{
+			name: "bedrock_model integration", resource: NewBedrockModelResource(),
+			config: &bedrockModelResourceModel{
+				DisplayName:    types.StringValue("bedrock"),
+				ModelID:        types.StringValue("arn:aws:bedrock:eu-central-1:123456789012:application-inference-profile/abc123"),
+				Region:         types.StringValue("eu-central-1"),
+				ModelDeveloper: types.StringValue("anthropic"),
+				AuthMode:       types.StringValue(client.BedrockAuthModeIntegration),
+				IntegrationID:  types.StringValue(ulid),
+				MaxTokens:      types.Int64Value(4096),
+				Temperature:    types.Float64Value(0.2),
+			},
+		},
+		{
+			name: "workspace_settings with pii redaction", resource: NewWorkspaceSettingsResource(),
+			config: &workspaceSettingsResourceModel{
+				DisplayName: types.StringValue("Acme"),
+				PiiRedaction: &workspaceSettingsPiiModel{
+					Enabled: types.BoolValue(true),
+					Config: &workspaceSettingsPiiConfigModel{
+						Language:  types.StringValue("en"),
+						Entities:  stringList("EMAIL_ADDRESS", "PERSON"),
+						OnFailure: types.StringValue("block"),
+						Threshold: types.Float64Value(0.7),
+					},
+				},
+			},
+		},
+		{
+			name: "workspace_settings adopted", resource: NewWorkspaceSettingsResource(),
+			config: &workspaceSettingsResourceModel{
+				EnforceEnabledModels: types.BoolValue(true),
+			},
+			prior: &workspaceSettingsResourceModel{
+				DisplayName:          types.StringValue("Acme"),
+				EnforceEnabledModels: types.BoolValue(true),
+			},
+		},
+		{
+			name: "evaluator python", resource: NewEvaluatorResource(),
+			config: &evaluatorResourceModel{
+				Key:        types.StringValue("my-eval"),
+				Type:       types.StringValue(client.EvaluatorTypePython),
+				ProjectID:  types.StringValue(ulid),
+				OutputType: types.StringValue("boolean"),
+				Code:       types.StringValue("def evaluate(log): return True"),
+			},
+			prior: &evaluatorResourceModel{
+				Key:         types.StringValue("my-eval"),
+				Type:        types.StringValue(client.EvaluatorTypePython),
+				ProjectID:   types.StringValue(ulid),
+				OutputType:  types.StringValue("boolean"),
+				Code:        types.StringValue("def evaluate(log): return True"),
+				Description: types.StringValue(""),
+				Repetitions: types.Int64Value(1),
+			},
+		},
+		{
+			name: "evaluator llm single with categorical labels", resource: NewEvaluatorResource(),
+			config: &evaluatorResourceModel{
+				Key:        types.StringValue("judge"),
+				Type:       types.StringValue(client.EvaluatorTypeLLM),
+				ProjectID:  types.StringValue(ulid),
+				OutputType: types.StringValue("categorical"),
+				Prompt:     types.StringValue("Is the answer helpful?"),
+				Mode:       types.StringValue("single"),
+				Model:      types.StringValue("openai/gpt-4o"),
+				CategoricalLabels: []evaluatorLabelModel{
+					{Value: types.StringValue("good"), Description: types.StringValue("helpful")},
+					{Value: types.StringValue("bad"), Description: types.StringNull()},
+				},
+			},
+		},
+		{
+			name: "evaluator llm jury", resource: NewEvaluatorResource(),
+			config: &evaluatorResourceModel{
+				Key:        types.StringValue("jury-eval"),
+				Type:       types.StringValue(client.EvaluatorTypeLLM),
+				ProjectID:  types.StringValue(ulid),
+				OutputType: types.StringValue("boolean"),
+				Prompt:     types.StringValue("Is the answer helpful?"),
+				Mode:       types.StringValue("jury"),
+				Jury: &evaluatorJuryModel{
+					Judges:              []evaluatorJudgeModel{judge("openai/gpt-4o"), judge("anthropic/claude-sonnet-4")},
+					ReplacementJudges:   []evaluatorJudgeModel{judge("openai/gpt-4o-mini")},
+					MinSuccessfulJudges: types.Int64Value(2),
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+" create", func(t *testing.T) {
+			if diags := revalidatePlan(ctx, planAfterMarking(t, tc.resource, tc.config)); diags.HasError() {
+				t.Errorf("a valid create plan must pass: %v", diags)
+			}
+		})
+		t.Run(tc.name+" update", func(t *testing.T) {
+			model := tc.prior
+			if model == nil {
+				model = tc.config
+			}
+			if diags := revalidatePlan(ctx, planFor(t, tc.resource, model)); diags.HasError() {
+				t.Errorf("a valid update plan must pass: %v", diags)
 			}
 		})
 	}
