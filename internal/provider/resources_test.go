@@ -82,9 +82,9 @@ func stringList(ss ...string) types.List {
 
 func TestValidateSharingAutoGrant(t *testing.T) {
 	cases := []struct {
-		name      string
-		sharing   *workspaceModelSharingModel
-		wantError bool
+		name       string
+		sharing    *workspaceModelSharingModel
+		wantDetail string // empty means the config is accepted
 	}{
 		{
 			name: "auto_grant with project_ids rejected",
@@ -93,7 +93,7 @@ func TestValidateSharingAutoGrant(t *testing.T) {
 				ProjectIDs:           stringList("p1"),
 				AllProjects:          types.BoolNull(),
 			},
-			wantError: true,
+			wantDetail: "cannot be combined with an explicit project_ids list",
 		},
 		{
 			name: "auto_grant with all_projects allowed",
@@ -102,7 +102,6 @@ func TestValidateSharingAutoGrant(t *testing.T) {
 				ProjectIDs:           types.ListNull(types.StringType),
 				AllProjects:          types.BoolValue(true),
 			},
-			wantError: false,
 		},
 		{
 			name: "selected without auto_grant allowed",
@@ -111,15 +110,18 @@ func TestValidateSharingAutoGrant(t *testing.T) {
 				ProjectIDs:           stringList("p1", "p2"),
 				AllProjects:          types.BoolNull(),
 			},
-			wantError: false,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			diags := validateSharingAutoGrant(tc.sharing)
-			if diags.HasError() != tc.wantError {
-				t.Errorf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
+			if tc.wantDetail == "" {
+				if diags.HasError() {
+					t.Errorf("this config must be accepted, got %v", diags)
+				}
+				return
 			}
+			requireDiagnosticAt(t, diags, "sharing.auto_grant_new_projects", tc.wantDetail)
 		})
 	}
 }
@@ -538,14 +540,22 @@ func TestWorkspaceModelProjectIDsRejectedAtPlanTime(t *testing.T) {
 	validators := sharingAttr.Attributes["project_ids"].(schema.ListAttribute).Validators
 
 	cases := []struct {
-		name      string
-		value     types.List
-		wantError bool
+		name       string
+		value      types.List
+		wantPath   string // empty means the list is accepted
+		wantDetail string
 	}{
-		{"unique ids accepted", stringList("p1", "p2"), false},
-		{"empty list accepted", stringList(), false},
-		{"duplicate rejected", stringList("p1", "p1"), true},
-		{"null element rejected", types.ListValueMust(types.StringType, []attr.Value{types.StringNull()}), true},
+		{name: "unique ids accepted", value: stringList("p1", "p2")},
+		{name: "empty list accepted", value: stringList()},
+		{
+			name: "duplicate rejected", value: stringList("p1", "p1"),
+			wantPath: "sharing.project_ids[1]", wantDetail: "must not repeat a project id",
+		},
+		{
+			name:     "null element rejected",
+			value:    types.ListValueMust(types.StringType, []attr.Value{types.StringNull()}),
+			wantPath: "sharing.project_ids[0]", wantDetail: "must not contain a null element",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -559,9 +569,13 @@ func TestWorkspaceModelProjectIDsRejectedAtPlanTime(t *testing.T) {
 				}, resp)
 				diags.Append(resp.Diagnostics...)
 			}
-			if diags.HasError() != tc.wantError {
-				t.Errorf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
+			if tc.wantPath == "" {
+				if diags.HasError() {
+					t.Errorf("this list must be accepted, got %v", diags)
+				}
+				return
 			}
+			requireDiagnosticAt(t, diags, tc.wantPath, tc.wantDetail)
 		})
 	}
 }

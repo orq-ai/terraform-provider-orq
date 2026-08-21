@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -560,26 +561,29 @@ func TestRevalidatePlanRejectsResolvedValues(t *testing.T) {
 			if !diags.HasError() {
 				t.Fatal("the resolved value must be rejected before the write")
 			}
-			var paths []string
-			for _, e := range diags.Errors() {
-				if a, ok := e.(interface{ Path() path.Path }); ok {
-					paths = append(paths, a.Path().String())
-				}
-			}
-			if !slicesContains(paths, tc.wantPath) {
-				t.Errorf("expected an error at %q, got %v (%v)", tc.wantPath, paths, diags)
-			}
+			requireDiagnosticAt(t, diags, tc.wantPath, "")
 		})
 	}
 }
 
-func slicesContains(ss []string, want string) bool {
-	for _, s := range ss {
-		if s == want {
-			return true
+// requireDiagnosticAt asserts a diagnostic was reported AT a path and says what
+// it should say. "an error happened" is a weak claim on its own: a validator
+// that fires on the wrong attribute, or reports the wrong rule, satisfies it.
+func requireDiagnosticAt(t *testing.T, diags diag.Diagnostics, wantPath, fragment string) {
+	t.Helper()
+	var found []string
+	for _, e := range diags.Errors() {
+		withPath, ok := e.(diag.DiagnosticWithPath)
+		if !ok {
+			found = append(found, "<no path>: "+e.Detail())
+			continue
+		}
+		found = append(found, withPath.Path().String()+": "+e.Detail())
+		if withPath.Path().String() == wantPath && strings.Contains(e.Detail(), fragment) {
+			return
 		}
 	}
-	return false
+	t.Errorf("want an error at %q containing %q, got %v", wantPath, fragment, found)
 }
 
 // The create variant above is only meaningful if the marking really happens:
@@ -989,11 +993,13 @@ func TestRevalidatePlanRunsBeforeTheWrite(t *testing.T) {
 	if !createResp.Diagnostics.HasError() {
 		t.Fatal("a lowercase type must fail the create")
 	}
+	requireDiagnosticAt(t, createResp.Diagnostics, "type", client.NotifierTypeEmail)
 	updateResp := resource.UpdateResponse{State: emptyState()}
 	(&notifierResource{notifiers: api}).Update(ctx, resource.UpdateRequest{Plan: plan, State: emptyState()}, &updateResp)
 	if !updateResp.Diagnostics.HasError() {
 		t.Fatal("a lowercase type must fail the update")
 	}
+	requireDiagnosticAt(t, updateResp.Diagnostics, "type", client.NotifierTypeEmail)
 	if api.creates != 0 || api.updates != 0 {
 		t.Errorf("nothing must be written: %d creates, %d updates", api.creates, api.updates)
 	}

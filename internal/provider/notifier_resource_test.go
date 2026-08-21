@@ -302,14 +302,22 @@ func TestNotifierEmailsRejectedAtPlanTime(t *testing.T) {
 	validators := notifierSchema(t).Attributes["emails"].(schema.ListAttribute).Validators
 
 	for _, tc := range []struct {
-		name      string
-		value     types.List
-		wantError bool
+		name       string
+		value      types.List
+		wantPath   string // empty means the list is accepted
+		wantDetail string
 	}{
-		{"unique accepted", stringList("a@x.io", "b@x.io"), false},
-		{"empty accepted", stringList(), false},
-		{"duplicate rejected", stringList("a@x.io", "a@x.io"), true},
-		{"null element rejected", types.ListValueMust(types.StringType, []attr.Value{types.StringNull()}), true},
+		{name: "unique accepted", value: stringList("a@x.io", "b@x.io")},
+		{name: "empty accepted", value: stringList()},
+		{
+			name: "duplicate rejected", value: stringList("a@x.io", "a@x.io"),
+			wantPath: "emails[1]", wantDetail: "must not repeat an address",
+		},
+		{
+			name:     "null element rejected",
+			value:    types.ListValueMust(types.StringType, []attr.Value{types.StringNull()}),
+			wantPath: "emails[0]", wantDetail: "must not contain a null element",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var diags diag.Diagnostics
@@ -322,9 +330,13 @@ func TestNotifierEmailsRejectedAtPlanTime(t *testing.T) {
 				}, resp)
 				diags.Append(resp.Diagnostics...)
 			}
-			if diags.HasError() != tc.wantError {
-				t.Errorf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
+			if tc.wantPath == "" {
+				if diags.HasError() {
+					t.Errorf("this list must be accepted, got %v", diags)
+				}
+				return
 			}
+			requireDiagnosticAt(t, diags, tc.wantPath, tc.wantDetail)
 		})
 	}
 }
