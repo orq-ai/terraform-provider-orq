@@ -729,6 +729,38 @@ func TestEvaluatorApplyReadLeavesJuryAlone(t *testing.T) {
 
 // project_id is real server state now, so an out-of-band move must surface as a
 // diff rather than be papered over by the value already in state.
+// TestEvaluatorApplyReadPreservesEmptyFreeText proves a refresh is a fixed point
+// for a free-text field an operator set to "". The server echoes "" for both a
+// stored empty string and an unset field, so mapping it to null made every
+// refresh plan `description: null -> ""` and re-PATCH the evaluator forever.
+func TestEvaluatorApplyReadPreservesEmptyFreeText(t *testing.T) {
+	stored := &client.Evaluator{ID: "e1", Key: "k", Type: client.EvaluatorTypePython}
+
+	kept := evaluatorResourceModel{
+		Description: types.StringValue(""),
+		Code:        types.StringValue(""),
+		Prompt:      types.StringValue(""),
+	}
+	applyRead(stored, &kept)
+	for name, got := range map[string]types.String{"description": kept.Description, "code": kept.Code, "prompt": kept.Prompt} {
+		if got.IsNull() {
+			t.Errorf("a configured empty %s must survive the refresh", name)
+		}
+	}
+
+	// An omitted field stays null, and real drift still surfaces.
+	omitted := evaluatorResourceModel{Description: types.StringNull()}
+	applyRead(stored, &omitted)
+	if !omitted.Description.IsNull() {
+		t.Error("an omitted description must stay null")
+	}
+	drift := evaluatorResourceModel{Description: types.StringValue("was set")}
+	applyRead(stored, &drift)
+	if !drift.Description.IsNull() {
+		t.Error("a description cleared out of band must surface as a diff")
+	}
+}
+
 func TestEvaluatorApplyReadRefreshesProjectIDAuthoritatively(t *testing.T) {
 	m := plannedLLM()
 	moved := internalLLM()

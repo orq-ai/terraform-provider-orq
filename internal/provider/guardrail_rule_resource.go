@@ -206,7 +206,7 @@ func guardrailRefsFromModel(models []guardrailRefModel) ([]client.GuardrailRef, 
 func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleResourceModel) {
 	m.ID = types.StringValue(g.ID)
 	m.DisplayName = types.StringValue(g.DisplayName)
-	m.Description = optString(g.Description)
+	m.Description = preserveEmptyString(m.Description, g.Description)
 	m.Enabled = types.BoolValue(g.Enabled)
 	m.ProjectID = optString(g.ProjectID)
 	m.Timeout = types.Int64Value(g.Timeout)

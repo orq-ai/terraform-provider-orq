@@ -112,7 +112,7 @@ func (r *projectResource) Configure(_ context.Context, req resource.ConfigureReq
 func (r *projectResource) apply(p *client.Project, m *projectResourceModel) {
 	m.ID = types.StringValue(p.ID)
 	m.Name = types.StringValue(p.Name)
-	m.Description = optString(p.Description)
+	m.Description = preserveEmptyString(m.Description, p.Description)
 	m.Key = types.StringValue(p.Key)
 	m.Teams = stringListValue(p.Teams)
 	m.IsArchived = types.BoolValue(p.IsArchived)

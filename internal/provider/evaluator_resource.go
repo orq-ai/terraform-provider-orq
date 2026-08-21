@@ -578,19 +578,22 @@ func applyWrite(internal, external *client.Evaluator, m *evaluatorResourceModel)
 // applyRead refreshes state from the STORED record, which wins outright so that
 // out-of-band drift surfaces — an evaluator moved to another project shows up as
 // a `project_id` diff. `jury` (stored as model document ids) and `model`
-// (resolveModelRef) are deliberately untouched.
+// (resolveModelRef) are deliberately untouched. The free-text fields keep a
+// prior "" the server echoes back as "": the wire cannot tell a stored empty
+// string from an unset one, and collapsing it to null is a diff that re-PATCHes
+// on every apply and never settles.
 func applyRead(e *client.Evaluator, m *evaluatorResourceModel) {
 	m.ID = types.StringValue(e.ID)
 	m.Key = types.StringValue(e.Key)
 	m.Type = types.StringValue(e.Type)
-	m.Description = optString(e.Description)
+	m.Description = preserveEmptyString(m.Description, e.Description)
 	m.OutputType = optString(e.OutputType)
 	m.Enabled = types.BoolValue(e.Enabled)
 	m.ProjectID = optString(e.ProjectID)
 	m.CreatedAt = optString(e.Created)
 	m.UpdatedAt = optString(e.Updated)
-	m.Code = optString(e.Code)
-	m.Prompt = optString(e.Prompt)
+	m.Code = preserveEmptyString(m.Code, e.Code)
+	m.Prompt = preserveEmptyString(m.Prompt, e.Prompt)
 	m.Mode = optString(e.Mode)
 	if e.Repetitions != nil {
 		m.Repetitions = types.Int64Value(*e.Repetitions)

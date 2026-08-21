@@ -58,3 +58,21 @@ func TestGuardrailApplyPreservesPlannedEmptyOptions(t *testing.T) {
 		t.Fatalf("server options should win: %v", m3.Guardrails[0].Options)
 	}
 }
+
+// Same empty-vs-absent hazard as project.description and evaluator.description.
+func TestGuardrailApplyPreservesEmptyDescription(t *testing.T) {
+	r := &guardrailRuleResource{}
+	stored := &client.GuardrailRule{ID: "g1", DisplayName: "pii"}
+
+	kept := guardrailRuleResourceModel{Description: types.StringValue("")}
+	r.apply(stored, &kept)
+	if kept.Description.IsNull() {
+		t.Error("a configured empty description must survive the refresh")
+	}
+
+	omitted := guardrailRuleResourceModel{Description: types.StringNull()}
+	r.apply(stored, &omitted)
+	if !omitted.Description.IsNull() {
+		t.Error("an omitted description must stay null")
+	}
+}
