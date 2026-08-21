@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -326,6 +327,21 @@ func TestWorkspaceModelSharingShapeRejectedBeforeTheWrite(t *testing.T) {
 			want:    "No attribute specified",
 		},
 		{
+			// The server 400s the sharing write, after the enable already landed.
+			name:    "duplicate project_ids",
+			sharing: workspaceModelSharingModel{AllProjects: types.BoolNull(), ProjectIDs: stringList("p1", "p1")},
+			want:    "must not repeat a project id",
+		},
+		{
+			// stringSlice fails on the null element, also after the enable.
+			name: "null project_ids element",
+			sharing: workspaceModelSharingModel{
+				AllProjects: types.BoolNull(),
+				ProjectIDs:  types.ListValueMust(types.StringType, []attr.Value{types.StringValue("p1"), types.StringNull()}),
+			},
+			want: "must not contain a null element",
+		},
+		{
 			name: "auto_grant resolved to true alongside project_ids",
 			sharing: workspaceModelSharingModel{
 				AllProjects:          types.BoolNull(),
@@ -507,6 +523,142 @@ func TestWorkspaceModelKeepsConfiguredProjectIDOrder(t *testing.T) {
 	}
 	if got := ids(get(t, &driftResp.State)); !slices.Equal(got, []string{"p1", "p9"}) {
 		t.Fatalf("a membership change must take the server's grants, got %v", got)
+	}
+}
+
+// The apply-time guards are a backstop; a literal duplicate or null id must be
+// caught by the schema validators, before anything is enabled.
+func TestWorkspaceModelProjectIDsRejectedAtPlanTime(t *testing.T) {
+	ctx := context.Background()
+	sharingAttr := workspaceModelSchema(t).Attributes["sharing"].(schema.SingleNestedAttribute)
+	validators := sharingAttr.Attributes["project_ids"].(schema.ListAttribute).Validators
+
+	cases := []struct {
+		name      string
+		value     types.List
+		wantError bool
+	}{
+		{"unique ids accepted", stringList("p1", "p2"), false},
+		{"empty list accepted", stringList(), false},
+		{"duplicate rejected", stringList("p1", "p1"), true},
+		{"null element rejected", types.ListValueMust(types.StringType, []attr.Value{types.StringNull()}), true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var diags diag.Diagnostics
+			for _, v := range validators {
+				resp := &validator.ListResponse{}
+				v.ValidateList(ctx, validator.ListRequest{
+					Path:           path.Root("sharing").AtName("project_ids"),
+					PathExpression: path.MatchRoot("sharing").AtName("project_ids"),
+					ConfigValue:    tc.value,
+				}, resp)
+				diags.Append(resp.Diagnostics...)
+			}
+			if diags.HasError() != tc.wantError {
+				t.Errorf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
+			}
+		})
+	}
+}
+
+// failingSharingWorkspaceModels enables fine but can never write sharing — the
+// live failure mode behind a duplicate id or a nonexistent project id.
+type failingSharingWorkspaceModels struct {
+	enabled      bool
+	disables     int
+	disableFails bool
+}
+
+func (s *failingSharingWorkspaceModels) Enable(context.Context, string) error {
+	s.enabled = true
+	return nil
+}
+
+func (s *failingSharingWorkspaceModels) Disable(context.Context, string) error {
+	s.disables++
+	if s.disableFails {
+		return &client.Error{Code: client.CodeInvalid, Message: "cannot disable"}
+	}
+	s.enabled = false
+	return nil
+}
+
+func (s *failingSharingWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
+	return &client.WorkspaceModel{
+		ModelID: modelID,
+		Enabled: s.enabled,
+		Sharing: &client.SharingConfig{Mode: client.SharingModeAllProjects},
+	}, nil
+}
+
+func (s *failingSharingWorkspaceModels) SetSharing(context.Context, string, client.SharingInput) error {
+	return &client.Error{Code: client.CodeInvalid, Message: "repeated value must contain unique items"}
+}
+
+// TestWorkspaceModelRollsBackEnableWhenSharingWriteFails covers the failure the
+// plan-time guards cannot see — a nonexistent project id, say. The model is
+// already enabled when the sharing write fails, and a bare enabled model
+// defaults to all-projects, so a create that stops there leaves the workspace
+// fail-open. The enable is undone instead, and only an undo that itself fails
+// falls back to persisting the tainted partial state.
+func TestWorkspaceModelRollsBackEnableWhenSharingWriteFails(t *testing.T) {
+	ctx := context.Background()
+	s := workspaceModelSchema(t)
+	plan := tfsdk.Plan{Schema: s, Raw: workspaceModelRaw(t, s, workspaceModelResourceModel{
+		ID:          types.StringNull(),
+		ModelID:     types.StringValue("openai/gpt-4o"),
+		Enabled:     types.BoolValue(true),
+		DisplayName: types.StringNull(),
+		Sharing: &workspaceModelSharingModel{
+			AllProjects:          types.BoolNull(),
+			ProjectIDs:           stringList("p1"),
+			AllowVersionPin:      types.BoolValue(false),
+			AllowFork:            types.BoolValue(false),
+			AutoGrantNewProjects: types.BoolValue(false),
+		},
+	})}
+	create := func(api client.WorkspaceModelsAPI) resource.CreateResponse {
+		r := &workspaceModelResource{
+			models:   api,
+			resolver: &catalogModels{docs: []client.Model{{ID: "doc_uuid_123", RefID: "openai/gpt-4o"}}},
+		}
+		resp := resource.CreateResponse{State: tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}}
+		r.Create(ctx, resource.CreateRequest{Plan: plan}, &resp)
+		return resp
+	}
+
+	api := &failingSharingWorkspaceModels{}
+	resp := create(api)
+	if !resp.Diagnostics.HasError() {
+		t.Fatal("a failed sharing write must fail the create")
+	}
+	if api.disables != 1 || api.enabled {
+		t.Errorf("the enable must be rolled back: %d disables, enabled = %v", api.disables, api.enabled)
+	}
+	if !resp.State.Raw.IsNull() {
+		t.Error("a rolled-back create must leave no state")
+	}
+	if detail := resp.Diagnostics.Errors()[0].Detail(); !strings.Contains(detail, "rolled back") {
+		t.Errorf("the diagnostic must say the enable was rolled back, got %q", detail)
+	}
+
+	// When the rollback itself fails the model IS left enabled, so the partial
+	// state is persisted and the resource tainted for the next apply.
+	stuck := &failingSharingWorkspaceModels{disableFails: true}
+	resp = create(stuck)
+	if !resp.Diagnostics.HasError() {
+		t.Fatal("a failed sharing write must fail the create")
+	}
+	if resp.State.Raw.IsNull() {
+		t.Fatal("a model left enabled must persist a tainted partial state")
+	}
+	var out workspaceModelResourceModel
+	if diags := resp.State.Get(ctx, &out); diags.HasError() {
+		t.Fatalf("reading state: %v", diags)
+	}
+	if !out.Enabled.ValueBool() {
+		t.Error("the persisted state must record that the model is enabled")
 	}
 }
 

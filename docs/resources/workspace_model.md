@@ -95,7 +95,7 @@ Optional:
 - `allow_fork` (Boolean) Allow consuming projects to fork this model into a project-owned copy. Omitted stores `false`.
 - `allow_version_pin` (Boolean) Allow consuming projects to pin a specific version. Omitted stores `false`.
 - `auto_grant_new_projects` (Boolean) Automatically grant new projects access. Omitted stores `false`. Only valid with `all_projects` (combining it with an explicit `project_ids` list is a perpetual-diff trap and is rejected).
-- `project_ids` (List of String) Share with exactly these projects. An empty list means shared with no project (still workspace-visible to admins). Mutually exclusive with `all_projects`.
+- `project_ids` (List of String) Share with exactly these projects. An empty list means shared with no project (still workspace-visible to admins). Ids must be unique and non-null — the server rejects a repeated one. Mutually exclusive with `all_projects`.
 
 ## Import
 

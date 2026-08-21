@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/boolvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -113,7 +114,12 @@ func (r *workspaceModelResource) Schema(_ context.Context, _ resource.SchemaRequ
 						Optional:    true,
 						ElementType: types.StringType,
 						MarkdownDescription: "Share with exactly these projects. An empty list means shared with no " +
-							"project (still workspace-visible to admins). Mutually exclusive with `all_projects`.",
+							"project (still workspace-visible to admins). Ids must be unique and non-null — the server " +
+							"rejects a repeated one. Mutually exclusive with `all_projects`.",
+						Validators: []validator.List{
+							listvalidator.UniqueValues(),
+							listvalidator.NoNullValues(),
+						},
 					},
 					"allow_version_pin": schema.BoolAttribute{
 						Optional:            true,
@@ -175,6 +181,10 @@ const (
 	invalidAutoGrantDetail = "auto_grant_new_projects = true cannot be combined with an explicit project_ids list " +
 		"(it would mutate the stored list on new-project creation, causing a perpetual diff). " +
 		"Use it only with all_projects = true."
+	invalidDuplicateProjectIDDetail = "project_ids must not repeat a project id. The server rejects the sharing " +
+		"write with \"repeated value must contain unique items\", which would leave the model enabled with no grants."
+	invalidNullProjectIDDetail = "project_ids must not contain a null element. Remove it, or use an empty list to " +
+		"share with no project."
 
 	// Mirrors the wording boolvalidator.ExactlyOneOf emits at plan time, so the
 	// apply-time backstop reads identically.
@@ -227,7 +237,35 @@ func (s *workspaceModelSharingModel) validateSharing() diag.Diagnostics {
 	case !shareAll && !selected:
 		diags.AddAttributeError(allProjects, invalidSharingComboSummary, "No attribute specified "+sharingExactlyOneOf)
 	}
+	diags.Append(validateProjectIDElements(s.ProjectIDs)...)
 	diags.Append(validateSharingAutoGrant(s)...)
+	return diags
+}
+
+// validateProjectIDElements rejects the element-level shapes the write cannot
+// survive: a repeated id (the server 400s) and a null element (ElementsAs fails).
+// Both would otherwise land AFTER the enable, leaving the model fail-open.
+func validateProjectIDElements(l types.List) diag.Diagnostics {
+	var diags diag.Diagnostics
+	if l.IsNull() || l.IsUnknown() {
+		return diags
+	}
+	ids := path.Root("sharing").AtName("project_ids")
+	seen := make(map[string]bool, len(l.Elements()))
+	for i, e := range l.Elements() {
+		v, ok := e.(types.String)
+		if !ok || v.IsUnknown() {
+			continue
+		}
+		switch {
+		case v.IsNull():
+			diags.AddAttributeError(ids.AtListIndex(i), invalidSharingSummary, invalidNullProjectIDDetail)
+		case seen[v.ValueString()]:
+			diags.AddAttributeError(ids.AtListIndex(i), invalidSharingSummary, invalidDuplicateProjectIDDetail)
+		default:
+			seen[v.ValueString()] = true
+		}
+	}
 	return diags
 }
 
@@ -368,6 +406,14 @@ func (r *workspaceModelResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 	if err := r.models.SetSharing(ctx, modelID, in); err != nil {
+		// The model is enabled but ungoverned (all-projects, fail-open). Undo the
+		// enable so a failed create leaves nothing behind and can be retried.
+		if r.rollbackEnable(ctx, modelID) {
+			resp.Diagnostics.AddError("Unable to write model sharing",
+				"The model was enabled but its sharing config could not be written, so the enable was rolled "+
+					"back and nothing was created. Fix the sharing config and re-apply.\n\n"+errDetail(err))
+			return
+		}
 		// Persist what we know: the model is enabled. Keep the requested sharing
 		// block so the operator sees the intended config.
 		plan.ID = types.StringValue(modelID)
@@ -404,6 +450,21 @@ func (r *workspaceModelResource) Create(ctx context.Context, req resource.Create
 	}
 	r.applyModel(wm, &plan)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+// rollbackEnable undoes the enable after a failed sharing write. A system model
+// id contains a slash, which can make the disable no-op server-side, so the
+// result is confirmed by a read; false means the model is still enabled and the
+// caller must fall back to persisting a tainted partial state.
+func (r *workspaceModelResource) rollbackEnable(ctx context.Context, modelID string) bool {
+	if err := r.models.Disable(ctx, modelID); err != nil && !isNotFound(err) {
+		return false
+	}
+	wm, err := r.models.Get(ctx, modelID)
+	if err != nil {
+		return isNotFound(err)
+	}
+	return wm == nil || !wm.Enabled
 }
 
 func (r *workspaceModelResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
