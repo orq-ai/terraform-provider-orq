@@ -2,13 +2,19 @@ package provider
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
+
+	"github.com/orq-ai/terraform-provider-orq/internal/client"
 )
 
 // The server refuses a budget whose limits.period is UNSPECIFIED — on create and
@@ -212,4 +218,112 @@ func TestCorrelateAlertIDsByKey(t *testing.T) {
 		correlateAlertIDs(plan, []budgetAlertModel{budgetAlert("", 80, "<unknown>")}, prior)
 		wantAlertID(t, plan, 0, "<unknown>")
 	})
+}
+
+// countingBudgets records every write, so a rejection can be shown to land
+// before the server is touched.
+type countingBudgets struct {
+	creates int
+	updates int
+}
+
+func (f *countingBudgets) List(context.Context, client.ListParams) (*client.BudgetPage, error) {
+	return &client.BudgetPage{}, nil
+}
+func (f *countingBudgets) Get(context.Context, string) (*client.Budget, error) {
+	return &client.Budget{ID: "bgt_1"}, nil
+}
+func (f *countingBudgets) Create(context.Context, client.BudgetWriteInput) (*client.Budget, error) {
+	f.creates++
+	return &client.Budget{ID: "bgt_1"}, nil
+}
+func (f *countingBudgets) Update(context.Context, string, client.BudgetWriteInput) (*client.Budget, error) {
+	f.updates++
+	return &client.Budget{ID: "bgt_1"}, nil
+}
+func (f *countingBudgets) Delete(context.Context, string) error { return nil }
+
+// TestBudgetScopeXORRecheckedBeforeTheWrite drives the apply-time recheck the
+// resource carries. It is the ONLY guard for this invariant at apply:
+// ValidateConfig defers it whenever match_cel is unknown and the framework never
+// re-runs it, and revalidatePlan re-runs attribute validators, not
+// ValidateConfig. Without it writeInput silently picks one of the two and the
+// post-create state nulls the other — an inconsistent result on a budget that
+// now exists.
+func TestBudgetScopeXORRecheckedBeforeTheWrite(t *testing.T) {
+	ctx := context.Background()
+	var sch resource.SchemaResponse
+	NewBudgetResource().Schema(ctx, resource.SchemaRequest{}, &sch)
+	s := sch.Schema
+
+	limits := &budgetLimitsModel{Period: types.StringValue("MONTHLY"), Amount: types.Float64Value(10)}
+	cases := []struct {
+		name  string
+		model budgetResourceModel
+	}{
+		{
+			// An interpolated match_cel that resolved non-null alongside a scope.
+			name: "both resolved",
+			model: budgetResourceModel{
+				ID:       types.StringValue("bgt_1"),
+				Scope:    &budgetScopeModel{Kind: types.StringValue(client.BudgetScopeWorkspace)},
+				MatchCEL: types.StringValue(`provider == "openai"`),
+				Limits:   limits,
+			},
+		},
+		{
+			// ...and one that resolved to null with no scope to fall back on.
+			name: "neither resolved",
+			model: budgetResourceModel{
+				ID:       types.StringValue("bgt_1"),
+				MatchCEL: types.StringNull(),
+				Limits:   limits,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := budgetRaw(t, s, tc.model)
+			plan := tfsdk.Plan{Schema: s, Raw: raw}
+			emptyState := func() tfsdk.State {
+				return tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+			}
+			check := func(diags diag.Diagnostics, api *countingBudgets) {
+				t.Helper()
+				if !diags.HasError() {
+					t.Fatal("the scope/match_cel combination must be rejected")
+				}
+				if api.creates != 0 || api.updates != 0 {
+					t.Errorf("no budget must be written: %d creates, %d updates", api.creates, api.updates)
+				}
+				if got := diags.Errors()[0].Detail(); !strings.Contains(got, "match_cel") {
+					t.Errorf("the diagnostic must name the conflict, got %q", got)
+				}
+			}
+
+			api := &countingBudgets{}
+			createResp := resource.CreateResponse{State: emptyState()}
+			(&budgetResource{budgets: api}).Create(ctx, resource.CreateRequest{Plan: plan}, &createResp)
+			check(createResp.Diagnostics, api)
+
+			api = &countingBudgets{}
+			updateResp := resource.UpdateResponse{State: tfsdk.State{Schema: s, Raw: raw}}
+			(&budgetResource{budgets: api}).Update(ctx, resource.UpdateRequest{
+				Plan:  plan,
+				State: tfsdk.State{Schema: s, Raw: raw},
+			}, &updateResp)
+			check(updateResp.Diagnostics, api)
+		})
+	}
+}
+
+func budgetRaw(t *testing.T, s schema.Schema, m budgetResourceModel) tftypes.Value {
+	t.Helper()
+	ctx := context.Background()
+	state := tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+	if diags := state.Set(ctx, &m); diags.HasError() {
+		t.Fatalf("building value: %v", diags)
+	}
+	return state.Raw
 }
