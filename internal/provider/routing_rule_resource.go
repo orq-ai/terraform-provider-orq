@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/float64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -256,31 +255,6 @@ func (m *routingRuleModelsConfigModel) modelsConfigInput() *client.RoutingRuleMo
 	return out
 }
 
-// validateWeights re-checks the one weight the server silently rewrites. The
-// schema validator only sees values known at plan time, so an interpolated
-// weight that resolves to 0 reaches apply unchecked: the server would store 0.5,
-// contradict the plan, and leave a created-but-tainted rule. Called before the
-// write, so nothing is created.
-func (m *routingRuleModelsConfigModel) validateWeights() diag.Diagnostics {
-	var diags diag.Diagnostics
-	if m == nil {
-		return diags
-	}
-	for i, e := range m.Models {
-		if e.Weight.IsNull() || e.Weight.IsUnknown() || e.Weight.ValueFloat64() != 0 {
-			continue
-		}
-		diags.AddAttributeError(
-			path.Root("models_config").AtName("models").AtListIndex(i).AtName("weight"),
-			"Invalid model weight",
-			"weight must be greater than 0 (the accepted range is 0.001 to 1). The server rewrites a "+
-				"weight of 0 to its 0.5 default, which would contradict the plan and taint the rule. "+
-				"Omit weight to take the default explicitly.",
-		)
-	}
-	return diags
-}
-
 func (m *routingRuleResourceModel) expressionCEL() *string {
 	if m.Expression == nil || m.Expression.Cel.IsNull() || m.Expression.Cel.IsUnknown() {
 		return nil
@@ -307,7 +281,6 @@ func (r *routingRuleResource) Create(ctx context.Context, req resource.CreateReq
 	var plan routingRuleResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
-	resp.Diagnostics.Append(plan.ModelsConfig.validateWeights()...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -351,7 +324,6 @@ func (r *routingRuleResource) Update(ctx context.Context, req resource.UpdateReq
 	var plan routingRuleResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
-	resp.Diagnostics.Append(plan.ModelsConfig.validateWeights()...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

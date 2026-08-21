@@ -185,11 +185,6 @@ const (
 		"write with \"repeated value must contain unique items\", which would leave the model enabled with no grants."
 	invalidNullProjectIDDetail = "project_ids must not contain a null element. Remove it, or use an empty list to " +
 		"share with no project."
-
-	// Mirrors the wording boolvalidator.ExactlyOneOf emits at plan time, so the
-	// apply-time backstop reads identically.
-	invalidSharingComboSummary = "Invalid Attribute Combination"
-	sharingExactlyOneOf        = "when one (and only one) of [sharing.all_projects,sharing.project_ids] is required"
 )
 
 type allProjectsTrueValidator struct{}
@@ -209,41 +204,13 @@ func (allProjectsTrueValidator) ValidateBool(_ context.Context, req validator.Bo
 	resp.Diagnostics.AddAttributeError(req.Path, invalidSharingSummary, invalidAllProjectsDetail)
 }
 
-// validateSharing re-checks the whole resolved sharing shape before the write.
-// Every plan-time validator DEFERS on an unknown value and the framework never
-// re-runs them at apply, so an interpolation that resolves badly would otherwise
-// be written, normalized on read-back, and taint the resource. Called before any
-// API call, so nothing is created. Unknowns cannot reach apply; they are skipped
-// defensively rather than guessed at.
-func (s *workspaceModelSharingModel) validateSharing() diag.Diagnostics {
-	var diags diag.Diagnostics
-	if s == nil {
-		return diags
-	}
-	allProjects := path.Root("sharing").AtName("all_projects")
-	allProjectsKnown := !s.AllProjects.IsUnknown()
-	idsKnown := !s.ProjectIDs.IsUnknown()
-	shareAll := allProjectsKnown && !s.AllProjects.IsNull() && s.AllProjects.ValueBool()
-	shareNone := allProjectsKnown && !s.AllProjects.IsNull() && !s.AllProjects.ValueBool()
-	selected := idsKnown && !s.ProjectIDs.IsNull()
-
-	switch {
-	case shareNone:
-		diags.AddAttributeError(allProjects, invalidSharingSummary, invalidAllProjectsDetail)
-	case !allProjectsKnown || !idsKnown:
-		// The pairing cannot be decided on a placeholder.
-	case shareAll && selected:
-		diags.AddAttributeError(allProjects, invalidSharingComboSummary, "2 attributes specified "+sharingExactlyOneOf)
-	case !shareAll && !selected:
-		diags.AddAttributeError(allProjects, invalidSharingComboSummary, "No attribute specified "+sharingExactlyOneOf)
-	}
-	diags.Append(validateSharingAutoGrant(s)...)
-	return diags
-}
-
 // validateSharingAutoGrant rejects auto_grant_new_projects = true combined with
-// an explicit project_ids list (a perpetual-diff trap). It is a pure function so
-// the guard is unit-testable without constructing a tfsdk.Config.
+// an explicit project_ids list (a perpetual-diff trap). It is the one sharing
+// rule no attribute validator can express, so unlike the rest of the block it
+// still needs re-checking before the write: ValidateConfig defers it when either
+// value is unknown, and revalidatePlan re-runs attribute validators, not
+// ValidateConfig. A pure function, so the guard is unit-testable without
+// constructing a tfsdk.Config.
 func validateSharingAutoGrant(s *workspaceModelSharingModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 	if s == nil {
@@ -350,7 +317,7 @@ func (r *workspaceModelResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	resp.Diagnostics.Append(plan.Sharing.validateSharing()...)
+	resp.Diagnostics.Append(validateSharingAutoGrant(plan.Sharing)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -489,7 +456,7 @@ func (r *workspaceModelResource) Update(ctx context.Context, req resource.Update
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	resp.Diagnostics.Append(plan.Sharing.validateSharing()...)
+	resp.Diagnostics.Append(validateSharingAutoGrant(plan.Sharing)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
