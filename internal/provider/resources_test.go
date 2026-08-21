@@ -265,12 +265,16 @@ func TestWorkspaceModelAllProjectsOnlyAcceptsTrue(t *testing.T) {
 // could make, so a pre-flight rejection can be proven to land before any of them.
 type countingWorkspaceModels struct {
 	enables  int
+	disables int
 	sharings int
 	gets     int
 }
 
-func (s *countingWorkspaceModels) Enable(context.Context, string) error  { s.enables++; return nil }
-func (s *countingWorkspaceModels) Disable(context.Context, string) error { return nil }
+func (s *countingWorkspaceModels) Enable(context.Context, string) error { s.enables++; return nil }
+func (s *countingWorkspaceModels) Disable(context.Context, string) error {
+	s.disables++
+	return nil
+}
 func (s *countingWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
 	s.gets++
 	return &client.WorkspaceModel{
@@ -387,9 +391,9 @@ func TestWorkspaceModelSharingShapeRejectedBeforeTheWrite(t *testing.T) {
 				if !strings.Contains(strings.Join(details, "\n"), tc.want) {
 					t.Errorf("the diagnostic must explain the constraint, got %q", details)
 				}
-				if res.resolves != 0 || api.enables != 0 || api.sharings != 0 || api.gets != 0 {
-					t.Errorf("nothing must be called before the rejection: %d resolves, %d enables, %d sharing writes, %d gets",
-						res.resolves, api.enables, api.sharings, api.gets)
+				if res.resolves != 0 || api.enables != 0 || api.disables != 0 || api.sharings != 0 || api.gets != 0 {
+					t.Errorf("nothing must be called before the rejection: %d resolves, %d enables, %d disables, %d sharing writes, %d gets",
+						res.resolves, api.enables, api.disables, api.sharings, api.gets)
 				}
 			}
 
@@ -563,11 +567,14 @@ func TestWorkspaceModelProjectIDsRejectedAtPlanTime(t *testing.T) {
 }
 
 // failingSharingWorkspaceModels enables fine but can never write sharing — the
-// live failure mode behind a duplicate id or a nonexistent project id.
+// live failure mode behind a duplicate id or a nonexistent project id. The
+// remaining fields choose how the rollback plays out.
 type failingSharingWorkspaceModels struct {
 	enabled      bool
 	disables     int
-	disableFails bool
+	disableFails bool // the disable itself errors
+	disableNoOps bool // the disable reports success but does not take effect
+	getErr       error
 }
 
 func (s *failingSharingWorkspaceModels) Enable(context.Context, string) error {
@@ -580,11 +587,16 @@ func (s *failingSharingWorkspaceModels) Disable(context.Context, string) error {
 	if s.disableFails {
 		return &client.Error{Code: client.CodeInvalid, Message: "cannot disable"}
 	}
-	s.enabled = false
+	if !s.disableNoOps {
+		s.enabled = false
+	}
 	return nil
 }
 
 func (s *failingSharingWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
+	if s.getErr != nil {
+		return nil, s.getErr
+	}
 	return &client.WorkspaceModel{
 		ModelID: modelID,
 		Enabled: s.enabled,
@@ -600,8 +612,10 @@ func (s *failingSharingWorkspaceModels) SetSharing(context.Context, string, clie
 // plan-time guards cannot see — a nonexistent project id, say. The model is
 // already enabled when the sharing write fails, and a bare enabled model
 // defaults to all-projects, so a create that stops there leaves the workspace
-// fail-open. The enable is undone instead, and only an undo that itself fails
-// falls back to persisting the tainted partial state.
+// fail-open. The enable is undone instead, and the undo is CONFIRMED by a read,
+// because a system model id contains a slash and can make the disable no-op
+// server-side. Only an undo that cannot be confirmed falls back to persisting
+// the tainted partial state.
 func TestWorkspaceModelRollsBackEnableWhenSharingWriteFails(t *testing.T) {
 	ctx := context.Background()
 	s := workspaceModelSchema(t)
@@ -628,37 +642,74 @@ func TestWorkspaceModelRollsBackEnableWhenSharingWriteFails(t *testing.T) {
 		return resp
 	}
 
-	api := &failingSharingWorkspaceModels{}
-	resp := create(api)
-	if !resp.Diagnostics.HasError() {
-		t.Fatal("a failed sharing write must fail the create")
-	}
-	if api.disables != 1 || api.enabled {
-		t.Errorf("the enable must be rolled back: %d disables, enabled = %v", api.disables, api.enabled)
-	}
-	if !resp.State.Raw.IsNull() {
-		t.Error("a rolled-back create must leave no state")
-	}
-	if detail := resp.Diagnostics.Errors()[0].Detail(); !strings.Contains(detail, "rolled back") {
-		t.Errorf("the diagnostic must say the enable was rolled back, got %q", detail)
+	cases := []struct {
+		name      string
+		api       *failingSharingWorkspaceModels
+		rolledOut bool // the undo was confirmed, so the create left nothing behind
+	}{
+		{
+			name: "the disable takes effect",
+			api:  &failingSharingWorkspaceModels{},
+			// The read-back confirms the model is gone from the catalog.
+			rolledOut: true,
+		},
+		{
+			name:      "the read-back reports the model gone",
+			api:       &failingSharingWorkspaceModels{getErr: &client.Error{Code: client.CodeNotFound, Message: "no such model"}},
+			rolledOut: true,
+		},
+		{
+			name: "the disable itself fails",
+			api:  &failingSharingWorkspaceModels{disableFails: true},
+		},
+		{
+			// A slashed system model id: the disable reports success and does nothing.
+			name: "the disable silently no-ops",
+			api:  &failingSharingWorkspaceModels{disableNoOps: true},
+		},
+		{
+			name: "the read-back cannot confirm",
+			api:  &failingSharingWorkspaceModels{disableNoOps: true, getErr: &client.Error{Code: client.CodeInternal, Message: "boom"}},
+		},
 	}
 
-	// When the rollback itself fails the model IS left enabled, so the partial
-	// state is persisted and the resource tainted for the next apply.
-	stuck := &failingSharingWorkspaceModels{disableFails: true}
-	resp = create(stuck)
-	if !resp.Diagnostics.HasError() {
-		t.Fatal("a failed sharing write must fail the create")
-	}
-	if resp.State.Raw.IsNull() {
-		t.Fatal("a model left enabled must persist a tainted partial state")
-	}
-	var out workspaceModelResourceModel
-	if diags := resp.State.Get(ctx, &out); diags.HasError() {
-		t.Fatalf("reading state: %v", diags)
-	}
-	if !out.Enabled.ValueBool() {
-		t.Error("the persisted state must record that the model is enabled")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := create(tc.api)
+			if !resp.Diagnostics.HasError() {
+				t.Fatal("a failed sharing write must fail the create")
+			}
+			if tc.api.disables != 1 {
+				t.Errorf("the enable must be undone exactly once, got %d disables", tc.api.disables)
+			}
+			detail := resp.Diagnostics.Errors()[0].Detail()
+
+			if tc.rolledOut {
+				if !resp.State.Raw.IsNull() {
+					t.Error("a confirmed rollback must leave no state")
+				}
+				if !strings.Contains(detail, "rolled back") {
+					t.Errorf("the diagnostic must say the enable was rolled back, got %q", detail)
+				}
+				return
+			}
+
+			// The model may still be enabled, so the partial state is persisted and
+			// the resource tainted for the next apply.
+			if resp.State.Raw.IsNull() {
+				t.Fatal("an unconfirmed rollback must persist a tainted partial state")
+			}
+			if !strings.Contains(detail, "marked tainted") {
+				t.Errorf("the diagnostic must announce the taint, got %q", detail)
+			}
+			var out workspaceModelResourceModel
+			if diags := resp.State.Get(ctx, &out); diags.HasError() {
+				t.Fatalf("reading state: %v", diags)
+			}
+			if !out.Enabled.ValueBool() {
+				t.Error("the persisted state must record that the model is enabled")
+			}
+		})
 	}
 }
 
