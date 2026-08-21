@@ -99,12 +99,18 @@ func (r *budgetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 						Optional: true,
 						MarkdownDescription: "Scope target (project ID, identity external ID, api-key ID, provider, " +
 							"or model reference). Omit for `WORKSPACE`.",
+						Validators: []validator.String{
+							nonEmptyStringValidator{remedy: "Omit target for a WORKSPACE scope."},
+						},
 					},
 				},
 			},
 			"match_cel": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Raw CEL matching expression for a dynamic budget. Mutually exclusive with `scope`.",
+				Validators: []validator.String{
+					nonEmptyStringValidator{remedy: "An empty expression matches everything; use a scope block instead."},
+				},
 			},
 			"limits": schema.SingleNestedAttribute{
 				Required:            true,
@@ -435,6 +441,7 @@ func alertKey(a budgetAlertModel) (string, bool) {
 func (r *budgetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan budgetResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -485,6 +492,7 @@ func (r *budgetResource) Read(ctx context.Context, req resource.ReadRequest, res
 func (r *budgetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan budgetResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

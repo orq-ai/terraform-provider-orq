@@ -47,7 +47,7 @@ resource "orq_notifier" "email" {
 
 ### Optional
 
-- `emails` (List of String) Email recipients. Required when `type` is `EMAIL`.
+- `emails` (List of String) Email recipients. Required when `type` is `EMAIL`. Addresses must be unique and non-null — the server stores a deduplicated list.
 - `incoming_webhook_url` (String, Sensitive) Slack incoming webhook URL. Required when `type` is `SLACK_WEBHOOK`.
 - `project_id` (String) Containing project. Omit for a workspace-wide notifier.
 - `webhook_url` (String, Sensitive) Generic webhook URL. Required when `type` is `WEBHOOK`.

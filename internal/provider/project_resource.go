@@ -112,7 +112,7 @@ func (r *projectResource) Configure(_ context.Context, req resource.ConfigureReq
 func (r *projectResource) apply(p *client.Project, m *projectResourceModel) {
 	m.ID = types.StringValue(p.ID)
 	m.Name = types.StringValue(p.Name)
-	m.Description = optString(p.Description)
+	m.Description = preserveEmptyString(m.Description, p.Description)
 	m.Key = types.StringValue(p.Key)
 	m.Teams = stringListValue(p.Teams)
 	m.IsArchived = types.BoolValue(p.IsArchived)
@@ -124,6 +124,7 @@ func (r *projectResource) apply(p *client.Project, m *projectResourceModel) {
 func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan projectResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -172,6 +173,7 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan projectResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

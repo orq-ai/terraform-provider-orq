@@ -324,6 +324,7 @@ func (r *evaluatorResource) Configure(_ context.Context, req resource.ConfigureR
 func (r *evaluatorResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan, cfg evaluatorResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	// The CONFIG decides what is written; the plan carries what lands in state.
 	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
 	// ValidateConfig may have deferred checks on an unknown value, and the
@@ -389,6 +390,7 @@ func (r *evaluatorResource) Read(ctx context.Context, req resource.ReadRequest, 
 func (r *evaluatorResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, cfg, state evaluatorResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	resp.Diagnostics.Append(validateEvaluatorConfig(ctx, req.Config)...)
@@ -578,12 +580,16 @@ func applyWrite(internal, external *client.Evaluator, m *evaluatorResourceModel)
 // applyRead refreshes state from the STORED record, which wins outright so that
 // out-of-band drift surfaces — an evaluator moved to another project shows up as
 // a `project_id` diff. `jury` (stored as model document ids) and `model`
-// (resolveModelRef) are deliberately untouched.
+// (resolveModelRef) are deliberately untouched. description keeps a prior "" the
+// server echoes back as "": the wire cannot tell a stored empty string from an
+// unset one, and collapsing it to null is a diff that re-PATCHes on every apply
+// and never settles. code and prompt need no such care — both carry a
+// non-empty validator, so "" never reaches state to be preserved.
 func applyRead(e *client.Evaluator, m *evaluatorResourceModel) {
 	m.ID = types.StringValue(e.ID)
 	m.Key = types.StringValue(e.Key)
 	m.Type = types.StringValue(e.Type)
-	m.Description = optString(e.Description)
+	m.Description = preserveEmptyString(m.Description, e.Description)
 	m.OutputType = optString(e.OutputType)
 	m.Enabled = types.BoolValue(e.Enabled)
 	m.ProjectID = optString(e.ProjectID)

@@ -40,6 +40,27 @@ func TestGuardrailApplyPreservesPlannedEmptyOptions(t *testing.T) {
 		t.Fatalf("null options should stay null, got %v", m2.Guardrails[0].Options)
 	}
 
+	// Two references to the same guardrail and phase must not share a planned
+	// value: only the element that asked for "{}" keeps it.
+	dup := guardrailRuleResourceModel{
+		Guardrails: []guardrailRefModel{
+			{ID: types.StringValue("01EVAL"), ExecuteOn: types.StringValue("input"), Options: jsontypes.NewNormalizedValue("{}")},
+			{ID: types.StringValue("01EVAL"), ExecuteOn: types.StringValue("input"), Options: jsontypes.NewNormalizedNull()},
+		},
+	}
+	r.apply(&client.GuardrailRule{
+		Guardrails: []client.GuardrailRef{
+			{ID: "01EVAL", ExecuteOn: "input"},
+			{ID: "01EVAL", ExecuteOn: "input"},
+		},
+	}, &dup)
+	if got := dup.Guardrails[0].Options; got.ValueString() != "{}" {
+		t.Errorf("the ref that planned {} must keep it, got %v", got)
+	}
+	if got := dup.Guardrails[1].Options; !got.IsNull() {
+		t.Errorf("a duplicate ref without options must stay null, got %v", got)
+	}
+
 	// Non-empty server options always win over the planned value.
 	m3 := guardrailRuleResourceModel{
 		Guardrails: []guardrailRefModel{{
@@ -56,5 +77,23 @@ func TestGuardrailApplyPreservesPlannedEmptyOptions(t *testing.T) {
 	}, &m3)
 	if m3.Guardrails[0].Options.ValueString() != `{"threshold":0.5}` {
 		t.Fatalf("server options should win: %v", m3.Guardrails[0].Options)
+	}
+}
+
+// Same empty-vs-absent hazard as project.description and evaluator.description.
+func TestGuardrailApplyPreservesEmptyDescription(t *testing.T) {
+	r := &guardrailRuleResource{}
+	stored := &client.GuardrailRule{ID: "g1", DisplayName: "pii"}
+
+	kept := guardrailRuleResourceModel{Description: types.StringValue("")}
+	r.apply(stored, &kept)
+	if kept.Description.IsNull() {
+		t.Error("a configured empty description must survive the refresh")
+	}
+
+	omitted := guardrailRuleResourceModel{Description: types.StringNull()}
+	r.apply(stored, &omitted)
+	if !omitted.Description.IsNull() {
+		t.Error("an omitted description must stay null")
 	}
 }

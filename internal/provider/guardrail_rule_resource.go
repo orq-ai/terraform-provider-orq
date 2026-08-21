@@ -91,6 +91,9 @@ func (r *guardrailRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 				MarkdownDescription: "Owning project. Omit for a workspace-global rule. Changing this " +
 					"forces replacement (the update API does not accept `project_id`).",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				Validators: []validator.String{
+					nonEmptyStringValidator{remedy: "Omit project_id for a workspace-global rule."},
+				},
 			},
 			"timeout": schema.Int64Attribute{
 				Optional: true,
@@ -206,7 +209,7 @@ func guardrailRefsFromModel(models []guardrailRefModel) ([]client.GuardrailRef, 
 func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleResourceModel) {
 	m.ID = types.StringValue(g.ID)
 	m.DisplayName = types.StringValue(g.DisplayName)
-	m.Description = optString(g.Description)
+	m.Description = preserveEmptyString(m.Description, g.Description)
 	m.Enabled = types.BoolValue(g.Enabled)
 	m.ProjectID = optString(g.ProjectID)
 	m.Timeout = types.Int64Value(g.Timeout)
@@ -219,18 +222,26 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 	}
 	// The server normalizes an empty options object to absent, so a planned
 	// "{}" must survive the read-back or apply reports an inconsistent result.
-	emptyOptions := make(map[string]bool, len(m.Guardrails))
-	for _, prior := range m.Guardrails {
+	// The planned ref is found by POSITION — the list is compared positionally
+	// anyway — and confirmed by id and phase; keying by id and phase alone made
+	// two references to the same guardrail collide, restoring "{}" onto the one
+	// that never asked for it.
+	plannedEmptyOptions := func(i int, ref client.GuardrailRef) bool {
+		if i >= len(m.Guardrails) {
+			return false
+		}
+		prior := m.Guardrails[i]
+		if prior.ID.ValueString() != ref.ID || prior.ExecuteOn.ValueString() != ref.ExecuteOn {
+			return false
+		}
 		if prior.Options.IsNull() || prior.Options.IsUnknown() {
-			continue
+			return false
 		}
 		var opts map[string]any
-		if json.Unmarshal([]byte(prior.Options.ValueString()), &opts) == nil && len(opts) == 0 {
-			emptyOptions[prior.ID.ValueString()+"|"+prior.ExecuteOn.ValueString()] = true
-		}
+		return json.Unmarshal([]byte(prior.Options.ValueString()), &opts) == nil && len(opts) == 0
 	}
 	refs := make([]guardrailRefModel, 0, len(g.Guardrails))
-	for _, ref := range g.Guardrails {
+	for i, ref := range g.Guardrails {
 		rm := guardrailRefModel{
 			ID:        types.StringValue(ref.ID),
 			ExecuteOn: types.StringValue(ref.ExecuteOn),
@@ -255,7 +266,7 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 			} else {
 				rm.Options = jsontypes.NewNormalizedNull()
 			}
-		case emptyOptions[ref.ID+"|"+ref.ExecuteOn]:
+		case plannedEmptyOptions(i, ref):
 			rm.Options = jsontypes.NewNormalizedValue("{}")
 		default:
 			rm.Options = jsontypes.NewNormalizedNull()
@@ -268,6 +279,7 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 func (r *guardrailRuleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan guardrailRuleResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -318,6 +330,7 @@ func (r *guardrailRuleResource) Read(ctx context.Context, req resource.ReadReque
 func (r *guardrailRuleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan guardrailRuleResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

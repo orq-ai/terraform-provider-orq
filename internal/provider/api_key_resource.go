@@ -68,6 +68,9 @@ func (r *apiKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"project_id": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Single-project scope. Omit for an all-projects key. Mutable (updates in place).",
+				Validators: []validator.String{
+					nonEmptyStringValidator{remedy: "Omit project_id for an all-projects key."},
+				},
 			},
 			"permission_mode": schema.StringAttribute{
 				Optional: true,
@@ -90,6 +93,9 @@ func (r *apiKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				ElementType: types.StringType,
 				MarkdownDescription: "Per-domain access map (catalog domain id → `ACCESS_LEVEL_NONE` / `ACCESS_LEVEL_READ` / " +
 					"`ACCESS_LEVEL_WRITE`). Required when `permission_mode` is `PERMISSION_MODE_RESTRICTED`; must be omitted otherwise.",
+				Validators: []validator.Map{
+					nonEmptyMapValidator{remedy: "Omit access unless permission_mode is PERMISSION_MODE_RESTRICTED."},
+				},
 			},
 			"expires_at": schema.StringAttribute{
 				CustomType: rfc3339InstantType{},
@@ -212,6 +218,7 @@ func (r *apiKeyResource) apply(k *client.APIKey, m *apiKeyResourceModel) {
 func (r *apiKeyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan apiKeyResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -270,6 +277,7 @@ func (r *apiKeyResource) Read(ctx context.Context, req resource.ReadRequest, res
 func (r *apiKeyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan apiKeyResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

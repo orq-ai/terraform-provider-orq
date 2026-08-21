@@ -424,8 +424,9 @@ func TestRoutingRuleModelsConfigSchema(t *testing.T) {
 // --- apply-time weight guard ------------------------------------------------
 
 // A weight that is only known at apply (an interpolated value) skips the schema
-// validator, and a zero would come back from the server as 0.5 — an inconsistent
-// result on an already-created rule. The pre-flight rejects it before any call.
+// validator at plan time, and a zero would come back from the server as 0.5 — an
+// inconsistent result on an already-created rule. revalidatePlan re-runs the
+// range validator on the resolved plan and rejects it before any call.
 func TestRoutingRuleZeroWeightRejectedBeforeTheWrite(t *testing.T) {
 	ctx := context.Background()
 	s := routingRuleSchema(t)
@@ -443,7 +444,7 @@ func TestRoutingRuleZeroWeightRejectedBeforeTheWrite(t *testing.T) {
 	if api.created != nil {
 		t.Error("the rule must not be created before the weight is rejected")
 	}
-	if detail := createResp.Diagnostics.Errors()[0].Detail(); !strings.Contains(detail, "greater than 0") {
+	if detail := createResp.Diagnostics.Errors()[0].Detail(); !strings.Contains(detail, "0.001") {
 		t.Errorf("the diagnostic must explain the constraint, got %q", detail)
 	}
 

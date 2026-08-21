@@ -7,6 +7,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/orq-ai/terraform-provider-orq/internal/client"
 )
 
 // TestProjectKeyPlanValue proves both update paths of the key plan modifier:
@@ -43,5 +45,25 @@ func TestProjectKeySchemaUsesCustomModifier(t *testing.T) {
 	}
 	if _, ok := key.PlanModifiers[0].(projectKeyPlanModifier); !ok {
 		t.Errorf("key must use projectKeyPlanModifier, got %T", key.PlanModifiers[0])
+	}
+}
+
+// A description an operator set to "" must survive the refresh: the server
+// echoes "" for both a stored empty string and an unset field, so collapsing it
+// to null planned `description: null -> ""` on every apply, forever.
+func TestProjectApplyPreservesEmptyDescription(t *testing.T) {
+	r := &projectResource{}
+	stored := &client.Project{ID: "p1", Name: "acme", Key: "acme"}
+
+	kept := projectResourceModel{Description: types.StringValue("")}
+	r.apply(stored, &kept)
+	if kept.Description.IsNull() {
+		t.Error("a configured empty description must survive the refresh")
+	}
+
+	omitted := projectResourceModel{Description: types.StringNull()}
+	r.apply(stored, &omitted)
+	if !omitted.Description.IsNull() {
+		t.Error("an omitted description must stay null")
 	}
 }

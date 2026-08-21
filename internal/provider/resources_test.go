@@ -2,10 +2,17 @@ package provider
 
 import (
 	"context"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
@@ -67,7 +74,7 @@ func TestResourcesRegistered(t *testing.T) {
 	}
 }
 
-func boolList(ss ...string) types.List {
+func stringList(ss ...string) types.List {
 	return stringListValue(ss)
 }
 
@@ -75,18 +82,18 @@ func boolList(ss ...string) types.List {
 
 func TestValidateSharingAutoGrant(t *testing.T) {
 	cases := []struct {
-		name      string
-		sharing   *workspaceModelSharingModel
-		wantError bool
+		name       string
+		sharing    *workspaceModelSharingModel
+		wantDetail string // empty means the config is accepted
 	}{
 		{
 			name: "auto_grant with project_ids rejected",
 			sharing: &workspaceModelSharingModel{
 				AutoGrantNewProjects: types.BoolValue(true),
-				ProjectIDs:           boolList("p1"),
+				ProjectIDs:           stringList("p1"),
 				AllProjects:          types.BoolNull(),
 			},
-			wantError: true,
+			wantDetail: "cannot be combined with an explicit project_ids list",
 		},
 		{
 			name: "auto_grant with all_projects allowed",
@@ -95,24 +102,26 @@ func TestValidateSharingAutoGrant(t *testing.T) {
 				ProjectIDs:           types.ListNull(types.StringType),
 				AllProjects:          types.BoolValue(true),
 			},
-			wantError: false,
 		},
 		{
 			name: "selected without auto_grant allowed",
 			sharing: &workspaceModelSharingModel{
 				AutoGrantNewProjects: types.BoolValue(false),
-				ProjectIDs:           boolList("p1", "p2"),
+				ProjectIDs:           stringList("p1", "p2"),
 				AllProjects:          types.BoolNull(),
 			},
-			wantError: false,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			diags := validateSharingAutoGrant(tc.sharing)
-			if diags.HasError() != tc.wantError {
-				t.Errorf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
+			if tc.wantDetail == "" {
+				if diags.HasError() {
+					t.Errorf("this config must be accepted, got %v", diags)
+				}
+				return
 			}
+			requireDiagnosticAt(t, diags, "sharing.auto_grant_new_projects", tc.wantDetail)
 		})
 	}
 }
@@ -171,6 +180,550 @@ func TestWorkspaceModelApplyModelSetsResolvedID(t *testing.T) {
 	}
 	if m.DisplayName.ValueString() != "GPT-4o" {
 		t.Errorf("display_name not applied: %q", m.DisplayName.ValueString())
+	}
+}
+
+// --- workspace_model all_projects = false ----------------------------------
+
+func workspaceModelSchema(t *testing.T) schema.Schema {
+	t.Helper()
+	var sch resource.SchemaResponse
+	NewWorkspaceModelResource().Schema(context.Background(), resource.SchemaRequest{}, &sch)
+	return sch.Schema
+}
+
+func workspaceModelRaw(t *testing.T, s schema.Schema, m workspaceModelResourceModel) tftypes.Value {
+	t.Helper()
+	ctx := context.Background()
+	state := tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+	if diags := state.Set(ctx, &m); diags.HasError() {
+		t.Fatalf("building value: %v", diags)
+	}
+	return state.Raw
+}
+
+// TestWorkspaceModelAllProjectsOnlyAcceptsTrue drives every validator the schema
+// hangs on sharing.all_projects, so it covers both the new true-only rule and the
+// ExactlyOneOf pairing it must not displace. all_projects = false used to pass
+// validation, be written as selected-with-no-projects, and read back as
+// all_projects = null — an inconsistent result that tainted the resource.
+func TestWorkspaceModelAllProjectsOnlyAcceptsTrue(t *testing.T) {
+	ctx := context.Background()
+	sharingAttr := workspaceModelSchema(t).Attributes["sharing"].(schema.SingleNestedAttribute)
+	validators := sharingAttr.Attributes["all_projects"].(schema.BoolAttribute).Validators
+
+	cases := []struct {
+		name        string
+		allProjects types.Bool
+		projectIDs  types.List
+		wantError   bool
+	}{
+		{"true accepted", types.BoolValue(true), types.ListNull(types.StringType), false},
+		{"false rejected", types.BoolValue(false), types.ListNull(types.StringType), true},
+		{"null accepted with project_ids", types.BoolNull(), stringList("p1"), false},
+		{"null accepted with an empty project_ids", types.BoolNull(), stringListValue([]string{}), false},
+		// The pairing rule still belongs to ExactlyOneOf: neither set is an error.
+		{"neither set rejected", types.BoolNull(), types.ListNull(types.StringType), true},
+		// Only known at apply — deferred here, caught by the Create/Update pre-flight.
+		{"unknown deferred", types.BoolUnknown(), types.ListNull(types.StringType), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := workspaceModelSchema(t)
+			raw := workspaceModelRaw(t, s, workspaceModelResourceModel{
+				ModelID: types.StringValue("openai/gpt-4o"),
+				Sharing: &workspaceModelSharingModel{
+					AllProjects: tc.allProjects,
+					ProjectIDs:  tc.projectIDs,
+				},
+			})
+			req := validator.BoolRequest{
+				Path:           path.Root("sharing").AtName("all_projects"),
+				PathExpression: path.MatchRoot("sharing").AtName("all_projects"),
+				Config:         tfsdk.Config{Schema: s, Raw: raw},
+				ConfigValue:    tc.allProjects,
+			}
+			var diags diag.Diagnostics
+			for _, v := range validators {
+				resp := &validator.BoolResponse{}
+				v.ValidateBool(ctx, req, resp)
+				diags.Append(resp.Diagnostics...)
+			}
+			if diags.HasError() != tc.wantError {
+				t.Fatalf("HasError = %v, want %v (%v)", diags.HasError(), tc.wantError, diags)
+			}
+			if tc.name != "false rejected" {
+				return
+			}
+			detail := diags.Errors()[0].Detail()
+			if !strings.Contains(detail, "all_projects only accepts true") || !strings.Contains(detail, "project_ids = []") {
+				t.Errorf("the diagnostic must point at project_ids = [], got %q", detail)
+			}
+		})
+	}
+}
+
+// countingWorkspaceModels and countingResolver record every call the resource
+// could make, so a pre-flight rejection can be proven to land before any of them.
+type countingWorkspaceModels struct {
+	enables  int
+	disables int
+	sharings int
+	gets     int
+}
+
+func (s *countingWorkspaceModels) Enable(context.Context, string) error { s.enables++; return nil }
+func (s *countingWorkspaceModels) Disable(context.Context, string) error {
+	s.disables++
+	return nil
+}
+func (s *countingWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
+	s.gets++
+	return &client.WorkspaceModel{
+		ModelID: modelID,
+		Enabled: true,
+		Sharing: &client.SharingConfig{Mode: client.SharingModeAllProjects},
+	}, nil
+}
+func (s *countingWorkspaceModels) SetSharing(context.Context, string, client.SharingInput) error {
+	s.sharings++
+	return nil
+}
+
+type countingResolver struct {
+	catalogModels
+	resolves int
+}
+
+func (c *countingResolver) Resolve(ctx context.Context, ref string) (*client.Model, error) {
+	c.resolves++
+	return c.catalogModels.Resolve(ctx, ref)
+}
+
+// TestWorkspaceModelSharingShapeRejectedBeforeTheWrite covers the shapes the
+// plan-time validators DEFER on: every one of them skips an unknown value, and
+// the framework never re-runs them at apply, so an interpolation that resolves
+// badly reaches the server, comes back normalized, and taints the resource. The
+// Create/Update pre-flight re-checks the resolved shape before any call.
+func TestWorkspaceModelSharingShapeRejectedBeforeTheWrite(t *testing.T) {
+	ctx := context.Background()
+	s := workspaceModelSchema(t)
+
+	cases := []struct {
+		name    string
+		sharing workspaceModelSharingModel
+		want    string
+	}{
+		{
+			// The schema validator catches this one too, unless it was interpolated.
+			name:    "all_projects resolved to false",
+			sharing: workspaceModelSharingModel{AllProjects: types.BoolValue(false), ProjectIDs: types.ListNull(types.StringType)},
+			want:    "all_projects only accepts true",
+		},
+		{
+			// sharingInput would pick all-projects and silently drop project_ids.
+			name:    "all_projects resolved to true alongside project_ids",
+			sharing: workspaceModelSharingModel{AllProjects: types.BoolValue(true), ProjectIDs: stringList("p1")},
+			want:    "2 attributes specified",
+		},
+		{
+			// sharingInput would turn the absent list into [], which reads back non-null.
+			name:    "project_ids resolved to null with no all_projects",
+			sharing: workspaceModelSharingModel{AllProjects: types.BoolNull(), ProjectIDs: types.ListNull(types.StringType)},
+			want:    "No attribute specified",
+		},
+		{
+			// The server 400s the sharing write, after the enable already landed.
+			name:    "duplicate project_ids",
+			sharing: workspaceModelSharingModel{AllProjects: types.BoolNull(), ProjectIDs: stringList("p1", "p1")},
+			want:    "must not repeat a project id",
+		},
+		{
+			// stringSlice fails on the null element, also after the enable.
+			name: "null project_ids element",
+			sharing: workspaceModelSharingModel{
+				AllProjects: types.BoolNull(),
+				ProjectIDs:  types.ListValueMust(types.StringType, []attr.Value{types.StringValue("p1"), types.StringNull()}),
+			},
+			want: "must not contain a null element",
+		},
+		{
+			name: "auto_grant resolved to true alongside project_ids",
+			sharing: workspaceModelSharingModel{
+				AllProjects:          types.BoolNull(),
+				ProjectIDs:           stringList("p1"),
+				AutoGrantNewProjects: types.BoolValue(true),
+			},
+			want: "auto_grant_new_projects = true cannot be combined",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sharing := tc.sharing
+			sharing.AllowVersionPin = types.BoolValue(false)
+			sharing.AllowFork = types.BoolValue(false)
+			if sharing.AutoGrantNewProjects.IsNull() {
+				sharing.AutoGrantNewProjects = types.BoolValue(false)
+			}
+			plan := tfsdk.Plan{Schema: s, Raw: workspaceModelRaw(t, s, workspaceModelResourceModel{
+				ID:          types.StringValue("doc_uuid_123"),
+				ModelID:     types.StringValue("openai/gpt-4o"),
+				Enabled:     types.BoolValue(true),
+				DisplayName: types.StringNull(),
+				Sharing:     &sharing,
+			})}
+			emptyState := func() tfsdk.State {
+				return tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+			}
+			newResource := func() (*workspaceModelResource, *countingWorkspaceModels, *countingResolver) {
+				api := &countingWorkspaceModels{}
+				res := &countingResolver{catalogModels: catalogModels{docs: []client.Model{{ID: "doc_uuid_123", RefID: "openai/gpt-4o"}}}}
+				return &workspaceModelResource{models: api, resolver: res}, api, res
+			}
+			check := func(diags diag.Diagnostics, api *countingWorkspaceModels, res *countingResolver) {
+				t.Helper()
+				if !diags.HasError() {
+					t.Fatal("the resolved sharing shape must be rejected")
+				}
+				var details []string
+				for _, e := range diags.Errors() {
+					details = append(details, e.Detail())
+				}
+				if !strings.Contains(strings.Join(details, "\n"), tc.want) {
+					t.Errorf("the diagnostic must explain the constraint, got %q", details)
+				}
+				if res.resolves != 0 || api.enables != 0 || api.disables != 0 || api.sharings != 0 || api.gets != 0 {
+					t.Errorf("nothing must be called before the rejection: %d resolves, %d enables, %d disables, %d sharing writes, %d gets",
+						res.resolves, api.enables, api.disables, api.sharings, api.gets)
+				}
+			}
+
+			r, api, res := newResource()
+			createResp := resource.CreateResponse{State: emptyState()}
+			r.Create(ctx, resource.CreateRequest{Plan: plan}, &createResp)
+			check(createResp.Diagnostics, api, res)
+
+			// Same guard on update, so an interpolation cannot poison a live grant.
+			r, api, res = newResource()
+			updateResp := resource.UpdateResponse{State: emptyState()}
+			r.Update(ctx, resource.UpdateRequest{Plan: plan, State: emptyState()}, &updateResp)
+			check(updateResp.Diagnostics, api, res)
+		})
+	}
+}
+
+// sortingWorkspaceModels mirrors the live backend: it stores the sharing it was
+// given and reads the grants back sorted ascending.
+type sortingWorkspaceModels struct{ ids []string }
+
+func (s *sortingWorkspaceModels) Enable(context.Context, string) error  { return nil }
+func (s *sortingWorkspaceModels) Disable(context.Context, string) error { return nil }
+func (s *sortingWorkspaceModels) SetSharing(_ context.Context, _ string, in client.SharingInput) error {
+	s.ids = slices.Clone(in.ProjectIDs)
+	return nil
+}
+func (s *sortingWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
+	ids := slices.Clone(s.ids)
+	slices.Sort(ids)
+	return &client.WorkspaceModel{
+		ModelID:     modelID,
+		DisplayName: "GPT-4o",
+		Enabled:     true,
+		Sharing:     &client.SharingConfig{Mode: client.SharingModeSelected, ProjectIDs: ids},
+	}, nil
+}
+
+// TestWorkspaceModelKeepsConfiguredProjectIDOrder proves the read-back never
+// reorders the operator's project_ids. The server sorts the grants, and a list
+// is compared positionally, so adopting that order made every create and update
+// of a non-ascending list an inconsistent result that tainted the resource.
+func TestWorkspaceModelKeepsConfiguredProjectIDOrder(t *testing.T) {
+	ctx := context.Background()
+	s := workspaceModelSchema(t)
+	api := &sortingWorkspaceModels{}
+	r := &workspaceModelResource{
+		models:   api,
+		resolver: &catalogModels{docs: []client.Model{{ID: "doc_uuid_123", RefID: "openai/gpt-4o"}}},
+	}
+	descending := []string{"p3", "p2", "p1"}
+	model := func(ids types.List) workspaceModelResourceModel {
+		return workspaceModelResourceModel{
+			ID:          types.StringValue("doc_uuid_123"),
+			ModelID:     types.StringValue("openai/gpt-4o"),
+			Enabled:     types.BoolValue(true),
+			DisplayName: types.StringNull(),
+			Sharing: &workspaceModelSharingModel{
+				AllProjects:          types.BoolNull(),
+				ProjectIDs:           ids,
+				AllowVersionPin:      types.BoolValue(false),
+				AllowFork:            types.BoolValue(false),
+				AutoGrantNewProjects: types.BoolValue(false),
+			},
+		}
+	}
+	ids := func(m workspaceModelResourceModel) []string {
+		t.Helper()
+		got, ok := knownListStrings(m.Sharing.ProjectIDs)
+		if !ok {
+			t.Fatalf("project_ids not fully known: %v", m.Sharing.ProjectIDs)
+		}
+		return got
+	}
+	emptyState := func() tfsdk.State {
+		return tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+	}
+	get := func(t *testing.T, from interface {
+		Get(context.Context, any) diag.Diagnostics
+	}) workspaceModelResourceModel {
+		t.Helper()
+		var out workspaceModelResourceModel
+		if diags := from.Get(ctx, &out); diags.HasError() {
+			t.Fatalf("reading state: %v", diags)
+		}
+		return out
+	}
+
+	createResp := resource.CreateResponse{State: emptyState()}
+	r.Create(ctx, resource.CreateRequest{
+		Plan: tfsdk.Plan{Schema: s, Raw: workspaceModelRaw(t, s, model(stringList(descending...)))},
+	}, &createResp)
+	if createResp.Diagnostics.HasError() {
+		t.Fatalf("Create: %v", createResp.Diagnostics)
+	}
+	created := get(t, &createResp.State)
+	if got := ids(created); !slices.Equal(got, descending) {
+		t.Fatalf("create must keep the configured order, got %v", got)
+	}
+
+	// A refresh of that state is a fixed point.
+	readResp := resource.ReadResponse{State: tfsdk.State{Schema: s, Raw: workspaceModelRaw(t, s, created)}}
+	r.Read(ctx, resource.ReadRequest{State: readResp.State}, &readResp)
+	if readResp.Diagnostics.HasError() {
+		t.Fatalf("Read: %v", readResp.Diagnostics)
+	}
+	if got := ids(get(t, &readResp.State)); !slices.Equal(got, descending) {
+		t.Fatalf("a refresh must not reorder project_ids, got %v", got)
+	}
+
+	// An update reordering the same ids keeps the NEW order, not the stored one.
+	reordered := []string{"p1", "p3", "p2"}
+	updateResp := resource.UpdateResponse{State: emptyState()}
+	r.Update(ctx, resource.UpdateRequest{
+		Plan:  tfsdk.Plan{Schema: s, Raw: workspaceModelRaw(t, s, model(stringList(reordered...)))},
+		State: emptyState(),
+	}, &updateResp)
+	if updateResp.Diagnostics.HasError() {
+		t.Fatalf("Update: %v", updateResp.Diagnostics)
+	}
+	if got := ids(get(t, &updateResp.State)); !slices.Equal(got, reordered) {
+		t.Fatalf("update must keep the newly configured order, got %v", got)
+	}
+
+	// A genuine out-of-band membership change is still reflected, sorted.
+	api.ids = []string{"p9", "p1"}
+	driftResp := resource.ReadResponse{State: tfsdk.State{Schema: s, Raw: workspaceModelRaw(t, s, created)}}
+	r.Read(ctx, resource.ReadRequest{State: driftResp.State}, &driftResp)
+	if driftResp.Diagnostics.HasError() {
+		t.Fatalf("Read: %v", driftResp.Diagnostics)
+	}
+	if got := ids(get(t, &driftResp.State)); !slices.Equal(got, []string{"p1", "p9"}) {
+		t.Fatalf("a membership change must take the server's grants, got %v", got)
+	}
+}
+
+// The apply-time guards are a backstop; a literal duplicate or null id must be
+// caught by the schema validators, before anything is enabled.
+func TestWorkspaceModelProjectIDsRejectedAtPlanTime(t *testing.T) {
+	ctx := context.Background()
+	sharingAttr := workspaceModelSchema(t).Attributes["sharing"].(schema.SingleNestedAttribute)
+	validators := sharingAttr.Attributes["project_ids"].(schema.ListAttribute).Validators
+
+	cases := []struct {
+		name       string
+		value      types.List
+		wantPath   string // empty means the list is accepted
+		wantDetail string
+	}{
+		{name: "unique ids accepted", value: stringList("p1", "p2")},
+		{name: "empty list accepted", value: stringList()},
+		{
+			name: "duplicate rejected", value: stringList("p1", "p1"),
+			wantPath: "sharing.project_ids[1]", wantDetail: "must not repeat a project id",
+		},
+		{
+			name:     "null element rejected",
+			value:    types.ListValueMust(types.StringType, []attr.Value{types.StringNull()}),
+			wantPath: "sharing.project_ids[0]", wantDetail: "must not contain a null element",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var diags diag.Diagnostics
+			for _, v := range validators {
+				resp := &validator.ListResponse{}
+				v.ValidateList(ctx, validator.ListRequest{
+					Path:           path.Root("sharing").AtName("project_ids"),
+					PathExpression: path.MatchRoot("sharing").AtName("project_ids"),
+					ConfigValue:    tc.value,
+				}, resp)
+				diags.Append(resp.Diagnostics...)
+			}
+			if tc.wantPath == "" {
+				if diags.HasError() {
+					t.Errorf("this list must be accepted, got %v", diags)
+				}
+				return
+			}
+			requireDiagnosticAt(t, diags, tc.wantPath, tc.wantDetail)
+		})
+	}
+}
+
+// failingSharingWorkspaceModels enables fine but can never write sharing — the
+// live failure mode behind a duplicate id or a nonexistent project id. The
+// remaining fields choose how the rollback plays out.
+type failingSharingWorkspaceModels struct {
+	enabled      bool
+	disables     int
+	disableFails bool // the disable itself errors
+	disableNoOps bool // the disable reports success but does not take effect
+	getErr       error
+}
+
+func (s *failingSharingWorkspaceModels) Enable(context.Context, string) error {
+	s.enabled = true
+	return nil
+}
+
+func (s *failingSharingWorkspaceModels) Disable(context.Context, string) error {
+	s.disables++
+	if s.disableFails {
+		return &client.Error{Code: client.CodeInvalid, Message: "cannot disable"}
+	}
+	if !s.disableNoOps {
+		s.enabled = false
+	}
+	return nil
+}
+
+func (s *failingSharingWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
+	if s.getErr != nil {
+		return nil, s.getErr
+	}
+	return &client.WorkspaceModel{
+		ModelID: modelID,
+		Enabled: s.enabled,
+		Sharing: &client.SharingConfig{Mode: client.SharingModeAllProjects},
+	}, nil
+}
+
+func (s *failingSharingWorkspaceModels) SetSharing(context.Context, string, client.SharingInput) error {
+	return &client.Error{Code: client.CodeInvalid, Message: "repeated value must contain unique items"}
+}
+
+// TestWorkspaceModelRollsBackEnableWhenSharingWriteFails covers the failure the
+// plan-time guards cannot see — a nonexistent project id, say. The model is
+// already enabled when the sharing write fails, and a bare enabled model
+// defaults to all-projects, so a create that stops there leaves the workspace
+// fail-open. The enable is undone instead, and the undo is CONFIRMED by a read,
+// because a system model id contains a slash and can make the disable no-op
+// server-side. Only an undo that cannot be confirmed falls back to persisting
+// the tainted partial state.
+func TestWorkspaceModelRollsBackEnableWhenSharingWriteFails(t *testing.T) {
+	ctx := context.Background()
+	s := workspaceModelSchema(t)
+	plan := tfsdk.Plan{Schema: s, Raw: workspaceModelRaw(t, s, workspaceModelResourceModel{
+		ID:          types.StringNull(),
+		ModelID:     types.StringValue("openai/gpt-4o"),
+		Enabled:     types.BoolValue(true),
+		DisplayName: types.StringNull(),
+		Sharing: &workspaceModelSharingModel{
+			AllProjects:          types.BoolNull(),
+			ProjectIDs:           stringList("p1"),
+			AllowVersionPin:      types.BoolValue(false),
+			AllowFork:            types.BoolValue(false),
+			AutoGrantNewProjects: types.BoolValue(false),
+		},
+	})}
+	create := func(api client.WorkspaceModelsAPI) resource.CreateResponse {
+		r := &workspaceModelResource{
+			models:   api,
+			resolver: &catalogModels{docs: []client.Model{{ID: "doc_uuid_123", RefID: "openai/gpt-4o"}}},
+		}
+		resp := resource.CreateResponse{State: tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}}
+		r.Create(ctx, resource.CreateRequest{Plan: plan}, &resp)
+		return resp
+	}
+
+	cases := []struct {
+		name      string
+		api       *failingSharingWorkspaceModels
+		rolledOut bool // the undo was confirmed, so the create left nothing behind
+	}{
+		{
+			name: "the disable takes effect",
+			api:  &failingSharingWorkspaceModels{},
+			// The read-back confirms the model is gone from the catalog.
+			rolledOut: true,
+		},
+		{
+			name:      "the read-back reports the model gone",
+			api:       &failingSharingWorkspaceModels{getErr: &client.Error{Code: client.CodeNotFound, Message: "no such model"}},
+			rolledOut: true,
+		},
+		{
+			name: "the disable itself fails",
+			api:  &failingSharingWorkspaceModels{disableFails: true},
+		},
+		{
+			// A slashed system model id: the disable reports success and does nothing.
+			name: "the disable silently no-ops",
+			api:  &failingSharingWorkspaceModels{disableNoOps: true},
+		},
+		{
+			name: "the read-back cannot confirm",
+			api:  &failingSharingWorkspaceModels{disableNoOps: true, getErr: &client.Error{Code: client.CodeInternal, Message: "boom"}},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := create(tc.api)
+			if !resp.Diagnostics.HasError() {
+				t.Fatal("a failed sharing write must fail the create")
+			}
+			if tc.api.disables != 1 {
+				t.Errorf("the enable must be undone exactly once, got %d disables", tc.api.disables)
+			}
+			detail := resp.Diagnostics.Errors()[0].Detail()
+
+			if tc.rolledOut {
+				if !resp.State.Raw.IsNull() {
+					t.Error("a confirmed rollback must leave no state")
+				}
+				if !strings.Contains(detail, "rolled back") {
+					t.Errorf("the diagnostic must say the enable was rolled back, got %q", detail)
+				}
+				return
+			}
+
+			// The model may still be enabled, so the partial state is persisted and
+			// the resource tainted for the next apply.
+			if resp.State.Raw.IsNull() {
+				t.Fatal("an unconfirmed rollback must persist a tainted partial state")
+			}
+			if !strings.Contains(detail, "marked tainted") {
+				t.Errorf("the diagnostic must announce the taint, got %q", detail)
+			}
+			var out workspaceModelResourceModel
+			if diags := resp.State.Get(ctx, &out); diags.HasError() {
+				t.Fatalf("reading state: %v", diags)
+			}
+			if !out.Enabled.ValueBool() {
+				t.Error("the persisted state must record that the model is enabled")
+			}
+		})
 	}
 }
 

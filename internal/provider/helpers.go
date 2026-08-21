@@ -3,9 +3,12 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/client"
@@ -30,6 +33,160 @@ func stringListValue(ss []string) types.List {
 	}
 	l, _ := types.ListValueFrom(context.Background(), types.StringType, elems)
 	return l
+}
+
+// knownListStrings returns the known string elements of a list. ok is false when the
+// list or any element is null/unknown, so callers never compare against a
+// placeholder.
+func knownListStrings(l types.List) ([]string, bool) {
+	if l.IsNull() || l.IsUnknown() {
+		return nil, false
+	}
+	out := make([]string, 0, len(l.Elements()))
+	for _, e := range l.Elements() {
+		s, ok := e.(types.String)
+		if !ok || s.IsNull() || s.IsUnknown() {
+			return nil, false
+		}
+		out = append(out, s.ValueString())
+	}
+	return out, true
+}
+
+// preserveListOrder keeps the caller's element order when the server returns the
+// SAME elements in a different one (endpoints that sort their output). Terraform
+// compares a list positionally, so adopting the server's order after apply is an
+// inconsistent result; a genuine membership change still takes the server's.
+func preserveListOrder(prior types.List, srv []string) types.List {
+	want, ok := knownListStrings(prior)
+	if !ok || len(want) != len(srv) {
+		return stringListValue(srv)
+	}
+	a, b := slices.Clone(want), slices.Clone(srv)
+	slices.Sort(a)
+	slices.Sort(b)
+	if slices.Equal(a, b) {
+		return prior
+	}
+	return stringListValue(srv)
+}
+
+// preserveEmptyList keeps the configured empty-vs-absent shape when the server
+// returns no elements: a KNOWN empty list stays [], an absent one stays null.
+// The wire cannot tell the two apart, and collapsing [] to null is an
+// inconsistent result the operator can never converge away from.
+func preserveEmptyList(prior types.List, srv []string) types.List {
+	if len(srv) > 0 {
+		return preserveListOrder(prior, srv)
+	}
+	if prior.IsNull() || prior.IsUnknown() {
+		return types.ListNull(types.StringType)
+	}
+	return stringListValue(nil)
+}
+
+// preserveEmptyString is the same idea for a string the server returns as "":
+// a KNOWN empty planned/prior value is kept rather than collapsed to null.
+func preserveEmptyString(prior types.String, srv string) types.String {
+	if srv != "" {
+		return types.StringValue(srv)
+	}
+	if !prior.IsNull() && !prior.IsUnknown() && prior.ValueString() == "" {
+		return prior
+	}
+	return types.StringNull()
+}
+
+// uniqueNonNullStrings rejects the element shapes a string-list write cannot
+// survive: a repeated value (a server that stores a set drops it, or 400s) and a
+// null element (ElementsAs fails). Unknown elements are left to the plan-time
+// validator, which is the only place they can exist.
+func uniqueNonNullStrings(l types.List, attribute path.Path, summary, duplicateDetail, nullDetail string) diag.Diagnostics {
+	var diags diag.Diagnostics
+	if l.IsNull() || l.IsUnknown() {
+		return diags
+	}
+	seen := make(map[string]bool, len(l.Elements()))
+	for i, e := range l.Elements() {
+		v, ok := e.(types.String)
+		if !ok || v.IsUnknown() {
+			continue
+		}
+		switch {
+		case v.IsNull():
+			diags.AddAttributeError(attribute.AtListIndex(i), summary, nullDetail)
+		case seen[v.ValueString()]:
+			diags.AddAttributeError(attribute.AtListIndex(i), summary, duplicateDetail)
+		default:
+			seen[v.ValueString()] = true
+		}
+	}
+	return diags
+}
+
+// nonEmptyStringValidator rejects an explicitly empty string for an attribute
+// where "" carries no meaning: the server stores it as absence and reads it back
+// as null, which fails the apply with an inconsistent result on an already
+// created resource. The remedy is per-attribute, so the caller supplies it.
+type nonEmptyStringValidator struct{ remedy string }
+
+func (nonEmptyStringValidator) Description(context.Context) string {
+	return "must not be an empty string"
+}
+
+func (v nonEmptyStringValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v nonEmptyStringValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() || req.ConfigValue.ValueString() != "" {
+		return
+	}
+	resp.Diagnostics.AddAttributeError(req.Path, "Invalid empty value", emptyValueDetail(v.remedy))
+}
+
+// nonEmptyMapValidator is the same rule for a map the server cannot store empty.
+type nonEmptyMapValidator struct{ remedy string }
+
+func (nonEmptyMapValidator) Description(context.Context) string {
+	return "must not be an empty map"
+}
+
+func (v nonEmptyMapValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v nonEmptyMapValidator) ValidateMap(_ context.Context, req validator.MapRequest, resp *validator.MapResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() || len(req.ConfigValue.Elements()) > 0 {
+		return
+	}
+	resp.Diagnostics.AddAttributeError(req.Path, "Invalid empty value", emptyValueDetail(v.remedy))
+}
+
+func emptyValueDetail(remedy string) string {
+	return "An empty value means nothing here: the server stores it as absence and reads it back as null, " +
+		"which fails the apply with an inconsistent result. " + remedy
+}
+
+// uniqueStringsValidator is uniqueNonNullStrings as a schema validator, so the
+// rule is enforced at plan time AND — via revalidatePlan — again at apply on the
+// resolved value. The messages are per-attribute because the consequence is.
+type uniqueStringsValidator struct {
+	summary         string
+	duplicateDetail string
+	nullDetail      string
+}
+
+func (uniqueStringsValidator) Description(context.Context) string {
+	return "must contain unique, non-null values"
+}
+
+func (v uniqueStringsValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v uniqueStringsValidator) ValidateList(_ context.Context, req validator.ListRequest, resp *validator.ListResponse) {
+	resp.Diagnostics.Append(uniqueNonNullStrings(req.ConfigValue, req.Path, v.summary, v.duplicateDetail, v.nullDetail)...)
 }
 
 // errDetail renders a normalized client error into a diagnostic detail.

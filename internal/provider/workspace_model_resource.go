@@ -99,19 +99,27 @@ func (r *workspaceModelResource) Schema(_ context.Context, _ resource.SchemaRequ
 				MarkdownDescription: "Project sharing config. Exactly one of `all_projects` or `project_ids` must be set.",
 				Attributes: map[string]schema.Attribute{
 					"all_projects": schema.BoolAttribute{
-						Optional:            true,
-						MarkdownDescription: "Share with every project in the workspace. Mutually exclusive with `project_ids`.",
+						Optional: true,
+						MarkdownDescription: "Share with every project in the workspace. Only accepts `true` — to share with " +
+							"no project set `project_ids = []` instead. Mutually exclusive with `project_ids`.",
 						Validators: []validator.Bool{
 							boolvalidator.ExactlyOneOf(
 								path.MatchRelative().AtParent().AtName("project_ids"),
 							),
+							allProjectsTrueValidator{},
 						},
 					},
 					"project_ids": schema.ListAttribute{
 						Optional:    true,
 						ElementType: types.StringType,
 						MarkdownDescription: "Share with exactly these projects. An empty list means shared with no " +
-							"project (still workspace-visible to admins). Mutually exclusive with `all_projects`.",
+							"project (still workspace-visible to admins). Ids must be unique and non-null — the server " +
+							"rejects a repeated one. Mutually exclusive with `all_projects`.",
+						Validators: []validator.List{uniqueStringsValidator{
+							summary:         invalidSharingSummary,
+							duplicateDetail: invalidDuplicateProjectIDDetail,
+							nullDetail:      invalidNullProjectIDDetail,
+						}},
 					},
 					"allow_version_pin": schema.BoolAttribute{
 						Optional:            true,
@@ -162,9 +170,47 @@ func (r *workspaceModelResource) ValidateConfig(ctx context.Context, req resourc
 	resp.Diagnostics.Append(validateSharingAutoGrant(cfg.Sharing)...)
 }
 
+// all_projects has no false form: sharing with nobody is project_ids = []. A
+// false slipped past ExactlyOneOf (which counts a present-but-false bool as set)
+// and was written as selected-with-no-projects, whose read-back normalizes to
+// all_projects = null — an inconsistent result that taints the resource.
+const (
+	invalidSharingSummary    = "Invalid sharing config"
+	invalidAllProjectsDetail = "all_projects only accepts true. To share with no project set project_ids = []; " +
+		"to share with specific projects list them in project_ids."
+	invalidAutoGrantDetail = "auto_grant_new_projects = true cannot be combined with an explicit project_ids list " +
+		"(it would mutate the stored list on new-project creation, causing a perpetual diff). " +
+		"Use it only with all_projects = true."
+	invalidDuplicateProjectIDDetail = "project_ids must not repeat a project id. The server rejects the sharing " +
+		"write with \"repeated value must contain unique items\", which would leave the model enabled with no grants."
+	invalidNullProjectIDDetail = "project_ids must not contain a null element. Remove it, or use an empty list to " +
+		"share with no project."
+)
+
+type allProjectsTrueValidator struct{}
+
+func (allProjectsTrueValidator) Description(context.Context) string {
+	return "must be true when set (use project_ids = [] to share with no project)"
+}
+
+func (v allProjectsTrueValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (allProjectsTrueValidator) ValidateBool(_ context.Context, req validator.BoolRequest, resp *validator.BoolResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() || req.ConfigValue.ValueBool() {
+		return
+	}
+	resp.Diagnostics.AddAttributeError(req.Path, invalidSharingSummary, invalidAllProjectsDetail)
+}
+
 // validateSharingAutoGrant rejects auto_grant_new_projects = true combined with
-// an explicit project_ids list (a perpetual-diff trap). It is a pure function so
-// the guard is unit-testable without constructing a tfsdk.Config.
+// an explicit project_ids list (a perpetual-diff trap). It is the one sharing
+// rule no attribute validator can express, so unlike the rest of the block it
+// still needs re-checking before the write: ValidateConfig defers it when either
+// value is unknown, and revalidatePlan re-runs attribute validators, not
+// ValidateConfig. A pure function, so the guard is unit-testable without
+// constructing a tfsdk.Config.
 func validateSharingAutoGrant(s *workspaceModelSharingModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 	if s == nil {
@@ -176,10 +222,8 @@ func validateSharingAutoGrant(s *workspaceModelSharingModel) diag.Diagnostics {
 	if s.AutoGrantNewProjects.ValueBool() && !s.ProjectIDs.IsNull() {
 		diags.AddAttributeError(
 			path.Root("sharing").AtName("auto_grant_new_projects"),
-			"Invalid sharing config",
-			"auto_grant_new_projects = true cannot be combined with an explicit project_ids list "+
-				"(it would mutate the stored list on new-project creation, causing a perpetual diff). "+
-				"Use it only with all_projects = true.",
+			invalidSharingSummary,
+			invalidAutoGrantDetail,
 		)
 	}
 	return diags
@@ -206,11 +250,16 @@ func (s *workspaceModelSharingModel) sharingInput(ctx context.Context) (client.S
 }
 
 // applySharing writes the normalized read-back sharing config into the model,
-// resolving the empty-vs-null quirk (selected + no ids => []).
+// resolving the empty-vs-null quirk (selected + no ids => []) and keeping the
+// caller's project_ids order when the server returns the same ids sorted.
 func applySharing(cfg *client.SharingConfig, m *workspaceModelResourceModel) {
 	if cfg == nil {
 		m.Sharing = nil
 		return
+	}
+	priorIDs := types.ListNull(types.StringType)
+	if m.Sharing != nil {
+		priorIDs = m.Sharing.ProjectIDs
 	}
 	out := &workspaceModelSharingModel{
 		AllowVersionPin:      types.BoolValue(cfg.AllowVersionPin),
@@ -223,7 +272,7 @@ func applySharing(cfg *client.SharingConfig, m *workspaceModelResourceModel) {
 		out.ProjectIDs = types.ListNull(types.StringType)
 	default: // selected
 		out.AllProjects = types.BoolNull()
-		out.ProjectIDs = stringListValue(cfg.ProjectIDs) // non-nil => [] when empty
+		out.ProjectIDs = preserveListOrder(priorIDs, cfg.ProjectIDs) // non-nil => [] when empty
 	}
 	m.Sharing = out
 }
@@ -263,6 +312,12 @@ func (r *workspaceModelResource) applyModel(wm *client.WorkspaceModel, m *worksp
 func (r *workspaceModelResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan workspaceModelResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(validateSharingAutoGrant(plan.Sharing)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -291,6 +346,14 @@ func (r *workspaceModelResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 	if err := r.models.SetSharing(ctx, modelID, in); err != nil {
+		// The model is enabled but ungoverned (all-projects, fail-open). Undo the
+		// enable so a failed create leaves nothing behind and can be retried.
+		if r.rollbackEnable(ctx, modelID) {
+			resp.Diagnostics.AddError("Unable to write model sharing",
+				"The model was enabled but its sharing config could not be written, so the enable was rolled "+
+					"back and nothing was created. Fix the sharing config and re-apply.\n\n"+errDetail(err))
+			return
+		}
 		// Persist what we know: the model is enabled. Keep the requested sharing
 		// block so the operator sees the intended config.
 		plan.ID = types.StringValue(modelID)
@@ -327,6 +390,21 @@ func (r *workspaceModelResource) Create(ctx context.Context, req resource.Create
 	}
 	r.applyModel(wm, &plan)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+// rollbackEnable undoes the enable after a failed sharing write. A system model
+// id contains a slash, which can make the disable no-op server-side, so the
+// result is confirmed by a read; false means the model is still enabled and the
+// caller must fall back to persisting a tainted partial state.
+func (r *workspaceModelResource) rollbackEnable(ctx context.Context, modelID string) bool {
+	if err := r.models.Disable(ctx, modelID); err != nil && !isNotFound(err) {
+		return false
+	}
+	wm, err := r.models.Get(ctx, modelID)
+	if err != nil {
+		return isNotFound(err)
+	}
+	return wm == nil || !wm.Enabled
 }
 
 func (r *workspaceModelResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -374,6 +452,11 @@ func (r *workspaceModelResource) Read(ctx context.Context, req resource.ReadRequ
 func (r *workspaceModelResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan workspaceModelResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(revalidatePlan(ctx, req.Plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(validateSharingAutoGrant(plan.Sharing)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
