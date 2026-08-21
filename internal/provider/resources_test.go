@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -387,6 +388,125 @@ func TestWorkspaceModelSharingShapeRejectedBeforeTheWrite(t *testing.T) {
 			r.Update(ctx, resource.UpdateRequest{Plan: plan, State: emptyState()}, &updateResp)
 			check(updateResp.Diagnostics, api, res)
 		})
+	}
+}
+
+// sortingWorkspaceModels mirrors the live backend: it stores the sharing it was
+// given and reads the grants back sorted ascending.
+type sortingWorkspaceModels struct{ ids []string }
+
+func (s *sortingWorkspaceModels) Enable(context.Context, string) error  { return nil }
+func (s *sortingWorkspaceModels) Disable(context.Context, string) error { return nil }
+func (s *sortingWorkspaceModels) SetSharing(_ context.Context, _ string, in client.SharingInput) error {
+	s.ids = slices.Clone(in.ProjectIDs)
+	return nil
+}
+func (s *sortingWorkspaceModels) Get(_ context.Context, modelID string) (*client.WorkspaceModel, error) {
+	ids := slices.Clone(s.ids)
+	slices.Sort(ids)
+	return &client.WorkspaceModel{
+		ModelID:     modelID,
+		DisplayName: "GPT-4o",
+		Enabled:     true,
+		Sharing:     &client.SharingConfig{Mode: client.SharingModeSelected, ProjectIDs: ids},
+	}, nil
+}
+
+// TestWorkspaceModelKeepsConfiguredProjectIDOrder proves the read-back never
+// reorders the operator's project_ids. The server sorts the grants, and a list
+// is compared positionally, so adopting that order made every create and update
+// of a non-ascending list an inconsistent result that tainted the resource.
+func TestWorkspaceModelKeepsConfiguredProjectIDOrder(t *testing.T) {
+	ctx := context.Background()
+	s := workspaceModelSchema(t)
+	api := &sortingWorkspaceModels{}
+	r := &workspaceModelResource{
+		models:   api,
+		resolver: &catalogModels{docs: []client.Model{{ID: "doc_uuid_123", RefID: "openai/gpt-4o"}}},
+	}
+	descending := []string{"p3", "p2", "p1"}
+	model := func(ids types.List) workspaceModelResourceModel {
+		return workspaceModelResourceModel{
+			ID:          types.StringValue("doc_uuid_123"),
+			ModelID:     types.StringValue("openai/gpt-4o"),
+			Enabled:     types.BoolValue(true),
+			DisplayName: types.StringNull(),
+			Sharing: &workspaceModelSharingModel{
+				AllProjects:          types.BoolNull(),
+				ProjectIDs:           ids,
+				AllowVersionPin:      types.BoolValue(false),
+				AllowFork:            types.BoolValue(false),
+				AutoGrantNewProjects: types.BoolValue(false),
+			},
+		}
+	}
+	ids := func(m workspaceModelResourceModel) []string {
+		t.Helper()
+		got, ok := knownListStrings(m.Sharing.ProjectIDs)
+		if !ok {
+			t.Fatalf("project_ids not fully known: %v", m.Sharing.ProjectIDs)
+		}
+		return got
+	}
+	emptyState := func() tfsdk.State {
+		return tfsdk.State{Schema: s, Raw: tftypes.NewValue(s.Type().TerraformType(ctx), nil)}
+	}
+	get := func(t *testing.T, from interface {
+		Get(context.Context, any) diag.Diagnostics
+	}) workspaceModelResourceModel {
+		t.Helper()
+		var out workspaceModelResourceModel
+		if diags := from.Get(ctx, &out); diags.HasError() {
+			t.Fatalf("reading state: %v", diags)
+		}
+		return out
+	}
+
+	createResp := resource.CreateResponse{State: emptyState()}
+	r.Create(ctx, resource.CreateRequest{
+		Plan: tfsdk.Plan{Schema: s, Raw: workspaceModelRaw(t, s, model(stringList(descending...)))},
+	}, &createResp)
+	if createResp.Diagnostics.HasError() {
+		t.Fatalf("Create: %v", createResp.Diagnostics)
+	}
+	created := get(t, &createResp.State)
+	if got := ids(created); !slices.Equal(got, descending) {
+		t.Fatalf("create must keep the configured order, got %v", got)
+	}
+
+	// A refresh of that state is a fixed point.
+	readResp := resource.ReadResponse{State: tfsdk.State{Schema: s, Raw: workspaceModelRaw(t, s, created)}}
+	r.Read(ctx, resource.ReadRequest{State: readResp.State}, &readResp)
+	if readResp.Diagnostics.HasError() {
+		t.Fatalf("Read: %v", readResp.Diagnostics)
+	}
+	if got := ids(get(t, &readResp.State)); !slices.Equal(got, descending) {
+		t.Fatalf("a refresh must not reorder project_ids, got %v", got)
+	}
+
+	// An update reordering the same ids keeps the NEW order, not the stored one.
+	reordered := []string{"p1", "p3", "p2"}
+	updateResp := resource.UpdateResponse{State: emptyState()}
+	r.Update(ctx, resource.UpdateRequest{
+		Plan:  tfsdk.Plan{Schema: s, Raw: workspaceModelRaw(t, s, model(stringList(reordered...)))},
+		State: emptyState(),
+	}, &updateResp)
+	if updateResp.Diagnostics.HasError() {
+		t.Fatalf("Update: %v", updateResp.Diagnostics)
+	}
+	if got := ids(get(t, &updateResp.State)); !slices.Equal(got, reordered) {
+		t.Fatalf("update must keep the newly configured order, got %v", got)
+	}
+
+	// A genuine out-of-band membership change is still reflected, sorted.
+	api.ids = []string{"p9", "p1"}
+	driftResp := resource.ReadResponse{State: tfsdk.State{Schema: s, Raw: workspaceModelRaw(t, s, created)}}
+	r.Read(ctx, resource.ReadRequest{State: driftResp.State}, &driftResp)
+	if driftResp.Diagnostics.HasError() {
+		t.Fatalf("Read: %v", driftResp.Diagnostics)
+	}
+	if got := ids(get(t, &driftResp.State)); !slices.Equal(got, []string{"p1", "p9"}) {
+		t.Fatalf("a membership change must take the server's grants, got %v", got)
 	}
 }
 

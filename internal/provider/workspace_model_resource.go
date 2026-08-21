@@ -273,11 +273,16 @@ func (s *workspaceModelSharingModel) sharingInput(ctx context.Context) (client.S
 }
 
 // applySharing writes the normalized read-back sharing config into the model,
-// resolving the empty-vs-null quirk (selected + no ids => []).
+// resolving the empty-vs-null quirk (selected + no ids => []) and keeping the
+// caller's project_ids order when the server returns the same ids sorted.
 func applySharing(cfg *client.SharingConfig, m *workspaceModelResourceModel) {
 	if cfg == nil {
 		m.Sharing = nil
 		return
+	}
+	priorIDs := types.ListNull(types.StringType)
+	if m.Sharing != nil {
+		priorIDs = m.Sharing.ProjectIDs
 	}
 	out := &workspaceModelSharingModel{
 		AllowVersionPin:      types.BoolValue(cfg.AllowVersionPin),
@@ -290,7 +295,7 @@ func applySharing(cfg *client.SharingConfig, m *workspaceModelResourceModel) {
 		out.ProjectIDs = types.ListNull(types.StringType)
 	default: // selected
 		out.AllProjects = types.BoolNull()
-		out.ProjectIDs = stringListValue(cfg.ProjectIDs) // non-nil => [] when empty
+		out.ProjectIDs = preserveListOrder(priorIDs, cfg.ProjectIDs) // non-nil => [] when empty
 	}
 	m.Sharing = out
 }

@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -30,6 +31,42 @@ func stringListValue(ss []string) types.List {
 	}
 	l, _ := types.ListValueFrom(context.Background(), types.StringType, elems)
 	return l
+}
+
+// knownListStrings returns the known string elements of a list. ok is false when the
+// list or any element is null/unknown, so callers never compare against a
+// placeholder.
+func knownListStrings(l types.List) ([]string, bool) {
+	if l.IsNull() || l.IsUnknown() {
+		return nil, false
+	}
+	out := make([]string, 0, len(l.Elements()))
+	for _, e := range l.Elements() {
+		s, ok := e.(types.String)
+		if !ok || s.IsNull() || s.IsUnknown() {
+			return nil, false
+		}
+		out = append(out, s.ValueString())
+	}
+	return out, true
+}
+
+// preserveListOrder keeps the caller's element order when the server returns the
+// SAME elements in a different one (endpoints that sort their output). Terraform
+// compares a list positionally, so adopting the server's order after apply is an
+// inconsistent result; a genuine membership change still takes the server's.
+func preserveListOrder(prior types.List, srv []string) types.List {
+	want, ok := knownListStrings(prior)
+	if !ok || len(want) != len(srv) {
+		return stringListValue(srv)
+	}
+	a, b := slices.Clone(want), slices.Clone(srv)
+	slices.Sort(a)
+	slices.Sort(b)
+	if slices.Equal(a, b) {
+		return prior
+	}
+	return stringListValue(srv)
 }
 
 // errDetail renders a normalized client error into a diagnostic detail.
