@@ -92,7 +92,9 @@ func (r *routingRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"project_id": schema.StringAttribute{
 				Optional: true,
 				MarkdownDescription: "Owning project. Omit for a workspace-global rule. Changing this " +
-					"forces replacement (the update API does not accept `project_id`).",
+					"forces replacement (the update API does not accept `project_id`). Not Computed: " +
+					"the create/get API never echoes this value back, so the provider preserves the " +
+					"caller's own value instead of reading it from the server.",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 				Validators: []validator.String{
 					nonEmptyStringValidator{remedy: "Omit project_id for a workspace-global rule."},
@@ -199,7 +201,17 @@ func (r *routingRuleResource) apply(g *client.RoutingRule, m *routingRuleResourc
 	// omitted config (prior state is retained, so no perpetual diff).
 	m.Description = types.StringValue(g.Description)
 	m.Enabled = types.BoolValue(g.Enabled)
-	m.ProjectID = optString(g.ProjectID)
+	// The routing-rules API never echoes project_id back in a create/get
+	// response (it comes back "" even when the rule was created with one), so
+	// trusting the response the way optString does elsewhere nulls out an
+	// attribute that is not Computed. That turns every create into "Provider
+	// produced inconsistent result after apply" and every refresh into a
+	// dropped project_id. Keep the caller's existing value (the plan on
+	// Create/Update, the prior state on Read) whenever the server's value is
+	// empty; only adopt a non-empty value, so real drift still surfaces.
+	if g.ProjectID != "" {
+		m.ProjectID = types.StringValue(g.ProjectID)
+	}
 	m.Priority = types.Int64Value(g.Priority)
 	if g.ExpressionCEL != "" {
 		m.Expression = &routingExpressionModel{Cel: types.StringValue(g.ExpressionCEL)}

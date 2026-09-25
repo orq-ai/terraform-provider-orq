@@ -61,7 +61,7 @@ resource "orq_routing_rule" "minimal" {
 - `expression` (Attributes) Match expression. Only `cel` is writable; the server-derived `config` is not surfaced. (see [below for nested schema](#nestedatt--expression))
 - `models_config` (Attributes) Model routing configuration. Omit it entirely for a rule that only matches; removing the block from a managed rule clears it server-side. (see [below for nested schema](#nestedatt--models_config))
 - `priority` (Number) Evaluation priority (>= 0). Defaults server-side when omitted.
-- `project_id` (String) Owning project. Omit for a workspace-global rule. Changing this forces replacement (the update API does not accept `project_id`).
+- `project_id` (String) Owning project. Omit for a workspace-global rule. Changing this forces replacement (the update API does not accept `project_id`). Not Computed: the create/get API never echoes this value back, so the provider preserves the caller's own value instead of reading it from the server.
 
 ### Read-Only
 
