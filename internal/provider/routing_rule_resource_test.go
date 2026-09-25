@@ -379,6 +379,73 @@ func TestRoutingRuleReadIsAFixedPoint(t *testing.T) {
 	}
 }
 
+// The create/get response never echoes project_id back (fakeRoutingRules.Create
+// mirrors this: it never copies in.ProjectID onto the stored rule), so trusting
+// that response the way optString does for every other field would null out an
+// attribute that is not Computed — "Provider produced inconsistent result after
+// apply" on every single create of a project-scoped rule.
+func TestRoutingRuleCreatePreservesProjectID(t *testing.T) {
+	s := routingRuleSchema(t)
+	api := &fakeRoutingRules{}
+
+	plan := routingRulePlan(nil)
+	plan.ProjectID = types.StringValue("proj_1")
+	planRaw := routingRuleRaw(t, s, plan)
+
+	state := routingRuleCreate(t, s, api, planRaw)
+
+	assertNoUnknownValues(t, state)
+	assertMatches(t, "plan", planRaw, state)
+
+	var got routingRuleResourceModel
+	if diags := (tfsdk.State{Schema: s, Raw: state}).Get(context.Background(), &got); diags.HasError() {
+		t.Fatalf("reading state: %v", diags)
+	}
+	if got.ProjectID.ValueString() != "proj_1" {
+		t.Errorf("project_id = %q, want %q", got.ProjectID.ValueString(), "proj_1")
+	}
+}
+
+// A refresh must not drop project_id either, for the same reason: Get's
+// response never carries it back, so Read has to preserve the prior state's
+// value rather than adopt the empty one. Built directly from a prior state
+// (not via Create) so this exercises the Read path independently of it.
+func TestRoutingRuleReadPreservesProjectID(t *testing.T) {
+	s := routingRuleSchema(t)
+	ctx := context.Background()
+	api := &fakeRoutingRules{rule: client.RoutingRule{
+		ID:          "rrl_1",
+		DisplayName: "route",
+		Enabled:     true,
+		Priority:    5,
+		CreatedAt:   "2026-01-01T00:00:00Z",
+		UpdatedAt:   "2026-01-01T00:00:00Z",
+	}}
+
+	prior := routingRuleConfig(nil)
+	prior.ID = types.StringValue("rrl_1")
+	prior.Description = types.StringValue("")
+	prior.Enabled = types.BoolValue(true)
+	prior.ProjectID = types.StringValue("proj_1")
+	prior.Priority = types.Int64Value(5)
+	prior.CreatedAt = types.StringValue("2026-01-01T00:00:00Z")
+	prior.UpdatedAt = types.StringValue("2026-01-01T00:00:00Z")
+	priorRaw := routingRuleRaw(t, s, prior)
+
+	resp := resource.ReadResponse{State: tfsdk.State{Schema: s, Raw: priorRaw}}
+	(&routingRuleResource{rules: api}).Read(ctx, resource.ReadRequest{State: tfsdk.State{Schema: s, Raw: priorRaw}}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Read: %v", resp.Diagnostics)
+	}
+	var got routingRuleResourceModel
+	if diags := resp.State.Get(ctx, &got); diags.HasError() {
+		t.Fatalf("reading state: %v", diags)
+	}
+	if got.ProjectID.ValueString() != "proj_1" {
+		t.Errorf("refresh dropped project_id: got %q, want %q", got.ProjectID.ValueString(), "proj_1")
+	}
+}
+
 // --- schema decisions -------------------------------------------------------
 
 func TestRoutingRuleModelsConfigSchema(t *testing.T) {
