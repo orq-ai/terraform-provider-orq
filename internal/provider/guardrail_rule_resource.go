@@ -39,7 +39,6 @@ type guardrailRuleResourceModel struct {
 	Description types.String        `tfsdk:"description"`
 	Enabled     types.Bool          `tfsdk:"enabled"`
 	ProjectID   types.String        `tfsdk:"project_id"`
-	Timeout     types.Int64         `tfsdk:"timeout"`
 	Guardrails  []guardrailRefModel `tfsdk:"guardrails"`
 	CreatedAt   types.String        `tfsdk:"created_at"`
 	UpdatedAt   types.String        `tfsdk:"updated_at"`
@@ -94,13 +93,6 @@ func (r *guardrailRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 				Validators: []validator.String{
 					nonEmptyStringValidator{remedy: "Omit project_id for a workspace-global rule."},
 				},
-			},
-			"timeout": schema.Int64Attribute{
-				Optional: true,
-				Computed: true,
-				MarkdownDescription: "Evaluation timeout in milliseconds. Stored and returned, but NOT " +
-					"currently enforced at execution time — the effective limits come from the " +
-					"grader transport and sandbox instead.",
 			},
 			"created_at": schema.StringAttribute{
 				Computed:            true,
@@ -212,7 +204,6 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 	m.Description = preserveEmptyString(m.Description, g.Description)
 	m.Enabled = types.BoolValue(g.Enabled)
 	m.ProjectID = optString(g.ProjectID)
-	m.Timeout = types.Int64Value(g.Timeout)
 	m.CreatedAt = types.StringValue(g.CreatedAt)
 	m.UpdatedAt = types.StringValue(g.UpdatedAt)
 
@@ -294,7 +285,6 @@ func (r *guardrailRuleResource) Create(ctx context.Context, req resource.CreateR
 		Description: strPtr(plan.Description),
 		Enabled:     boolPtr(plan.Enabled),
 		ProjectID:   strPtr(plan.ProjectID),
-		Timeout:     int64Ptr(plan.Timeout),
 		Guardrails:  refs,
 	})
 	if err != nil {
@@ -346,7 +336,6 @@ func (r *guardrailRuleResource) Update(ctx context.Context, req resource.UpdateR
 		DisplayName: &name,
 		Description: strPtr(plan.Description),
 		Enabled:     boolPtr(plan.Enabled),
-		Timeout:     int64Ptr(plan.Timeout),
 		Guardrails:  refs,
 	})
 	if err != nil {

@@ -1,17 +1,14 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"net/http"
-	"time"
 
-	"github.com/orq-ai/terraform-provider-orq/internal/restgen"
+	platformv1 "github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1"
+	"github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1/platformv1connect"
 )
 
 // RoutingRule is the transport-agnostic projection of a routing rule (router
-// entity, REST-backed). ProjectID is empty for a workspace-global rule.
+// entity, Connect-backed). ProjectID is empty for a workspace-global rule.
 //
 // ExpressionCEL is the writable part of the rule's match expression (the server
 // enriches reads with a derived `config`, which the provider does not surface).
@@ -66,12 +63,10 @@ type RoutingRuleCreateInput struct {
 }
 
 // RoutingRuleUpdateInput is the update patch. There is no ProjectID: the update
-// API omits project_id (verified against apps/platform-api/routingrules/routes.go
-// — updateRoutingRuleRequest has no ProjectID field), so the resource marks it
-// RequiresReplace.
+// API omits project_id, so the resource marks it RequiresReplace.
 //
 // A nil ModelsConfig leaves the stored one untouched; ClearModelsConfig removes
-// it (see routingRuleUpdatePayload).
+// it.
 type RoutingRuleUpdateInput struct {
 	ID                string
 	DisplayName       *string
@@ -84,7 +79,7 @@ type RoutingRuleUpdateInput struct {
 }
 
 // RoutingRulesAPI is the per-resource seam for the routing-rules domain
-// (REST-backed).
+// (Connect-backed).
 type RoutingRulesAPI interface {
 	List(ctx context.Context, params ListParams) (*RoutingRulePage, error)
 	Get(ctx context.Context, id string) (*RoutingRule, error)
@@ -93,217 +88,132 @@ type RoutingRulesAPI interface {
 	Delete(ctx context.Context, id string) error
 }
 
-type restRoutingRules struct {
-	c *restgen.ClientWithResponses
+type connectRoutingRules struct {
+	c platformv1connect.RoutingRulesServiceClient
 }
 
-// routingRuleWire mirrors the JSON body every routing-rule read/write returns.
-// The server emits proto zero values, so an absent models_config arrives as an
-// explicit `null` and its leaf strings as "".
-type routingRuleWire struct {
-	ID          string  `json:"_id"`
-	DisplayName string  `json:"display_name"`
-	Description *string `json:"description"`
-	Enabled     bool    `json:"enabled"`
-	ProjectID   string  `json:"project_id"`
-	Priority    int64   `json:"priority"`
-	Expression  *struct {
-		Cel string `json:"cel"`
-	} `json:"expression"`
-	ModelsConfig *modelsConfigWire `json:"models_config"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
+func routingRuleFromProto(g *platformv1.RoutingRule) RoutingRule {
+	r := RoutingRule{
+		ID:            g.GetId(),
+		DisplayName:   g.GetDisplayName(),
+		Description:   g.GetDescription(),
+		Enabled:       g.GetEnabled(),
+		ProjectID:     g.GetProjectId(),
+		Priority:      int64(g.GetPriority()),
+		ExpressionCEL: g.GetExpression().GetCel(),
+		CreatedAt:     formatTimestamp(g.GetCreatedAt()),
+		UpdatedAt:     formatTimestamp(g.GetUpdatedAt()),
+	}
+	if cfg := g.GetModelsConfig(); cfg != nil {
+		r.ModelsConfig = &RoutingRuleModelsConfig{Mode: cfg.GetMode(), Models: make([]RoutingRuleModelRef, 0, len(cfg.GetModels()))}
+		for _, m := range cfg.GetModels() {
+			r.ModelsConfig.Models = append(r.ModelsConfig.Models, RoutingRuleModelRef{
+				Model:         m.GetModel(),
+				DisplayName:   m.GetDisplayName(),
+				Weight:        m.Weight,
+				IntegrationID: m.GetIntegrationId(),
+			})
+		}
+	}
+	return r
 }
 
-type modelsConfigWire struct {
-	Mode   string         `json:"mode"`
-	Models []modelRefWire `json:"models"`
-}
-
-type modelRefWire struct {
-	Model         string   `json:"model"`
-	DisplayName   string   `json:"display_name"`
-	Weight        *float64 `json:"weight"`
-	IntegrationID string   `json:"integration_id"`
-}
-
-func (w *modelsConfigWire) toConfig() *RoutingRuleModelsConfig {
-	if w == nil {
+func modelsConfigToProto(c *RoutingRuleModelsConfig) *platformv1.RoutingRuleModelsConfig {
+	if c == nil {
 		return nil
 	}
-	out := &RoutingRuleModelsConfig{Mode: w.Mode, Models: make([]RoutingRuleModelRef, 0, len(w.Models))}
-	for _, m := range w.Models {
-		out.Models = append(out.Models, RoutingRuleModelRef{
+	out := &platformv1.RoutingRuleModelsConfig{Mode: c.Mode, Models: make([]*platformv1.RoutingRuleModel, 0, len(c.Models))}
+	for _, m := range c.Models {
+		out.Models = append(out.Models, &platformv1.RoutingRuleModel{
 			Model:         m.Model,
 			DisplayName:   m.DisplayName,
 			Weight:        m.Weight,
-			IntegrationID: m.IntegrationID,
+			IntegrationId: m.IntegrationID,
 		})
 	}
 	return out
 }
 
-func (w *routingRuleWire) toRule() RoutingRule {
-	r := RoutingRule{
-		ID:           w.ID,
-		DisplayName:  w.DisplayName,
-		Enabled:      w.Enabled,
-		ProjectID:    w.ProjectID,
-		Priority:     w.Priority,
-		ModelsConfig: w.ModelsConfig.toConfig(),
-		CreatedAt:    w.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:    w.UpdatedAt.UTC().Format(time.RFC3339),
-	}
-	if w.Description != nil {
-		r.Description = *w.Description
-	}
-	if w.Expression != nil {
-		r.ExpressionCEL = w.Expression.Cel
-	}
-	return r
-}
-
-func decodeRoutingRuleBody(body []byte) (*RoutingRule, error) {
-	var w routingRuleWire
-	if err := json.Unmarshal(body, &w); err != nil {
-		return nil, &Error{Code: CodeInternal, Message: "decoding routing rule response: " + err.Error()}
-	}
-	r := w.toRule()
-	return &r, nil
-}
-
-// modelsConfigToREST maps the domain config onto the generated request type. A
-// nil config yields nil, which the `models_config,omitempty` request field omits
-// entirely — the server rejects an explicit null.
-func modelsConfigToREST(c *RoutingRuleModelsConfig) *restgen.ModelsConfig {
-	if c == nil {
+func routingRulePriority(priority *int64) *int32 {
+	if priority == nil {
 		return nil
 	}
-	models := make([]restgen.ModelRef, 0, len(c.Models))
-	for _, m := range c.Models {
-		ref := restgen.ModelRef{Model: m.Model, Weight: m.Weight}
-		if m.DisplayName != "" {
-			ref.DisplayName = &m.DisplayName
-		}
-		if m.IntegrationID != "" {
-			ref.IntegrationId = &m.IntegrationID
-		}
-		models = append(models, ref)
+	p := int32(*priority)
+	return &p
+}
+
+func routingRuleExpression(cel *string) *platformv1.RoutingRuleExpression {
+	if cel == nil {
+		return nil
 	}
-	return &restgen.ModelsConfig{Mode: restgen.ModelsConfigMode(c.Mode), Models: &models}
+	return &platformv1.RoutingRuleExpression{Cel: *cel}
 }
 
-// routingRuleUpdatePayload is the generated update body plus
-// clear_models_config, a request field the public OpenAPI spec hides
-// (x-orq-hidden) but the server honors — the only way a PATCH can remove a
-// stored models_config, since an omitted or null one is a no-op.
-type routingRuleUpdatePayload struct {
-	restgen.RoutingRuleUpdateJSONRequestBody
-	ClearModelsConfig bool `json:"clear_models_config,omitempty"`
-}
-
-func (p *restRoutingRules) List(ctx context.Context, params ListParams) (*RoutingRulePage, error) {
-	restParams := &restgen.RoutingRuleListParams{}
+func (c *connectRoutingRules) List(ctx context.Context, params ListParams) (*RoutingRulePage, error) {
+	req := &platformv1.ListRoutingRulesRequest{StartingAfter: params.StartingAfter}
 	if params.Limit > 0 {
-		limit := int64(params.Limit)
-		restParams.Limit = &limit
+		req.Limit = &params.Limit
 	}
-	if params.StartingAfter != "" {
-		restParams.StartingAfter = &params.StartingAfter
-	}
-	resp, err := p.c.RoutingRuleListWithResponse(ctx, restParams)
+	resp, err := c.c.ListRoutingRules(ctx, req)
 	if err != nil {
-		return nil, mapRESTTransportError("routing rule", err)
+		return nil, mapConnectError("routing rule", err)
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
-	}
-	// Decode the raw list envelope so the per-item shape is the same wire struct
-	// the single-rule reads use (avoids the oapi-codegen anonymous list types).
-	var env struct {
-		Data    []routingRuleWire `json:"data"`
-		HasMore bool              `json:"has_more"`
-	}
-	if err := json.Unmarshal(resp.Body, &env); err != nil {
-		return nil, &Error{Code: CodeInternal, Message: "decoding routing rule list: " + err.Error()}
-	}
-	out := &RoutingRulePage{HasMore: env.HasMore}
-	for i := range env.Data {
-		out.Rules = append(out.Rules, env.Data[i].toRule())
+	out := &RoutingRulePage{HasMore: resp.GetHasMore()}
+	for _, g := range resp.GetData() {
+		out.Rules = append(out.Rules, routingRuleFromProto(g))
 	}
 	return out, nil
 }
 
-func (p *restRoutingRules) Get(ctx context.Context, id string) (*RoutingRule, error) {
-	resp, err := p.c.RoutingRuleGetWithResponse(ctx, id)
+func (c *connectRoutingRules) Get(ctx context.Context, id string) (*RoutingRule, error) {
+	resp, err := c.c.GetRoutingRule(ctx, &platformv1.GetRoutingRuleRequest{RoutingRuleId: id})
 	if err != nil {
-		return nil, mapRESTTransportError("routing rule", err)
+		return nil, mapConnectError("routing rule", err)
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
-	}
-	return decodeRoutingRuleBody(resp.Body)
+	r := routingRuleFromProto(resp.GetRoutingRule())
+	return &r, nil
 }
 
-func (p *restRoutingRules) Create(ctx context.Context, in RoutingRuleCreateInput) (*RoutingRule, error) {
-	body := restgen.RoutingRuleCreateJSONRequestBody{
+func (c *connectRoutingRules) Create(ctx context.Context, in RoutingRuleCreateInput) (*RoutingRule, error) {
+	resp, err := c.c.CreateRoutingRule(ctx, &platformv1.CreateRoutingRuleRequest{
 		DisplayName:  in.DisplayName,
 		Description:  in.Description,
 		Enabled:      in.Enabled,
-		Priority:     in.Priority,
 		ProjectId:    in.ProjectID,
-		ModelsConfig: modelsConfigToREST(in.ModelsConfig),
-	}
-	if in.ExpressionCEL != nil {
-		body.Expression = &restgen.ExpressionInput{Cel: *in.ExpressionCEL}
-	}
-	resp, err := p.c.RoutingRuleCreateWithResponse(ctx, body)
+		Priority:     routingRulePriority(in.Priority),
+		Expression:   routingRuleExpression(in.ExpressionCEL),
+		ModelsConfig: modelsConfigToProto(in.ModelsConfig),
+	})
 	if err != nil {
-		return nil, mapRESTTransportError("routing rule", err)
+		return nil, mapConnectError("routing rule", err)
 	}
-	if resp.StatusCode() != http.StatusCreated && resp.StatusCode() != http.StatusOK {
-		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
-	}
-	return decodeRoutingRuleBody(resp.Body)
+	r := routingRuleFromProto(resp.GetRoutingRule())
+	return &r, nil
 }
 
-func (p *restRoutingRules) Update(ctx context.Context, in RoutingRuleUpdateInput) (*RoutingRule, error) {
-	payload := routingRuleUpdatePayload{
-		RoutingRuleUpdateJSONRequestBody: restgen.RoutingRuleUpdateJSONRequestBody{
-			DisplayName:  in.DisplayName,
-			Description:  in.Description,
-			Enabled:      in.Enabled,
-			Priority:     in.Priority,
-			ModelsConfig: modelsConfigToREST(in.ModelsConfig),
-		},
-		ClearModelsConfig: in.ClearModelsConfig && in.ModelsConfig == nil,
+func (c *connectRoutingRules) Update(ctx context.Context, in RoutingRuleUpdateInput) (*RoutingRule, error) {
+	req := &platformv1.UpdateRoutingRuleRequest{
+		RoutingRuleId: in.ID,
+		DisplayName:   in.DisplayName,
+		Description:   in.Description,
+		Enabled:       in.Enabled,
+		Priority:      routingRulePriority(in.Priority),
+		Expression:    routingRuleExpression(in.ExpressionCEL),
+		ModelsConfig:  modelsConfigToProto(in.ModelsConfig),
 	}
-	if in.ExpressionCEL != nil {
-		payload.Expression = &restgen.ExpressionInput{Cel: *in.ExpressionCEL}
+	if in.ClearModelsConfig && in.ModelsConfig == nil {
+		clearModelsConfig := true
+		req.ClearModelsConfig = &clearModelsConfig
 	}
-	body, err := json.Marshal(payload)
+	resp, err := c.c.UpdateRoutingRule(ctx, req)
 	if err != nil {
-		return nil, &Error{Code: CodeInternal, Message: "encoding routing rule update request: " + err.Error()}
+		return nil, mapConnectError("routing rule", err)
 	}
-	resp, err := p.c.RoutingRuleUpdateWithBodyWithResponse(ctx, in.ID, jsonContentType, bytes.NewReader(body))
-	if err != nil {
-		return nil, mapRESTTransportError("routing rule", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
-	}
-	return decodeRoutingRuleBody(resp.Body)
+	r := routingRuleFromProto(resp.GetRoutingRule())
+	return &r, nil
 }
 
-func (p *restRoutingRules) Delete(ctx context.Context, id string) error {
-	resp, err := p.c.RoutingRuleDeleteWithResponse(ctx, id)
-	if err != nil {
-		return mapRESTTransportError("routing rule", err)
-	}
-	switch resp.StatusCode() {
-	case http.StatusOK, http.StatusNoContent, http.StatusAccepted:
-		return nil
-	default:
-		return mapRESTStatus(resp.StatusCode(), resp.Body)
-	}
+func (c *connectRoutingRules) Delete(ctx context.Context, id string) error {
+	_, err := c.c.DeleteRoutingRule(ctx, &platformv1.DeleteRoutingRuleRequest{RoutingRuleId: id})
+	return mapConnectError("routing rule", err)
 }

@@ -41,6 +41,14 @@ service ManagementKeysService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "create"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "management-keys"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "create"}
         }
       ]
     };
@@ -65,6 +73,14 @@ service ManagementKeysService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "list"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "management-keys"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "list"}
         }
       ]
     };
@@ -88,6 +104,14 @@ service ManagementKeysService {
         },
         {
           name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "management-keys"}
+        },
+        {
+          name: "x-cli-name"
           value: {yaml: "get"}
         }
       ]
@@ -116,6 +140,14 @@ service ManagementKeysService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "update"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "management-keys"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "update"}
         }
       ]
     };
@@ -140,6 +172,14 @@ service ManagementKeysService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "delete"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "management-keys"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "delete"}
         }
       ]
     };
@@ -161,15 +201,22 @@ service ManagementKeysService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "listCapabilities"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "management-keys"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "listCapabilities"}
         }
       ]
     };
   }
 }
 
-// ManagementKey is the canonical record stored in MongoDB
-// `auth.managementKeys`. It is the source of truth for permissions,
-// expiration, and revocation. Management keys are always
+// ManagementKey defines permissions, expiration, and revocation for a
+// management key. Management keys are always
 // workspace-scoped — there is no project_scope field, and they have no
 // per-user owner (every management key is workspace-owned;
 // `created_by_id` records who created it).
@@ -202,10 +249,9 @@ message ManagementKey {
   ManagementPermissionMode permission_mode = 4;
 
   // Per-domain access map. Only populated when `permission_mode` is
-  // `MANAGEMENT_PERMISSION_MODE_RESTRICTED`. Valid keys are the Domain.id
-  // values in the management capability catalog — see
-  // libs/catalog/orq/managementkeys/v1/catalog.textpb for the canonical
-  // list.
+  // `MANAGEMENT_PERMISSION_MODE_RESTRICTED`. The authoritative list of
+  // valid keys (Domain.id values) is returned by the List management
+  // capability catalog endpoint (GET /v2/management-keys/capabilities).
   map<string, orq.managementkeys.v1.AccessLevel> access = 5;
 
   // Displayable prefix for UI listings (e.g. "sk-orq-01HXY..."). Safe
@@ -244,8 +290,8 @@ message ManagementKey {
   // Last authenticated use.
   google.protobuf.Timestamp last_used_at = 13;
 
-  // Optional expiration. The authenticate hot-path rejects keys whose
-  // `expires_at` is in the past. Unset means the key never expires.
+  // Optional expiration. Keys whose `expires_at` is in the past are
+  // rejected when used. Unset means the key never expires.
   optional google.protobuf.Timestamp expires_at = 14;
 }
 
@@ -270,7 +316,7 @@ enum ManagementKeyStatus {
 
 message CreateManagementKeyRequest {
   option (openapi.v3.schema) = {
-    required: ["name"]
+    required: ["name", "permission_mode"]
   };
 
   // Human-readable name. Required.
@@ -282,7 +328,8 @@ message CreateManagementKeyRequest {
   reserved 2;
   reserved "owner";
 
-  // Permission preset. Defaults to MANAGEMENT_PERMISSION_MODE_ALL when omitted.
+  // Permission preset. Required; an omitted or unspecified value is
+  // rejected with INVALID_ARGUMENT rather than defaulted to full access.
   ManagementPermissionMode permission_mode = 3;
 
   // Per-domain access map. Required when `permission_mode` =
@@ -292,9 +339,8 @@ message CreateManagementKeyRequest {
   // endpoint.
   map<string, orq.managementkeys.v1.AccessLevel> access = 4;
 
-  // Optional expiration. When set, the authenticate hot-path rejects
-  // the key once `expires_at` is in the past. Unset means the key
-  // never expires.
+  // Optional expiration. The key is rejected once `expires_at` is in the
+  // past. Unset means the key never expires.
   optional google.protobuf.Timestamp expires_at = 5;
 }
 
@@ -397,7 +443,8 @@ message UpdateManagementKeyRequest {
     (buf.validate.field).string.max_len = 128
   ];
 
-  // New lifecycle status. Omit to keep current.
+  // New lifecycle status. Omit to keep current. A revoked key cannot
+  // change status; the call fails with FAILED_PRECONDITION.
   optional ManagementKeyStatus status = 3;
 
   // New permission preset. Omit to keep current.
@@ -446,5 +493,5 @@ message ListManagementCapabilitiesResponse {
   };
 
   // Full management capability catalog.
-  repeated orq.managementkeys.v1.Domain domains = 1;
+  repeated orq.managementkeys.v1.ManagementDomain domains = 1;
 }

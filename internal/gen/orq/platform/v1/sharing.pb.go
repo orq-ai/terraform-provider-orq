@@ -22,13 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Sharing controls where a workspace-owned entity is visible and what
-// consuming projects may do with it. Entities adopt it as one branch of
-// a `oneof scope { string project_id; Sharing sharing; }` union:
-// project-owned entities carry project_id, workspace-owned entities
-// carry sharing. Reads for project-scoped callers include entities
-// shared with their projects; mutation of workspace-owned entities is
-// reserved for management keys / workspace admins.
+// Sharing controls which projects in the workspace may use this entity and
+// what they may do with it.
 type Sharing struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Mode:
@@ -37,14 +32,13 @@ type Sharing struct {
 	//	*Sharing_Selected
 	Mode isSharing_Mode `protobuf_oneof:"mode"`
 	// Consuming projects may pin a specific version instead of tracking
-	// latest. Enforcement lives with the consuming reference.
+	// the latest version.
 	AllowVersionPin bool `protobuf:"varint,4,opt,name=allow_version_pin,json=allowVersionPin,proto3" json:"allow_version_pin,omitempty"`
 	// Projects may duplicate this entity into a detached project-owned
 	// copy.
 	AllowFork bool `protobuf:"varint,5,opt,name=allow_fork,json=allowFork,proto3" json:"allow_fork,omitempty"`
 	// New projects created after this sharing config is applied should
-	// receive access automatically. Enforcement lives with project
-	// creation and entity-specific adoption code.
+	// receive access automatically.
 	AutoGrantNewProjects bool `protobuf:"varint,6,opt,name=auto_grant_new_projects,json=autoGrantNewProjects,proto3" json:"auto_grant_new_projects,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
@@ -182,10 +176,7 @@ func (*SharingAllProjects) Descriptor() ([]byte, []int) {
 
 type SharingSelectedProjects struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// An empty list is valid and means "shared with no project" — the model
-	// stays in the workspace catalog but no project-scoped caller can use it
-	// (admins/workspace-wide callers still can). The UI surfaces this as
-	// "Custom" with every project toggled off.
+	// Projects allowed to use the entity. An empty list shares it with no project.
 	ProjectIds    []string `protobuf:"bytes,1,rep,name=project_ids,json=projectIds,proto3" json:"project_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

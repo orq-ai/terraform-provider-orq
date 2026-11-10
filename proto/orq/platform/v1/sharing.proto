@@ -4,13 +4,8 @@ package orq.platform.v1;
 
 import "buf/validate/validate.proto";
 
-// Sharing controls where a workspace-owned entity is visible and what
-// consuming projects may do with it. Entities adopt it as one branch of
-// a `oneof scope { string project_id; Sharing sharing; }` union:
-// project-owned entities carry project_id, workspace-owned entities
-// carry sharing. Reads for project-scoped callers include entities
-// shared with their projects; mutation of workspace-owned entities is
-// reserved for management keys / workspace admins.
+// Sharing controls which projects in the workspace may use this entity and
+// what they may do with it.
 message Sharing {
   oneof mode {
     option (buf.validate.oneof).required = true;
@@ -22,7 +17,7 @@ message Sharing {
   }
 
   // Consuming projects may pin a specific version instead of tracking
-  // latest. Enforcement lives with the consuming reference.
+  // the latest version.
   bool allow_version_pin = 4;
 
   // Projects may duplicate this entity into a detached project-owned
@@ -30,18 +25,14 @@ message Sharing {
   bool allow_fork = 5;
 
   // New projects created after this sharing config is applied should
-  // receive access automatically. Enforcement lives with project
-  // creation and entity-specific adoption code.
+  // receive access automatically.
   bool auto_grant_new_projects = 6;
 }
 
 message SharingAllProjects {}
 
 message SharingSelectedProjects {
-  // An empty list is valid and means "shared with no project" — the model
-  // stays in the workspace catalog but no project-scoped caller can use it
-  // (admins/workspace-wide callers still can). The UI surfaces this as
-  // "Custom" with every project toggled off.
+  // Projects allowed to use the entity. An empty list shares it with no project.
   repeated string project_ids = 1 [
     (buf.validate.field).repeated.max_items = 100,
     (buf.validate.field).repeated.unique = true,

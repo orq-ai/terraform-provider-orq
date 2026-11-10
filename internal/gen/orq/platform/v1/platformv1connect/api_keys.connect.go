@@ -42,6 +42,9 @@ const (
 	// ApiKeysServiceGetApiKeyProcedure is the fully-qualified name of the ApiKeysService's GetApiKey
 	// RPC.
 	ApiKeysServiceGetApiKeyProcedure = "/orq.platform.v1.ApiKeysService/GetApiKey"
+	// ApiKeysServiceGetDefaultApiKeyProcedure is the fully-qualified name of the ApiKeysService's
+	// GetDefaultApiKey RPC.
+	ApiKeysServiceGetDefaultApiKeyProcedure = "/orq.platform.v1.ApiKeysService/GetDefaultApiKey"
 	// ApiKeysServiceUpdateApiKeyProcedure is the fully-qualified name of the ApiKeysService's
 	// UpdateApiKey RPC.
 	ApiKeysServiceUpdateApiKeyProcedure = "/orq.platform.v1.ApiKeysService/UpdateApiKey"
@@ -58,6 +61,7 @@ type ApiKeysServiceClient interface {
 	CreateApiKey(context.Context, *v1.CreateApiKeyRequest) (*v1.CreateApiKeyResponse, error)
 	ListApiKeys(context.Context, *v1.ListApiKeysRequest) (*v1.ListApiKeysResponse, error)
 	GetApiKey(context.Context, *v1.GetApiKeyRequest) (*v1.GetApiKeyResponse, error)
+	GetDefaultApiKey(context.Context, *v1.GetDefaultApiKeyRequest) (*v1.GetDefaultApiKeyResponse, error)
 	UpdateApiKey(context.Context, *v1.UpdateApiKeyRequest) (*v1.UpdateApiKeyResponse, error)
 	DeleteApiKey(context.Context, *v1.DeleteApiKeyRequest) (*v1.DeleteApiKeyResponse, error)
 	ListCapabilities(context.Context, *v1.ListCapabilitiesRequest) (*v1.ListCapabilitiesResponse, error)
@@ -92,6 +96,12 @@ func NewApiKeysServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(apiKeysServiceMethods.ByName("GetApiKey")),
 			connect.WithClientOptions(opts...),
 		),
+		getDefaultApiKey: connect.NewClient[v1.GetDefaultApiKeyRequest, v1.GetDefaultApiKeyResponse](
+			httpClient,
+			baseURL+ApiKeysServiceGetDefaultApiKeyProcedure,
+			connect.WithSchema(apiKeysServiceMethods.ByName("GetDefaultApiKey")),
+			connect.WithClientOptions(opts...),
+		),
 		updateApiKey: connect.NewClient[v1.UpdateApiKeyRequest, v1.UpdateApiKeyResponse](
 			httpClient,
 			baseURL+ApiKeysServiceUpdateApiKeyProcedure,
@@ -118,6 +128,7 @@ type apiKeysServiceClient struct {
 	createApiKey     *connect.Client[v1.CreateApiKeyRequest, v1.CreateApiKeyResponse]
 	listApiKeys      *connect.Client[v1.ListApiKeysRequest, v1.ListApiKeysResponse]
 	getApiKey        *connect.Client[v1.GetApiKeyRequest, v1.GetApiKeyResponse]
+	getDefaultApiKey *connect.Client[v1.GetDefaultApiKeyRequest, v1.GetDefaultApiKeyResponse]
 	updateApiKey     *connect.Client[v1.UpdateApiKeyRequest, v1.UpdateApiKeyResponse]
 	deleteApiKey     *connect.Client[v1.DeleteApiKeyRequest, v1.DeleteApiKeyResponse]
 	listCapabilities *connect.Client[v1.ListCapabilitiesRequest, v1.ListCapabilitiesResponse]
@@ -144,6 +155,15 @@ func (c *apiKeysServiceClient) ListApiKeys(ctx context.Context, req *v1.ListApiK
 // GetApiKey calls orq.platform.v1.ApiKeysService.GetApiKey.
 func (c *apiKeysServiceClient) GetApiKey(ctx context.Context, req *v1.GetApiKeyRequest) (*v1.GetApiKeyResponse, error) {
 	response, err := c.getApiKey.CallUnary(ctx, connect.NewRequest(req))
+	if response != nil {
+		return response.Msg, err
+	}
+	return nil, err
+}
+
+// GetDefaultApiKey calls orq.platform.v1.ApiKeysService.GetDefaultApiKey.
+func (c *apiKeysServiceClient) GetDefaultApiKey(ctx context.Context, req *v1.GetDefaultApiKeyRequest) (*v1.GetDefaultApiKeyResponse, error) {
+	response, err := c.getDefaultApiKey.CallUnary(ctx, connect.NewRequest(req))
 	if response != nil {
 		return response.Msg, err
 	}
@@ -182,6 +202,7 @@ type ApiKeysServiceHandler interface {
 	CreateApiKey(context.Context, *v1.CreateApiKeyRequest) (*v1.CreateApiKeyResponse, error)
 	ListApiKeys(context.Context, *v1.ListApiKeysRequest) (*v1.ListApiKeysResponse, error)
 	GetApiKey(context.Context, *v1.GetApiKeyRequest) (*v1.GetApiKeyResponse, error)
+	GetDefaultApiKey(context.Context, *v1.GetDefaultApiKeyRequest) (*v1.GetDefaultApiKeyResponse, error)
 	UpdateApiKey(context.Context, *v1.UpdateApiKeyRequest) (*v1.UpdateApiKeyResponse, error)
 	DeleteApiKey(context.Context, *v1.DeleteApiKeyRequest) (*v1.DeleteApiKeyResponse, error)
 	ListCapabilities(context.Context, *v1.ListCapabilitiesRequest) (*v1.ListCapabilitiesResponse, error)
@@ -212,6 +233,12 @@ func NewApiKeysServiceHandler(svc ApiKeysServiceHandler, opts ...connect.Handler
 		connect.WithSchema(apiKeysServiceMethods.ByName("GetApiKey")),
 		connect.WithHandlerOptions(opts...),
 	)
+	apiKeysServiceGetDefaultApiKeyHandler := connect.NewUnaryHandlerSimple(
+		ApiKeysServiceGetDefaultApiKeyProcedure,
+		svc.GetDefaultApiKey,
+		connect.WithSchema(apiKeysServiceMethods.ByName("GetDefaultApiKey")),
+		connect.WithHandlerOptions(opts...),
+	)
 	apiKeysServiceUpdateApiKeyHandler := connect.NewUnaryHandlerSimple(
 		ApiKeysServiceUpdateApiKeyProcedure,
 		svc.UpdateApiKey,
@@ -238,6 +265,8 @@ func NewApiKeysServiceHandler(svc ApiKeysServiceHandler, opts ...connect.Handler
 			apiKeysServiceListApiKeysHandler.ServeHTTP(w, r)
 		case ApiKeysServiceGetApiKeyProcedure:
 			apiKeysServiceGetApiKeyHandler.ServeHTTP(w, r)
+		case ApiKeysServiceGetDefaultApiKeyProcedure:
+			apiKeysServiceGetDefaultApiKeyHandler.ServeHTTP(w, r)
 		case ApiKeysServiceUpdateApiKeyProcedure:
 			apiKeysServiceUpdateApiKeyHandler.ServeHTTP(w, r)
 		case ApiKeysServiceDeleteApiKeyProcedure:
@@ -263,6 +292,10 @@ func (UnimplementedApiKeysServiceHandler) ListApiKeys(context.Context, *v1.ListA
 
 func (UnimplementedApiKeysServiceHandler) GetApiKey(context.Context, *v1.GetApiKeyRequest) (*v1.GetApiKeyResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orq.platform.v1.ApiKeysService.GetApiKey is not implemented"))
+}
+
+func (UnimplementedApiKeysServiceHandler) GetDefaultApiKey(context.Context, *v1.GetDefaultApiKeyRequest) (*v1.GetDefaultApiKeyResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orq.platform.v1.ApiKeysService.GetDefaultApiKey is not implemented"))
 }
 
 func (UnimplementedApiKeysServiceHandler) UpdateApiKey(context.Context, *v1.UpdateApiKeyRequest) (*v1.UpdateApiKeyResponse, error) {

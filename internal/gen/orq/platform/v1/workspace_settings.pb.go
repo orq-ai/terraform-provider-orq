@@ -25,20 +25,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// PiiRedactionConfig mirrors the workspace-default PII redaction plugin config
-// (libs/go/models PIIRedactionPlugin / libs/models/gateway
-// PIIRedactionPluginSchema). Every field is optional; the gateway applies its
-// own defaults for unset fields.
+// PiiRedactionConfig mirrors the workspace-default PII redaction plugin
+// configuration. Every field is optional; the gateway applies its own
+// defaults for unset fields.
 //
-// The stored value is validated on write with the same
-// models.PIIRedactionPlugin.Validate() the gateway runs per request. Without
-// that, an invalid workspace default would 400 every gateway call for the
-// workspace, since the default plugin is injected into each request and
-// validated there.
+// The stored value is validated on write using the same rules the gateway
+// applies to live requests. Without that, an invalid workspace default
+// would 400 every gateway call for the workspace, since the default plugin
+// is injected into each request and validated there.
 type PiiRedactionConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Detector language. One of "en" or "nl"; omit for the gateway default
-	// ("en"). The valid entity catalog depends on this value.
+	// Detector language. Accepts "auto" to detect the language per request; the
+	// concrete languages come from GET /v2/pii/capabilities. Omitting the field
+	// defaults to "auto". The valid entity catalog depends on this value.
 	Language *string `protobuf:"bytes,1,opt,name=language,proto3,oneof" json:"language,omitempty"`
 	// Entity types to redact (e.g. "EMAIL_ADDRESS", "PERSON"). Values are
 	// validated against the entity catalog for `language`; omit to redact every
@@ -48,9 +47,15 @@ type PiiRedactionConfig struct {
 	// "passthrough" (fail open, send the original text).
 	OnFailure *string `protobuf:"bytes,3,opt,name=on_failure,json=onFailure,proto3,oneof" json:"on_failure,omitempty"`
 	// Detection confidence threshold in the [0, 1] range.
-	Threshold     *float64 `protobuf:"fixed64,4,opt,name=threshold,proto3,oneof" json:"threshold,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Threshold *float64 `protobuf:"fixed64,4,opt,name=threshold,proto3,oneof" json:"threshold,omitempty"`
+	// Regions of coverage by lowercase ISO 3166-1 alpha-2 code, or ["all"].
+	// Adds every entity type the regions cover on top of `entities`.
+	Regions []string `protobuf:"bytes,5,rep,name=regions,proto3" json:"regions,omitempty"`
+	// Per-entity-type confidence cutoff in [0, 1]. Every key must also appear in
+	// `entities`.
+	EntityThresholds map[string]float64 `protobuf:"bytes,6,rep,name=entity_thresholds,json=entityThresholds,proto3" json:"entity_thresholds,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PiiRedactionConfig) Reset() {
@@ -109,6 +114,20 @@ func (x *PiiRedactionConfig) GetThreshold() float64 {
 		return *x.Threshold
 	}
 	return 0
+}
+
+func (x *PiiRedactionConfig) GetRegions() []string {
+	if x != nil {
+		return x.Regions
+	}
+	return nil
+}
+
+func (x *PiiRedactionConfig) GetEntityThresholds() map[string]float64 {
+	if x != nil {
+		return x.EntityThresholds
+	}
+	return nil
 }
 
 // PiiRedaction is the workspace-default configuration for the pii_redaction
@@ -327,10 +346,8 @@ func (x *GetWorkspaceSettingsResponse) GetSettings() *WorkspaceSettings {
 // UpdateWorkspaceSettingsRequest is a partial update: every field is optional
 // and an omitted field is left unchanged.
 //
-// There is deliberately no `key` / `slug` field. The workspace slug is
-// immutable through this service (it is embedded in resource URLs and API
-// credentials), mirroring the dashboard's WorkspaceUpdateGuard, which rejects a
-// `key` in the PATCH /workspaces/:key body. Do not add one.
+// The workspace slug is immutable through this service: it is embedded in
+// resource URLs and API credentials.
 type UpdateWorkspaceSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// New workspace display name. Omit to keep the current name.
@@ -338,9 +355,9 @@ type UpdateWorkspaceSettingsRequest struct {
 	// New value for the enforce-enabled-models flag. Omit to keep the current
 	// value.
 	EnforceEnabledModels *bool `protobuf:"varint,2,opt,name=enforce_enabled_models,json=enforceEnabledModels,proto3,oneof" json:"enforce_enabled_models,omitempty"`
-	// Replacement workspace-default PII redaction configuration. Omit to leave
-	// the current PII redaction configuration unchanged; when present it fully
-	// replaces the stored pii_redaction object.
+	// Workspace-default PII redaction update. Omit to leave it unchanged. When
+	// present, `enabled` is always applied; `config` omitted keeps the stored
+	// config, `config` present replaces it wholesale, and `config: {}` clears it.
 	PiiRedaction  *PiiRedaction `protobuf:"bytes,3,opt,name=pii_redaction,json=piiRedaction,proto3" json:"pii_redaction,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -446,13 +463,18 @@ var File_orq_platform_v1_workspace_settings_proto protoreflect.FileDescriptor
 
 const file_orq_platform_v1_workspace_settings_proto_rawDesc = "" +
 	"\n" +
-	"(orq/platform/v1/workspace_settings.proto\x12\x0forq.platform.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bopenapiv3/annotations.proto\x1a\x18orq/authz/v1/authz.proto\"\xed\x01\n" +
+	"(orq/platform/v1/workspace_settings.proto\x12\x0forq.platform.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bopenapiv3/annotations.proto\x1a\x18orq/authz/v1/authz.proto\"\xd3\x03\n" +
 	"\x12PiiRedactionConfig\x12(\n" +
 	"\blanguage\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\blanguage\x88\x01\x01\x12\x1a\n" +
 	"\bentities\x18\x02 \x03(\tR\bentities\x12+\n" +
 	"\n" +
 	"on_failure\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x01R\tonFailure\x88\x01\x01\x12:\n" +
-	"\tthreshold\x18\x04 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00H\x02R\tthreshold\x88\x01\x01B\v\n" +
+	"\tthreshold\x18\x04 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00H\x02R\tthreshold\x88\x01\x01\x12\x18\n" +
+	"\aregions\x18\x05 \x03(\tR\aregions\x12\x84\x01\n" +
+	"\x11entity_thresholds\x18\x06 \x03(\v29.orq.platform.v1.PiiRedactionConfig.EntityThresholdsEntryB\x1c\xbaH\x19\x9a\x01\x16*\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\x10entityThresholds\x1aC\n" +
+	"\x15EntityThresholdsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01B\v\n" +
 	"\t_languageB\r\n" +
 	"\v_on_failureB\f\n" +
 	"\n" +
@@ -477,17 +499,24 @@ const file_orq_platform_v1_workspace_settings_proto_rawDesc = "" +
 	"\r_display_nameB\x19\n" +
 	"\x17_enforce_enabled_models\"q\n" +
 	"\x1fUpdateWorkspaceSettingsResponse\x12>\n" +
-	"\bsettings\x18\x01 \x01(\v2\".orq.platform.v1.WorkspaceSettingsR\bsettings:\x0e\xbaG\v\xba\x01\bsettings2\xa0\t\n" +
-	"\x18WorkspaceSettingsService\x12\x88\x04\n" +
-	"\x14GetWorkspaceSettings\x12,.orq.platform.v1.GetWorkspaceSettingsRequest\x1a-.orq.platform.v1.GetWorkspaceSettingsResponse\"\x92\x03\xbaG\xda\x02\n" +
+	"\bsettings\x18\x01 \x01(\v2\".orq.platform.v1.WorkspaceSettingsR\bsettings:\x0e\xbaG\v\xba\x01\bsettings2\xe0\n" +
+	"\n" +
+	"\x18WorkspaceSettingsService\x12\xc2\x04\n" +
+	"\x14GetWorkspaceSettings\x12,.orq.platform.v1.GetWorkspaceSettingsRequest\x1a-.orq.platform.v1.GetWorkspaceSettingsResponse\"\xcc\x03\xbaG\x94\x03\n" +
 	"\x12Workspace Settings\x12\x1bRetrieve workspace settings\x1a\xc2\x01Returns the current settings for the authenticated workspace: its read-only key/slug, display name, the enforce-enabled-models flag, and the workspace-default PII redaction plugin configuration.*\x14WorkspaceSettingsGetj(\n" +
 	"\x11x-speakeasy-group\x12\x13\x12\x11workspaceSettingsj\"\n" +
-	"\x19x-speakeasy-name-override\x12\x05\x12\x03get\x8a\xb5\x18\x12\n" +
-	"\x0eworkspace.view\x10\x02\x82\xd3\xe4\x93\x02\x18\x12\x16/v2/workspace-settings\x12\xf8\x04\n" +
-	"\x17UpdateWorkspaceSettings\x12/.orq.platform.v1.UpdateWorkspaceSettingsRequest\x1a0.orq.platform.v1.UpdateWorkspaceSettingsResponse\"\xf9\x03\xbaG\xbc\x03\n" +
-	"\x12Workspace Settings\x12\x19Update workspace settings\x1a\xa0\x02Partially updates workspace settings. Every field is optional; an omitted field is left unchanged. Provide `display_name` to rename the workspace, `enforce_enabled_models` to toggle model enforcement, or `pii_redaction` to replace the workspace-default PII redaction plugin configuration.*\x17WorkspaceSettingsUpdatej(\n" +
+	"\x19x-speakeasy-name-override\x12\x05\x12\x03getj#\n" +
+	"\vx-cli-group\x12\x14\x12\x12workspace-settingsj\x13\n" +
+	"\n" +
+	"x-cli-name\x12\x05\x12\x03get\x8a\xb5\x18\x12\n" +
+	"\x0eworkspace.view\x10\x02\x82\xd3\xe4\x93\x02\x18\x12\x16/v2/workspace-settings\x12\xfe\x05\n" +
+	"\x17UpdateWorkspaceSettings\x12/.orq.platform.v1.UpdateWorkspaceSettingsRequest\x1a0.orq.platform.v1.UpdateWorkspaceSettingsResponse\"\xff\x04\xbaG\xc2\x04\n" +
+	"\x12Workspace Settings\x12\x19Update workspace settings\x1a\xe9\x02Partially updates workspace settings. Every field is optional; an omitted field is left unchanged. Provide `display_name` to rename the workspace, `enforce_enabled_models` to toggle model enforcement, or `pii_redaction` to update the workspace-default PII redaction plugin: `enabled` is always applied, and `config` replaces the stored config only when present.*\x17WorkspaceSettingsUpdatej(\n" +
 	"\x11x-speakeasy-group\x12\x13\x12\x11workspaceSettingsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06update\x8a\xb5\x18\x14\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06updatej#\n" +
+	"\vx-cli-group\x12\x14\x12\x12workspace-settingsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06update\x8a\xb5\x18\x14\n" +
 	"\x10workspace.update\x10\x02\x82\xd3\xe4\x93\x02\x1b:\x01*2\x16/v2/workspace-settingsB\xb5\x03\xbaG\xd4\x01:\xd1\x01\n" +
 	"\x12Workspace Settings\x12\xba\x01Workspace-level settings managed with a workspace credential. A workspace is the tenant, so these settings are a singleton — there is nothing to create or delete, only read and update.\n" +
 	"\x13com.orq.platform.v1B\x16WorkspaceSettingsProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"
@@ -504,7 +533,7 @@ func file_orq_platform_v1_workspace_settings_proto_rawDescGZIP() []byte {
 	return file_orq_platform_v1_workspace_settings_proto_rawDescData
 }
 
-var file_orq_platform_v1_workspace_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_orq_platform_v1_workspace_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_orq_platform_v1_workspace_settings_proto_goTypes = []any{
 	(*PiiRedactionConfig)(nil),              // 0: orq.platform.v1.PiiRedactionConfig
 	(*PiiRedaction)(nil),                    // 1: orq.platform.v1.PiiRedaction
@@ -513,22 +542,24 @@ var file_orq_platform_v1_workspace_settings_proto_goTypes = []any{
 	(*GetWorkspaceSettingsResponse)(nil),    // 4: orq.platform.v1.GetWorkspaceSettingsResponse
 	(*UpdateWorkspaceSettingsRequest)(nil),  // 5: orq.platform.v1.UpdateWorkspaceSettingsRequest
 	(*UpdateWorkspaceSettingsResponse)(nil), // 6: orq.platform.v1.UpdateWorkspaceSettingsResponse
+	nil,                                     // 7: orq.platform.v1.PiiRedactionConfig.EntityThresholdsEntry
 }
 var file_orq_platform_v1_workspace_settings_proto_depIdxs = []int32{
-	0, // 0: orq.platform.v1.PiiRedaction.config:type_name -> orq.platform.v1.PiiRedactionConfig
-	1, // 1: orq.platform.v1.WorkspaceSettings.pii_redaction:type_name -> orq.platform.v1.PiiRedaction
-	2, // 2: orq.platform.v1.GetWorkspaceSettingsResponse.settings:type_name -> orq.platform.v1.WorkspaceSettings
-	1, // 3: orq.platform.v1.UpdateWorkspaceSettingsRequest.pii_redaction:type_name -> orq.platform.v1.PiiRedaction
-	2, // 4: orq.platform.v1.UpdateWorkspaceSettingsResponse.settings:type_name -> orq.platform.v1.WorkspaceSettings
-	3, // 5: orq.platform.v1.WorkspaceSettingsService.GetWorkspaceSettings:input_type -> orq.platform.v1.GetWorkspaceSettingsRequest
-	5, // 6: orq.platform.v1.WorkspaceSettingsService.UpdateWorkspaceSettings:input_type -> orq.platform.v1.UpdateWorkspaceSettingsRequest
-	4, // 7: orq.platform.v1.WorkspaceSettingsService.GetWorkspaceSettings:output_type -> orq.platform.v1.GetWorkspaceSettingsResponse
-	6, // 8: orq.platform.v1.WorkspaceSettingsService.UpdateWorkspaceSettings:output_type -> orq.platform.v1.UpdateWorkspaceSettingsResponse
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	7, // 0: orq.platform.v1.PiiRedactionConfig.entity_thresholds:type_name -> orq.platform.v1.PiiRedactionConfig.EntityThresholdsEntry
+	0, // 1: orq.platform.v1.PiiRedaction.config:type_name -> orq.platform.v1.PiiRedactionConfig
+	1, // 2: orq.platform.v1.WorkspaceSettings.pii_redaction:type_name -> orq.platform.v1.PiiRedaction
+	2, // 3: orq.platform.v1.GetWorkspaceSettingsResponse.settings:type_name -> orq.platform.v1.WorkspaceSettings
+	1, // 4: orq.platform.v1.UpdateWorkspaceSettingsRequest.pii_redaction:type_name -> orq.platform.v1.PiiRedaction
+	2, // 5: orq.platform.v1.UpdateWorkspaceSettingsResponse.settings:type_name -> orq.platform.v1.WorkspaceSettings
+	3, // 6: orq.platform.v1.WorkspaceSettingsService.GetWorkspaceSettings:input_type -> orq.platform.v1.GetWorkspaceSettingsRequest
+	5, // 7: orq.platform.v1.WorkspaceSettingsService.UpdateWorkspaceSettings:input_type -> orq.platform.v1.UpdateWorkspaceSettingsRequest
+	4, // 8: orq.platform.v1.WorkspaceSettingsService.GetWorkspaceSettings:output_type -> orq.platform.v1.GetWorkspaceSettingsResponse
+	6, // 9: orq.platform.v1.WorkspaceSettingsService.UpdateWorkspaceSettings:output_type -> orq.platform.v1.UpdateWorkspaceSettingsResponse
+	8, // [8:10] is the sub-list for method output_type
+	6, // [6:8] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_orq_platform_v1_workspace_settings_proto_init() }
@@ -544,7 +575,7 @@ func file_orq_platform_v1_workspace_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orq_platform_v1_workspace_settings_proto_rawDesc), len(file_orq_platform_v1_workspace_settings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
