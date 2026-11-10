@@ -162,5 +162,7 @@ func (p *orqProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewTeamResource,
 		NewTeamMemberResource,
 		NewEnvironmentResource,
+		NewMcpServerResource,
+		NewMcpGatewayResource,
 	}
 }

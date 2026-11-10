@@ -72,6 +72,8 @@ type Client struct {
 	telemetryDestinations TelemetryDestinationsAPI
 	teams                 TeamsAPI
 	environments          EnvironmentsAPI
+	mcpServers            McpServersAPI
+	mcpGateways           McpGatewaysAPI
 
 	rest *restgen.ClientWithResponses
 }
@@ -172,6 +174,7 @@ func New(cfg Config) (*Client, error) {
 	telemetryDestinationsClient := tracesv1connect.NewTelemetryDestinationsServiceClient(connectHTTP, baseStr+tracesConnectBasePath, connectOpts)
 	teamsClient := platformv1connect.NewTeamsServiceClient(connectHTTP, connectURL, connectOpts)
 	environmentsClient := platformv1connect.NewEnvironmentsServiceClient(connectHTTP, connectURL, connectOpts)
+	mcpGatewayClient := platformv1connect.NewMcpGatewayServiceClient(connectHTTP, connectURL, connectOpts)
 
 	// REST transport: shared token injected via an origin-scoped bearer
 	// round-tripper, with the same redirect policy as the Connect client.
@@ -202,6 +205,8 @@ func New(cfg Config) (*Client, error) {
 		secrets:         &connectSecrets{c: secretsClient},
 		teams:           &connectTeams{c: teamsClient},
 		environments:    &connectEnvironments{c: environmentsClient},
+		mcpServers:      &connectMcpServers{c: mcpGatewayClient},
+		mcpGateways:     &connectMcpGateways{c: mcpGatewayClient},
 		rest:            rest,
 
 		auditLogDestinations:  &connectAuditLogDestinations{c: auditLogDestinationsClient},
@@ -262,3 +267,9 @@ func (c *Client) Teams() TeamsAPI { return c.teams }
 
 // Environments returns the transport-agnostic environments API (Connect-backed).
 func (c *Client) Environments() EnvironmentsAPI { return c.environments }
+
+// McpServers returns the transport-agnostic MCP servers API (Connect-backed).
+func (c *Client) McpServers() McpServersAPI { return c.mcpServers }
+
+// McpGateways returns the transport-agnostic MCP gateways API (Connect-backed).
+func (c *Client) McpGateways() McpGatewaysAPI { return c.mcpGateways }
