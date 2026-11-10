@@ -155,5 +155,7 @@ func (p *orqProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewBedrockModelResource,
 		NewWorkspaceSettingsResource,
 		NewEvaluatorResource,
+		NewVaultResource,
+		NewSecretResource,
 	}
 }
