@@ -3,7 +3,9 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -130,6 +132,44 @@ func uniqueNonNullStrings(l types.List, attribute path.Path, summary, duplicateD
 // as null, which fails the apply with an inconsistent result on an already
 // created resource. The remedy is per-attribute, so the caller supplies it.
 type nonEmptyStringValidator struct{ remedy string }
+
+// noSurroundingWhitespaceValidator rejects leading or trailing Unicode whitespace
+// (and whitespace-only values unless allowEmpty is true and the value is "")
+// for attributes the server trims with strings.TrimSpace.
+type noSurroundingWhitespaceValidator struct {
+	allowEmpty bool
+}
+
+func (v noSurroundingWhitespaceValidator) Description(context.Context) string {
+	if v.allowEmpty {
+		return "must not begin or end with whitespace"
+	}
+	return "must not be empty or begin/end with whitespace"
+}
+
+func (v noSurroundingWhitespaceValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v noSurroundingWhitespaceValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	val := req.ConfigValue.ValueString()
+	trimmed := strings.TrimSpace(val)
+	if trimmed == "" {
+		if v.allowEmpty && val == "" {
+			return
+		}
+		resp.Diagnostics.AddAttributeError(req.Path, "Invalid blank value",
+			"Value must not be empty or whitespace-only; the server trims whitespace.")
+		return
+	}
+	if trimmed != val {
+		resp.Diagnostics.AddAttributeError(req.Path, "Leading or trailing whitespace",
+			fmt.Sprintf("Value must not begin or end with whitespace (the server trims it to %q, which would cause an inconsistent result after apply).", trimmed))
+	}
+}
 
 func (nonEmptyStringValidator) Description(context.Context) string {
 	return "must not be an empty string"

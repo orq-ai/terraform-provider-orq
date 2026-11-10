@@ -25,6 +25,7 @@ import (
 	connect "connectrpc.com/connect"
 
 	"github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1/platformv1connect"
+	"github.com/orq-ai/terraform-provider-orq/internal/gen/orq/traces/v1/tracesv1connect"
 	"github.com/orq-ai/terraform-provider-orq/internal/restgen"
 )
 
@@ -32,6 +33,10 @@ import (
 // gateway strips it, leaving the bare /orq.platform.v1.<Service>/<Method> path
 // the platform-api binary serves.
 const connectBasePath = "/v3/rpc/platform"
+
+// tracesConnectBasePath is the gateway prefix stripped in front of the
+// observability-api binary, which serves /orq.traces.v1.<Service>/<Method>.
+const tracesConnectBasePath = "/v3/rpc/traces"
 
 // requestTimeout bounds a single API exchange (connect + read of the response).
 // It is in addition to — not a replacement for — context cancellation, which is
@@ -62,6 +67,9 @@ type Client struct {
 	evaluators      EvaluatorsAPI
 	vaults          VaultsAPI
 	secrets         SecretsAPI
+
+	auditLogDestinations  AuditLogDestinationsAPI
+	telemetryDestinations TelemetryDestinationsAPI
 
 	rest *restgen.ClientWithResponses
 }
@@ -158,6 +166,8 @@ func New(cfg Config) (*Client, error) {
 	routingRulesClient := platformv1connect.NewRoutingRulesServiceClient(connectHTTP, connectURL, connectOpts)
 	vaultsClient := platformv1connect.NewVaultsServiceClient(connectHTTP, connectURL, connectOpts)
 	secretsClient := platformv1connect.NewSecretsServiceClient(connectHTTP, connectURL, connectOpts)
+	auditLogDestinationsClient := platformv1connect.NewAuditLogDestinationsServiceClient(connectHTTP, connectURL, connectOpts)
+	telemetryDestinationsClient := tracesv1connect.NewTelemetryDestinationsServiceClient(connectHTTP, baseStr+tracesConnectBasePath, connectOpts)
 
 	// REST transport: shared token injected via an origin-scoped bearer
 	// round-tripper, with the same redirect policy as the Connect client.
@@ -187,6 +197,9 @@ func New(cfg Config) (*Client, error) {
 		vaults:          &connectVaults{c: vaultsClient},
 		secrets:         &connectSecrets{c: secretsClient},
 		rest:            rest,
+
+		auditLogDestinations:  &connectAuditLogDestinations{c: auditLogDestinationsClient},
+		telemetryDestinations: &connectTelemetryDestinations{c: telemetryDestinationsClient},
 	}, nil
 }
 
@@ -233,4 +246,7 @@ func (c *Client) Evaluators() EvaluatorsAPI { return c.evaluators }
 func (c *Client) Vaults() VaultsAPI { return c.vaults }
 
 // Secrets returns the transport-agnostic vault-secrets API (Connect-backed).
-func (c *Client) Secrets() SecretsAPI { return c.secrets }
+func (c *Client) Secrets() SecretsAPI                           { return c.secrets }
+func (c *Client) AuditLogDestinations() AuditLogDestinationsAPI { return c.auditLogDestinations }
+
+func (c *Client) TelemetryDestinations() TelemetryDestinationsAPI { return c.telemetryDestinations }

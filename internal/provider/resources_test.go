@@ -27,25 +27,27 @@ func TestResourcesRegistered(t *testing.T) {
 	p := New("test")()
 
 	factories := p.Resources(ctx)
-	if len(factories) != 14 {
-		t.Fatalf("expected 14 resources, got %d", len(factories))
+	if len(factories) != 16 {
+		t.Fatalf("expected 16 resources, got %d", len(factories))
 	}
 
 	want := map[string]bool{
-		"orq_project":            false,
-		"orq_budget":             false,
-		"orq_notifier":           false,
-		"orq_guardrail_rule":     false,
-		"orq_workspace_model":    false,
-		"orq_routing_rule":       false,
-		"orq_api_key":            false,
-		"orq_management_key":     false,
-		"orq_model":              false,
-		"orq_bedrock_model":      false,
-		"orq_workspace_settings": false,
-		"orq_evaluator":          false,
-		"orq_vault":              false,
-		"orq_secret":             false,
+		"orq_project":               false,
+		"orq_budget":                false,
+		"orq_notifier":              false,
+		"orq_guardrail_rule":        false,
+		"orq_workspace_model":       false,
+		"orq_routing_rule":          false,
+		"orq_api_key":               false,
+		"orq_management_key":        false,
+		"orq_model":                 false,
+		"orq_bedrock_model":         false,
+		"orq_workspace_settings":    false,
+		"orq_evaluator":             false,
+		"orq_vault":                 false,
+		"orq_secret":                false,
+		"orq_audit_log_destination": false,
+		"orq_telemetry_destination": false,
 	}
 	for _, f := range factories {
 		r := f()
