@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/float64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -29,7 +30,6 @@ var (
 )
 
 var (
-	piiLanguages    = []string{"en", "nl"}
 	piiFailureModes = []string{"block", "passthrough"}
 )
 
@@ -52,10 +52,12 @@ type workspaceSettingsPiiModel struct {
 }
 
 type workspaceSettingsPiiConfigModel struct {
-	Language  types.String  `tfsdk:"language"`
-	Entities  types.List    `tfsdk:"entities"`
-	OnFailure types.String  `tfsdk:"on_failure"`
-	Threshold types.Float64 `tfsdk:"threshold"`
+	Language         types.String  `tfsdk:"language"`
+	Entities         types.List    `tfsdk:"entities"`
+	OnFailure        types.String  `tfsdk:"on_failure"`
+	Threshold        types.Float64 `tfsdk:"threshold"`
+	Regions          types.List    `tfsdk:"regions"`
+	EntityThresholds types.Map     `tfsdk:"entity_thresholds"`
 }
 
 func (r *workspaceSettingsResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -139,9 +141,10 @@ func (r *workspaceSettingsResource) Schema(_ context.Context, _ resource.SchemaR
 						Attributes: map[string]schema.Attribute{
 							"language": schema.StringAttribute{
 								Optional: true,
-								MarkdownDescription: "Detector language: `en` or `nl`. Omit for the gateway " +
-									"default (`en`). The valid `entities` catalog depends on this value.",
-								Validators: []validator.String{stringvalidator.OneOf(piiLanguages...)},
+								MarkdownDescription: "Detector language, or `auto` to detect it per request " +
+									"(the default when omitted). The supported languages are validated server-side. " +
+									"The valid `entities` catalog depends on this value.",
+								Validators: []validator.String{stringvalidator.LengthAtLeast(1)},
 							},
 							"entities": schema.ListAttribute{
 								Optional:    true,
@@ -174,6 +177,24 @@ func (r *workspaceSettingsResource) Schema(_ context.Context, _ resource.SchemaR
 								Optional:            true,
 								MarkdownDescription: "Detection confidence threshold, in the `[0, 1]` range.",
 								Validators:          []validator.Float64{float64validator.Between(0, 1)},
+							},
+							"regions": schema.ListAttribute{
+								Optional:    true,
+								ElementType: types.StringType,
+								MarkdownDescription: "Regions of coverage by lowercase ISO 3166-1 alpha-2 code, or " +
+									"`[\"all\"]`. Adds every entity type the regions cover on top of `entities`.",
+								Validators: []validator.List{
+									listvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1)),
+								},
+							},
+							"entity_thresholds": schema.MapAttribute{
+								Optional:    true,
+								ElementType: types.Float64Type,
+								MarkdownDescription: "Per-entity-type confidence cutoff, in the `[0, 1]` range. " +
+									"Every key must also appear in `entities`.",
+								Validators: []validator.Map{
+									mapvalidator.ValueFloat64sAre(float64validator.Between(0, 1)),
+								},
 							},
 						},
 					},
@@ -329,11 +350,17 @@ func (m *workspaceSettingsResourceModel) updateInput(ctx context.Context) (clien
 	if cfg := m.PiiRedaction.Config; cfg != nil {
 		entities, edia := stringSlice(ctx, cfg.Entities)
 		diags.Append(edia...)
+		regions, rdia := stringSlice(ctx, cfg.Regions)
+		diags.Append(rdia...)
+		entityThresholds, tdia := float64Map(ctx, cfg.EntityThresholds)
+		diags.Append(tdia...)
 		pii.Config = &client.PiiRedactionConfig{
-			Language:  strPtr(cfg.Language),
-			Entities:  entities,
-			OnFailure: strPtr(cfg.OnFailure),
-			Threshold: float64Ptr(cfg.Threshold),
+			Language:         strPtr(cfg.Language),
+			Entities:         entities,
+			OnFailure:        strPtr(cfg.OnFailure),
+			Threshold:        float64Ptr(cfg.Threshold),
+			Regions:          regions,
+			EntityThresholds: entityThresholds,
 		}
 	}
 	in.PiiRedaction = pii
@@ -388,14 +415,20 @@ func applyPii(srv *client.PiiRedaction, cur *workspaceSettingsPiiModel) *workspa
 		return out
 	}
 	curEntities := types.ListNull(types.StringType)
+	curRegions := types.ListNull(types.StringType)
+	curThresholds := types.MapNull(types.Float64Type)
 	if cur != nil && cur.Config != nil {
 		curEntities = cur.Config.Entities
+		curRegions = cur.Config.Regions
+		curThresholds = cur.Config.EntityThresholds
 	}
 	out.Config = &workspaceSettingsPiiConfigModel{
-		Language:  optStringPtr(srv.Config.Language),
-		Entities:  applyEntities(curEntities, srv.Config.Entities),
-		OnFailure: optStringPtr(srv.Config.OnFailure),
-		Threshold: optFloat64Ptr(srv.Config.Threshold),
+		Language:         optStringPtr(srv.Config.Language),
+		Entities:         applyEntities(curEntities, srv.Config.Entities),
+		OnFailure:        optStringPtr(srv.Config.OnFailure),
+		Threshold:        optFloat64Ptr(srv.Config.Threshold),
+		Regions:          applyEntities(curRegions, srv.Config.Regions),
+		EntityThresholds: applyEntityThresholds(curThresholds, srv.Config.EntityThresholds),
 	}
 	return out
 }
@@ -419,10 +452,12 @@ func preservePlannedPii(planned *workspaceSettingsPiiModel, srv *client.PiiRedac
 		srvCfg = &client.PiiRedactionConfig{}
 	}
 	out.Config = &workspaceSettingsPiiConfigModel{
-		Language:  preservePlannedOptString(planned.Config.Language, srvCfg.Language),
-		Entities:  preservePlannedEntities(planned.Config.Entities, srvCfg.Entities),
-		OnFailure: preservePlannedOptString(planned.Config.OnFailure, srvCfg.OnFailure),
-		Threshold: preservePlannedOptFloat(planned.Config.Threshold, srvCfg.Threshold),
+		Language:         preservePlannedOptString(planned.Config.Language, srvCfg.Language),
+		Entities:         preservePlannedEntities(planned.Config.Entities, srvCfg.Entities),
+		OnFailure:        preservePlannedOptString(planned.Config.OnFailure, srvCfg.OnFailure),
+		Threshold:        preservePlannedOptFloat(planned.Config.Threshold, srvCfg.Threshold),
+		Regions:          preservePlannedEntities(planned.Config.Regions, srvCfg.Regions),
+		EntityThresholds: preservePlannedEntityThresholds(planned.Config.EntityThresholds, srvCfg.EntityThresholds),
 	}
 	return out
 }
@@ -450,6 +485,25 @@ func preservePlannedEntities(planned types.List, srv []string) types.List {
 		return planned
 	}
 	return applyEntities(planned, srv)
+}
+
+func preservePlannedEntityThresholds(planned types.Map, srv map[string]float64) types.Map {
+	if !planned.IsUnknown() {
+		return planned
+	}
+	return applyEntityThresholds(planned, srv)
+}
+
+// applyEntityThresholds mirrors applyEntities: an empty server map keeps the
+// configured empty-vs-absent shape.
+func applyEntityThresholds(cur types.Map, srv map[string]float64) types.Map {
+	if len(srv) > 0 {
+		return float64MapValue(srv)
+	}
+	if cur.IsNull() || cur.IsUnknown() {
+		return types.MapNull(types.Float64Type)
+	}
+	return float64MapValue(nil)
 }
 
 // listFullyKnown reports whether l can be written to post-apply state unchanged:

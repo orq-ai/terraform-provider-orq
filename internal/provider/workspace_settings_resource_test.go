@@ -126,7 +126,8 @@ func TestWorkspaceSettingsEnumValidators(t *testing.T) {
 	}
 	checkString("language", "en", false)
 	checkString("language", "nl", false)
-	checkString("language", "de", true)
+	checkString("language", "auto", false)
+	checkString("language", "", true)
 	checkString("on_failure", "block", false)
 	checkString("on_failure", "passthrough", false)
 	checkString("on_failure", "ignore", true)
