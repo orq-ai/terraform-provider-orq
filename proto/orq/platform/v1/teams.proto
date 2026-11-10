@@ -1,0 +1,481 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Teams"
+      description: "Teams organize workspace users and their project access. Managed exclusively by management keys or admin users — never exposed in the public OpenAPI spec."
+    }
+  ]
+};
+
+// TeamsService manages workspace teams, their members, and project
+// associations. Every RPC is workspace-scoped and tagged "private" so the
+// OpenAPI fragment splitter excludes the entire service from the public
+// spec, SDK, and CLI.
+service TeamsService {
+  rpc ListTeams(ListTeamsRequest) returns (ListTeamsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.list"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/teams"};
+    option (openapi.v3.operation) = {
+      summary: "List teams"
+      description: "Returns teams in the current workspace, ordered by id. The support team `X-ORQ-SUPPORT` is excluded from the list. Use `starting_after` or `ending_before` to page through large collections."
+      operation_id: "TeamList"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc GetTeam(GetTeamRequest) returns (GetTeamResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/teams/{team_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a team"
+      description: "Retrieves the details of an existing team by its unique team ID, including members, projects, and audit fields."
+      operation_id: "TeamGet"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.create"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v3/teams"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create a new team"
+      description: "Creates a team in the current workspace with an optional set of member user IDs and project IDs. Projects are associated with fixed `access='edit'`."
+      operation_id: "TeamCreate"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc UpdateTeam(UpdateTeamRequest) returns (UpdateTeamResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      patch: "/v3/teams/{team_id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update a team"
+      description: "Updates the specified team. Optional scalar fields use proto3 presence: an absent key leaves the current value untouched, while an explicit empty string for `display_name` is rejected. Repeated `user_ids` and `project_ids` use presence semantics — an absent key leaves the set untouched, while a present empty array clears all entries."
+      operation_id: "TeamUpdate"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc DeleteTeam(DeleteTeamRequest) returns (DeleteTeamResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.delete"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v3/teams/{team_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete a team"
+      description: "Permanently deletes a team, cascading memberships and permission rows. The response body is empty when the delete succeeds."
+      operation_id: "TeamDelete"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc ListTeamUsers(ListTeamUsersRequest) returns (ListTeamUsersResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/teams/{team_id}/users"};
+    option (openapi.v3.operation) = {
+      summary: "List team members"
+      description: "Returns all members of the specified team with their account details, invitation status, and last activity timestamp."
+      operation_id: "TeamListUsers"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc GetTeamUser(GetTeamUserRequest) returns (GetTeamUserResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/teams/{team_id}/users/{user_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a team member"
+      description: "Retrieves the membership details of a single user within a team."
+      operation_id: "TeamGetUser"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc AddTeamUser(AddTeamUserRequest) returns (AddTeamUserResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {post: "/v3/teams/{team_id}/users/{user_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Add a team member"
+      description: "Adds a workspace user to the specified team. Idempotent — repeated calls for the same user succeed and the member appears once."
+      operation_id: "TeamAddUser"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc RemoveTeamUser(RemoveTeamUserRequest) returns (RemoveTeamUserResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v3/teams/{team_id}/users/{user_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Remove a team member"
+      description: "Removes a workspace user from the specified team. Idempotent — removing a non-member succeeds with an empty response."
+      operation_id: "TeamRemoveUser"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc ListTeamProjects(ListTeamProjectsRequest) returns (ListTeamProjectsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/teams/{team_id}/projects"};
+    option (openapi.v3.operation) = {
+      summary: "List team projects"
+      description: "Returns the projects associated with the specified team. Permission rows with `access='nil'` are excluded."
+      operation_id: "TeamListProjects"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc GetTeamProject(GetTeamProjectRequest) returns (GetTeamProjectResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/teams/{team_id}/projects/{project_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a team project"
+      description: "Retrieves the project association for a single project within a team."
+      operation_id: "TeamGetProject"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc AddTeamProject(AddTeamProjectRequest) returns (AddTeamProjectResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {post: "/v3/teams/{team_id}/projects/{project_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Add a team project"
+      description: "Associates a project with the specified team using `access='edit'`. Idempotent — repeated calls for the same project succeed and re-use the same permission row."
+      operation_id: "TeamAddProject"
+      tags: ["Teams", "private"]
+    };
+  }
+
+  rpc RemoveTeamProject(RemoveTeamProjectRequest) returns (RemoveTeamProjectResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "team.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v3/teams/{team_id}/projects/{project_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Remove a team project"
+      description: "Removes the project association from the specified team. Idempotent — removing a non-associated project succeeds with an empty response."
+      operation_id: "TeamRemoveProject"
+      tags: ["Teams", "private"]
+    };
+  }
+}
+
+// Team is the canonical team record. The `id` is a Postgres UUID (existing
+// ids are preserved for SCIM and projects-service compatibility).
+// `display_name` maps to the Postgres column `name`.
+message Team {
+  // Unique team identifier (UUID).
+  string id = 1;
+  // Human-readable team name. Maps to the Postgres `name` column.
+  string display_name = 2;
+  // Optional human-readable description.
+  string description = 3;
+  // Whether this is the workspace admin team.
+  bool admin_group = 4;
+  // Time when the team was created.
+  google.protobuf.Timestamp created = 5;
+  // Time when the team was last updated.
+  google.protobuf.Timestamp updated = 6;
+  // User who last updated the team. Absent when null (e.g. management-key
+  // mutations store NULL).
+  TeamUpdater updated_by = 7;
+  // Workspace user IDs of all members (including invited users).
+  repeated string user_ids = 8;
+  // Projects associated with the team (permission rows where access != 'nil').
+  repeated TeamProject projects = 9;
+  // Count of active members (invitation_data IS NULL). Excludes invited users.
+  int32 total_users = 10;
+  // Count of associated projects (permission rows where access != 'nil').
+  int32 total_projects = 11;
+}
+
+// TeamUpdater describes the user who last updated a team.
+message TeamUpdater {
+  // Account ID of the updater.
+  string id = 1;
+  // Email of the updater.
+  string email = 2;
+  // Display name of the updater.
+  string display_name = 3;
+  // Avatar URL of the updater.
+  string logo_url = 4;
+}
+
+// TeamProject is a project association within a team.
+message TeamProject {
+  // Project identifier (Domain.id UUID).
+  string project_id = 1;
+  // Permission row identifier (workspaces_workspacedomainpermission.id UUID).
+  string permission_id = 2;
+  // Access level. Currently 'edit' for associations created via this API;
+  // carried through for forward-compatibility with 'view' and 'full-access'.
+  string access = 3;
+}
+
+// TeamUser is a member's resolved identity within a team.
+message TeamUser {
+  // Workspace user identifier.
+  string user_id = 1;
+  // Account identifier. Absent for invited users without an account.
+  string account_id = 2;
+  // Account email, or invitation email for invited users.
+  string email = 3;
+  // "firstname lastname" when names exist, otherwise the email.
+  string display_name = 4;
+  // Avatar URL.
+  string logo_url = 5;
+  // Whether the user has an outstanding invitation (invitation_data IS NOT NULL).
+  bool invited = 6;
+  // Last activity timestamp. Absent when null.
+  google.protobuf.Timestamp last_activity = 7;
+}
+
+// ---------------- Team CRUD requests / responses ----------------
+
+message ListTeamsRequest {
+  // Page size. Unset or 0 returns the full list (no default page cap).
+  // Negative values are rejected.
+  optional int32 limit = 1 [(buf.validate.field).int32.gte = 0];
+  // Cursor for forward pagination. Set to the `id` of the last item from
+  // the previous page. Must be a valid UUID when present.
+  optional string starting_after = 2 [(buf.validate.field).string.uuid = true];
+  // Cursor for backward pagination. Set to the `id` of the first item from
+  // the previous page. Must be a valid UUID when present.
+  optional string ending_before = 3 [(buf.validate.field).string.uuid = true];
+}
+
+message ListTeamsResponse {
+  // Page of teams.
+  repeated Team teams = 1;
+  // Whether more teams are available in the selected pagination direction.
+  bool has_more = 2;
+}
+
+message GetTeamRequest {
+  // Team ID to retrieve.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetTeamResponse {
+  // Requested team.
+  Team team = 1;
+}
+
+message CreateTeamRequest {
+  // Human-readable team name. Required, must be 1–150 characters.
+  string display_name = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 150
+  ];
+  // Optional human-readable description, at most 500 characters.
+  string description = 2 [(buf.validate.field).string.max_len = 500];
+  // Workspace user IDs to add as members. Each must be a valid UUID.
+  repeated string user_ids = 3 [
+    (buf.validate.field).repeated.items = {
+      string: {
+        uuid: true
+      }
+    }
+  ];
+  // Project IDs to associate with the team (access='edit'). Each must be a valid UUID.
+  repeated string project_ids = 4 [
+    (buf.validate.field).repeated.items = {
+      string: {
+        uuid: true
+      }
+    }
+  ];
+}
+
+message CreateTeamResponse {
+  // Newly created team.
+  Team team = 1;
+}
+
+message UpdateTeamRequest {
+  // Team ID to update.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+  // New display name. Omit to keep the current value. An explicit empty
+  // string is rejected by the service (display_name must be non-empty).
+  // 1–150 characters when provided.
+  optional string display_name = 2 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 150
+  ];
+  // New description. Omit to keep the current value. An explicit empty
+  // string clears the description. At most 500 characters when provided.
+  optional string description = 3 [(buf.validate.field).string.max_len = 500];
+  // Replacement list of workspace user IDs. Absent (nil) leaves the
+  // current membership untouched; a present empty array clears all
+  // members. Each element must be a valid UUID.
+  repeated string user_ids = 4 [
+    (buf.validate.field).repeated.items = {
+      string: {
+        uuid: true
+      }
+    }
+  ];
+  // Replacement list of project IDs. Absent (nil) leaves the current
+  // project associations untouched; a present empty array clears all
+  // associations. Each element must be a valid UUID.
+  repeated string project_ids = 5 [
+    (buf.validate.field).repeated.items = {
+      string: {
+        uuid: true
+      }
+    }
+  ];
+}
+
+message UpdateTeamResponse {
+  // Updated team.
+  Team team = 1;
+}
+
+message DeleteTeamRequest {
+  // Team ID to delete.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteTeamResponse {}
+
+// ---------------- Team user sub-resource requests / responses ----------------
+
+message ListTeamUsersRequest {
+  // Team ID whose members to list.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ListTeamUsersResponse {
+  // Members of the team.
+  repeated TeamUser users = 1;
+}
+
+message GetTeamUserRequest {
+  // Team ID.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+  // Workspace user ID to retrieve.
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message GetTeamUserResponse {
+  // Requested team member.
+  TeamUser user = 1;
+}
+
+message AddTeamUserRequest {
+  // Team ID to add the user to.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+  // Workspace user ID to add.
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message AddTeamUserResponse {
+  // Added team member.
+  TeamUser user = 1;
+}
+
+message RemoveTeamUserRequest {
+  // Team ID to remove the user from.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+  // Workspace user ID to remove.
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message RemoveTeamUserResponse {}
+
+// ---------------- Team project sub-resource requests / responses ----------------
+
+message ListTeamProjectsRequest {
+  // Team ID whose projects to list.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ListTeamProjectsResponse {
+  // Projects associated with the team.
+  repeated TeamProject projects = 1;
+}
+
+message GetTeamProjectRequest {
+  // Team ID.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+  // Project ID to retrieve.
+  string project_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message GetTeamProjectResponse {
+  // Requested team project association.
+  TeamProject project = 1;
+}
+
+message AddTeamProjectRequest {
+  // Team ID to associate the project with.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+  // Project ID to associate.
+  string project_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message AddTeamProjectResponse {
+  // Added team project association.
+  TeamProject project = 1;
+}
+
+message RemoveTeamProjectRequest {
+  // Team ID to remove the project from.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+  // Project ID to remove.
+  string project_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message RemoveTeamProjectResponse {}

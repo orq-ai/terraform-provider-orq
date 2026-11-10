@@ -70,6 +70,8 @@ type Client struct {
 
 	auditLogDestinations  AuditLogDestinationsAPI
 	telemetryDestinations TelemetryDestinationsAPI
+	teams                 TeamsAPI
+	environments          EnvironmentsAPI
 
 	rest *restgen.ClientWithResponses
 }
@@ -168,6 +170,8 @@ func New(cfg Config) (*Client, error) {
 	secretsClient := platformv1connect.NewSecretsServiceClient(connectHTTP, connectURL, connectOpts)
 	auditLogDestinationsClient := platformv1connect.NewAuditLogDestinationsServiceClient(connectHTTP, connectURL, connectOpts)
 	telemetryDestinationsClient := tracesv1connect.NewTelemetryDestinationsServiceClient(connectHTTP, baseStr+tracesConnectBasePath, connectOpts)
+	teamsClient := platformv1connect.NewTeamsServiceClient(connectHTTP, connectURL, connectOpts)
+	environmentsClient := platformv1connect.NewEnvironmentsServiceClient(connectHTTP, connectURL, connectOpts)
 
 	// REST transport: shared token injected via an origin-scoped bearer
 	// round-tripper, with the same redirect policy as the Connect client.
@@ -196,6 +200,8 @@ func New(cfg Config) (*Client, error) {
 		settings:        &connectWorkspaceSettings{c: workspaceSettingsClient},
 		vaults:          &connectVaults{c: vaultsClient},
 		secrets:         &connectSecrets{c: secretsClient},
+		teams:           &connectTeams{c: teamsClient},
+		environments:    &connectEnvironments{c: environmentsClient},
 		rest:            rest,
 
 		auditLogDestinations:  &connectAuditLogDestinations{c: auditLogDestinationsClient},
@@ -250,3 +256,9 @@ func (c *Client) Secrets() SecretsAPI                           { return c.secre
 func (c *Client) AuditLogDestinations() AuditLogDestinationsAPI { return c.auditLogDestinations }
 
 func (c *Client) TelemetryDestinations() TelemetryDestinationsAPI { return c.telemetryDestinations }
+
+// Teams returns the transport-agnostic teams API (Connect-backed).
+func (c *Client) Teams() TeamsAPI { return c.teams }
+
+// Environments returns the transport-agnostic environments API (Connect-backed).
+func (c *Client) Environments() EnvironmentsAPI { return c.environments }
