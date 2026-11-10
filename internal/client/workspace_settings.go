@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"maps"
 
 	platformv1 "github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1"
 	"github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1/platformv1connect"
@@ -37,6 +38,9 @@ type PiiRedactionConfig struct {
 	Entities  []string
 	OnFailure *string
 	Threshold *float64
+	// Regions and EntityThresholds are nil when the server holds none.
+	Regions          []string
+	EntityThresholds map[string]float64
 }
 
 // WorkspaceSettingsUpdateInput is a PARTIAL update: a nil field is omitted and
@@ -80,10 +84,12 @@ func piiRedactionFromProto(p *platformv1.PiiRedaction) *PiiRedaction {
 	out := &PiiRedaction{Enabled: p.GetEnabled()}
 	if cfg := p.GetConfig(); cfg != nil {
 		out.Config = &PiiRedactionConfig{
-			Language:  cloneStr(cfg.Language),
-			Entities:  append([]string(nil), cfg.GetEntities()...),
-			OnFailure: cloneStr(cfg.OnFailure),
-			Threshold: cloneFloat(cfg.Threshold),
+			Language:         cloneStr(cfg.Language),
+			Entities:         append([]string(nil), cfg.GetEntities()...),
+			OnFailure:        cloneStr(cfg.OnFailure),
+			Threshold:        cloneFloat(cfg.Threshold),
+			Regions:          append([]string(nil), cfg.GetRegions()...),
+			EntityThresholds: maps.Clone(cfg.GetEntityThresholds()),
 		}
 	}
 	return out
@@ -96,10 +102,12 @@ func piiRedactionToProto(p *PiiRedaction) *platformv1.PiiRedaction {
 	out := &platformv1.PiiRedaction{Enabled: p.Enabled}
 	if cfg := p.Config; cfg != nil {
 		out.Config = &platformv1.PiiRedactionConfig{
-			Language:  cloneStr(cfg.Language),
-			Entities:  append([]string(nil), cfg.Entities...),
-			OnFailure: cloneStr(cfg.OnFailure),
-			Threshold: cloneFloat(cfg.Threshold),
+			Language:         cloneStr(cfg.Language),
+			Entities:         append([]string(nil), cfg.Entities...),
+			OnFailure:        cloneStr(cfg.OnFailure),
+			Threshold:        cloneFloat(cfg.Threshold),
+			Regions:          append([]string(nil), cfg.Regions...),
+			EntityThresholds: maps.Clone(cfg.EntityThresholds),
 		}
 	}
 	return out

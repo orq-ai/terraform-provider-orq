@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -293,6 +294,23 @@ func stringMapValue(m map[string]string) types.Map {
 	}
 	out, _ := types.MapValueFrom(context.Background(), types.StringType, elems)
 	return out
+}
+
+func float64Map(ctx context.Context, m types.Map) (map[string]float64, diag.Diagnostics) {
+	if m.IsNull() || m.IsUnknown() {
+		return nil, nil
+	}
+	out := make(map[string]float64, len(m.Elements()))
+	diags := m.ElementsAs(ctx, &out, false)
+	return out, diags
+}
+
+func float64MapValue(m map[string]float64) types.Map {
+	elems := make(map[string]attr.Value, len(m))
+	for k, v := range m {
+		elems[k] = types.Float64Value(v)
+	}
+	return types.MapValueMust(types.Float64Type, elems)
 }
 
 // optStringPtr / optFloat64Ptr map an optional server field onto an attribute: a
