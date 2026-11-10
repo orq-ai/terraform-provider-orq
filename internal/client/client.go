@@ -60,6 +60,8 @@ type Client struct {
 	bedrockModels   BedrockModelsAPI
 	settings        WorkspaceSettingsAPI
 	evaluators      EvaluatorsAPI
+	vaults          VaultsAPI
+	secrets         SecretsAPI
 
 	rest *restgen.ClientWithResponses
 }
@@ -154,6 +156,8 @@ func New(cfg Config) (*Client, error) {
 	workspaceSettingsClient := platformv1connect.NewWorkspaceSettingsServiceClient(connectHTTP, connectURL, connectOpts)
 	guardrailRulesClient := platformv1connect.NewGuardrailRulesServiceClient(connectHTTP, connectURL, connectOpts)
 	routingRulesClient := platformv1connect.NewRoutingRulesServiceClient(connectHTTP, connectURL, connectOpts)
+	vaultsClient := platformv1connect.NewVaultsServiceClient(connectHTTP, connectURL, connectOpts)
+	secretsClient := platformv1connect.NewSecretsServiceClient(connectHTTP, connectURL, connectOpts)
 
 	// REST transport: shared token injected via an origin-scoped bearer
 	// round-tripper, with the same redirect policy as the Connect client.
@@ -180,6 +184,8 @@ func New(cfg Config) (*Client, error) {
 		bedrockModels:   &restBedrockModels{c: rest},
 		evaluators:      &restEvaluators{c: rest},
 		settings:        &connectWorkspaceSettings{c: workspaceSettingsClient},
+		vaults:          &connectVaults{c: vaultsClient},
+		secrets:         &connectSecrets{c: secretsClient},
 		rest:            rest,
 	}, nil
 }
@@ -222,3 +228,9 @@ func (c *Client) WorkspaceSettings() WorkspaceSettingsAPI { return c.settings }
 
 // Evaluators returns the transport-agnostic evaluators API (REST-backed).
 func (c *Client) Evaluators() EvaluatorsAPI { return c.evaluators }
+
+// Vaults returns the transport-agnostic vaults API (Connect-backed).
+func (c *Client) Vaults() VaultsAPI { return c.vaults }
+
+// Secrets returns the transport-agnostic vault-secrets API (Connect-backed).
+func (c *Client) Secrets() SecretsAPI { return c.secrets }
