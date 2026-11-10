@@ -83,19 +83,25 @@ func guardrailRuleFromProto(g *platformv1.GuardrailRule) GuardrailRule {
 		CreatedAt:   formatTimestamp(g.GetCreatedAt()),
 		UpdatedAt:   formatTimestamp(g.GetUpdatedAt()),
 	}
-	for _, ref := range g.GetGuardrails() {
-		out := GuardrailRef{
+	r.Guardrails = guardrailRefsFromProto(g.GetGuardrails())
+	return r
+}
+
+func guardrailRefsFromProto(refs []*platformv1.GuardrailRuleGuardrail) []GuardrailRef {
+	var out []GuardrailRef
+	for _, ref := range refs {
+		r := GuardrailRef{
 			ID:          ref.GetId(),
 			ExecuteOn:   ref.GetExecuteOn(),
 			SampleRate:  ref.SampleRate,
 			IsGuardrail: ref.IsGuardrail,
 		}
 		if ref.GetOptions() != nil {
-			out.Options = ref.GetOptions().AsMap()
+			r.Options = ref.GetOptions().AsMap()
 		}
-		r.Guardrails = append(r.Guardrails, out)
+		out = append(out, r)
 	}
-	return r
+	return out
 }
 
 func guardrailRefsToProto(refs []GuardrailRef) ([]*platformv1.GuardrailRuleGuardrail, error) {
