@@ -1,0 +1,507 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Model Fusions"
+      description: "Model Fusions combine independent model answers through a panel, judge, and optional synthesizer."
+    }
+  ]
+};
+
+service ModelFusionsService {
+  rpc CreateModelFusion(CreateModelFusionRequest) returns (CreateModelFusionResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "model-fusion.create"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v3/model-fusions"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create a Model Fusion"
+      description: "Creates a workspace Model Fusion virtual model. The key becomes the stable model identifier used by gateway requests."
+      operation_id: "ModelFusionCreate"
+      tags: ["Model Fusions"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "modelFusions"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "create"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "model-fusions"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "create"}
+        }
+      ]
+    };
+  }
+
+  rpc GetModelFusion(GetModelFusionRequest) returns (GetModelFusionResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "model-fusion.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/model-fusions/{model_fusion_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a Model Fusion"
+      description: "Retrieves a Model Fusion by ID within the caller's workspace."
+      operation_id: "ModelFusionGet"
+      tags: ["Model Fusions"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "modelFusions"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "model-fusions"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "get"}
+        }
+      ]
+    };
+  }
+
+  rpc ListModelFusions(ListModelFusionsRequest) returns (ListModelFusionsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "model-fusion.list"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/model-fusions"};
+    option (openapi.v3.operation) = {
+      summary: "List Model Fusions"
+      description: "Returns Model Fusions in the caller's workspace, ordered newest first. Supports cursor pagination, key search, preset filtering, and enabled-state filtering."
+      operation_id: "ModelFusionList"
+      tags: ["Model Fusions"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "modelFusions"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "list"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "model-fusions"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "list"}
+        }
+      ]
+    };
+  }
+
+  // Connect-only: no google.api.http annotation keeps this probe off the public REST and OpenAPI surface.
+  rpc CheckModelFusionKeyAvailability(CheckModelFusionKeyAvailabilityRequest) returns (CheckModelFusionKeyAvailabilityResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "model-fusion.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+  }
+
+  rpc UpdateModelFusion(UpdateModelFusionRequest) returns (UpdateModelFusionResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "model-fusion.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      put: "/v3/model-fusions/{model_fusion_id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Replace a Model Fusion configuration"
+      description: "Replaces the complete Fusion configuration. The key is immutable."
+      operation_id: "ModelFusionUpdate"
+      tags: ["Model Fusions"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "modelFusions"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "model-fusions"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "update"}
+        }
+      ]
+    };
+  }
+
+  rpc SetModelFusionEnabled(SetModelFusionEnabledRequest) returns (SetModelFusionEnabledResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "model-fusion.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v3/model-fusions/{model_fusion_id}/enabled"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Enable or disable a Model Fusion"
+      description: "Controls whether a Model Fusion is available to gateway requests in the workspace."
+      operation_id: "ModelFusionSetEnabled"
+      tags: ["Model Fusions"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "modelFusions"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "setEnabled"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "model-fusions"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "setEnabled"}
+        }
+      ]
+    };
+  }
+
+  rpc DeleteModelFusion(DeleteModelFusionRequest) returns (DeleteModelFusionResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "model-fusion.delete"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v3/model-fusions/{model_fusion_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete a Model Fusion"
+      description: "Permanently deletes a Model Fusion and removes its gateway model configuration."
+      operation_id: "ModelFusionDelete"
+      tags: ["Model Fusions"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "modelFusions"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "model-fusions"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "delete"}
+        }
+      ]
+    };
+  }
+}
+
+enum ModelFusionSynthesisMode {
+  MODEL_FUSION_SYNTHESIS_MODE_UNSPECIFIED = 0;
+  MODEL_FUSION_SYNTHESIS_MODE_ANALYSIS = 1;
+  MODEL_FUSION_SYNTHESIS_MODE_JUDGE_WRITES_FINAL = 2;
+}
+
+enum ModelFusionPreset {
+  MODEL_FUSION_PRESET_UNSPECIFIED = 0;
+  MODEL_FUSION_PRESET_GENERAL = 1;
+  MODEL_FUSION_PRESET_QUALITY = 2;
+  MODEL_FUSION_PRESET_BUDGET = 3;
+  MODEL_FUSION_PRESET_CODE = 4;
+  MODEL_FUSION_PRESET_SAFETY = 5;
+}
+
+message ModelFusion {
+  option (openapi.v3.schema) = {
+    required: [
+      "model_fusion_id",
+      "key",
+      "model_ref",
+      "panel_models",
+      "judge_model",
+      "synthesis_mode",
+      "preset",
+      "web_tools",
+      "max_tool_calls",
+      "feed_raw_to_synth",
+      "enabled",
+      "created_at",
+      "updated_at"
+    ]
+  };
+
+  string model_fusion_id = 1 [(openapi.v3.property) = {description: "Unique Model Fusion identifier assigned by ORQ."}];
+  string key = 2 [(openapi.v3.property) = {description: "Stable lowercase key used in the gateway model reference."}];
+  string model_ref = 3 [(openapi.v3.property) = {description: "Workspace-qualified gateway model reference."}];
+  repeated string panel_models = 4 [(openapi.v3.property) = {description: "Distinct model references evaluated independently."}];
+  string judge_model = 5 [(openapi.v3.property) = {description: "Model reference used to judge anonymized panel answers."}];
+  ModelFusionSynthesisMode synthesis_mode = 6 [(openapi.v3.property) = {description: "Whether a separate orchestrator synthesizes the final answer or the judge writes it."}];
+  ModelFusionPreset preset = 7 [(openapi.v3.property) = {description: "Prompt preset applied to the panel, judge, and synthesis phases."}];
+  optional string orchestrator_model = 8 [(openapi.v3.property) = {description: "Required only for analysis mode; omitted when the judge writes the final answer."}];
+  bool web_tools = 9 [(openapi.v3.property) = {description: "Whether panel and judge phases get the provider-native web search tool. Models without native web search run without it."}];
+  int32 max_tool_calls = 10 [(openapi.v3.property) = {description: "Maximum Fusion-managed web tool calls per participating phase. Zero disables Fusion-managed tool calls."}];
+  bool feed_raw_to_synth = 11 [(openapi.v3.property) = {description: "Whether raw panel candidate answers are included in synthesis input."}];
+  bool enabled = 12 [(openapi.v3.property) = {description: "Whether the Fusion is available to gateway requests."}];
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message CreateModelFusionRequest {
+  option (openapi.v3.schema) = {
+    required: [
+      "key",
+      "panel_models",
+      "judge_model",
+      "synthesis_mode",
+      "preset"
+    ]
+  };
+
+  string key = 1 [
+    (openapi.v3.property) = {description: "Required. Stable lowercase key containing letters, numbers, and hyphens."},
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+      pattern: "^[a-z0-9-]+$"
+    }
+  ];
+  repeated string panel_models = 2 [
+    (openapi.v3.property) = {description: "Required. One to eight distinct chat/text model references in provider/model format."},
+    (buf.validate.field).repeated = {
+      min_items: 1
+      max_items: 8
+      unique: true
+      items: {
+        string: {
+          min_len: 3
+          max_len: 256
+          pattern: "^[^/]+/.+$"
+        }
+      }
+    }
+  ];
+  string judge_model = 3 [
+    (openapi.v3.property) = {description: "Required. Model reference used for strict structured judge output."},
+    (buf.validate.field).string = {
+      min_len: 3
+      max_len: 256
+      pattern: "^[^/]+/.+$"
+    }
+  ];
+  ModelFusionSynthesisMode synthesis_mode = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  ModelFusionPreset preset = 5 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  optional string orchestrator_model = 6 [
+    (openapi.v3.property) = {description: "Required for analysis mode and invalid for judge_writes_final mode."},
+    (buf.validate.field).string = {
+      min_len: 3
+      max_len: 256
+      pattern: "^[^/]+/.+$"
+    }
+  ];
+  optional bool web_tools = 7 [(openapi.v3.property) = {description: "Optional. Defaults to true."}];
+  optional int32 max_tool_calls = 8 [
+    (openapi.v3.property) = {description: "Optional. Defaults to 8 and must be between 0 and 20. Zero disables Fusion-managed tool calls."},
+    (buf.validate.field).int32 = {
+      gte: 0
+      lte: 20
+    }
+  ];
+  optional bool feed_raw_to_synth = 9 [(openapi.v3.property) = {description: "Optional. Defaults to true."}];
+}
+
+message CreateModelFusionResponse {
+  option (openapi.v3.schema) = {
+    required: ["model_fusion"]
+  };
+  ModelFusion model_fusion = 1;
+}
+
+message GetModelFusionRequest {
+  option (openapi.v3.schema) = {
+    required: ["model_fusion_id"]
+  };
+  string model_fusion_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetModelFusionResponse {
+  option (openapi.v3.schema) = {
+    required: ["model_fusion"]
+  };
+  ModelFusion model_fusion = 1;
+}
+
+message ListModelFusionsRequest {
+  optional int32 limit = 1 [
+    (openapi.v3.property) = {description: "Optional. Number of Model Fusions to return. Defaults to 25 and must be between 1 and 200."},
+    (buf.validate.field).int32 = {
+      gte: 1
+      lte: 200
+    }
+  ];
+  string starting_after = 2 [(openapi.v3.property) = {description: "Cursor for forward pagination."}];
+  string ending_before = 3 [(openapi.v3.property) = {description: "Cursor for backward pagination."}];
+  optional string search = 4 [(openapi.v3.property) = {description: "Optional case-insensitive key search."}];
+  repeated ModelFusionPreset preset = 5 [
+    (openapi.v3.property) = {description: "Optional preset filter."},
+    (buf.validate.field).repeated = {
+      max_items: 5
+      unique: true
+      items: {
+        enum: {
+          defined_only: true
+          not_in: [0]
+        }
+      }
+    }
+  ];
+  optional bool enabled = 6 [(openapi.v3.property) = {description: "Optional enabled-state filter."}];
+}
+
+message ListModelFusionsResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+  string object = 1;
+  repeated ModelFusion data = 2;
+  bool has_more = 3;
+}
+
+message CheckModelFusionKeyAvailabilityRequest {
+  string key = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+    pattern: "^[a-z0-9-]+$"
+  }];
+}
+
+message CheckModelFusionKeyAvailabilityResponse {
+  bool available = 1;
+}
+
+message UpdateModelFusionRequest {
+  option (openapi.v3.schema) = {
+    required: [
+      "model_fusion_id",
+      "panel_models",
+      "judge_model",
+      "synthesis_mode",
+      "preset",
+      "web_tools",
+      "max_tool_calls",
+      "feed_raw_to_synth"
+    ]
+  };
+  string model_fusion_id = 1 [(buf.validate.field).string.min_len = 1];
+  repeated string panel_models = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 8
+    unique: true
+    items: {
+      string: {
+        min_len: 3
+        max_len: 256
+        pattern: "^[^/]+/.+$"
+      }
+    }
+  }];
+  string judge_model = 3 [(buf.validate.field).string = {
+    min_len: 3
+    max_len: 256
+    pattern: "^[^/]+/.+$"
+  }];
+  ModelFusionSynthesisMode synthesis_mode = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  ModelFusionPreset preset = 5 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  optional string orchestrator_model = 6 [(openapi.v3.property) = {description: "Required for analysis mode and omitted for judge_writes_final mode."}];
+  optional bool web_tools = 7 [(buf.validate.field).required = true];
+  optional int32 max_tool_calls = 8 [
+    (openapi.v3.property) = {description: "Required. Must be between 0 and 20. Zero disables Fusion-managed tool calls."},
+    (buf.validate.field).required = true,
+    (buf.validate.field).int32 = {
+      gte: 0
+      lte: 20
+    }
+  ];
+  optional bool feed_raw_to_synth = 9 [(buf.validate.field).required = true];
+}
+
+message UpdateModelFusionResponse {
+  option (openapi.v3.schema) = {
+    required: ["model_fusion"]
+  };
+  ModelFusion model_fusion = 1;
+}
+
+message SetModelFusionEnabledRequest {
+  option (openapi.v3.schema) = {
+    required: [
+      "model_fusion_id",
+      "enabled"
+    ]
+  };
+  string model_fusion_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional bool enabled = 2 [(buf.validate.field).required = true];
+}
+
+message SetModelFusionEnabledResponse {
+  option (openapi.v3.schema) = {
+    required: ["model_fusion"]
+  };
+  ModelFusion model_fusion = 1;
+}
+
+message DeleteModelFusionRequest {
+  option (openapi.v3.schema) = {
+    required: ["model_fusion_id"]
+  };
+  string model_fusion_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteModelFusionResponse {}

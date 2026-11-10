@@ -1,0 +1,485 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Smart Routers"
+      description: "Create and manage workspace Smart Routers. A Smart Router selects a model from an eligible pool for each request according to a quality, balanced, or cost profile."
+    }
+  ]
+};
+
+service SmartRoutersService {
+  rpc CreateSmartRouter(CreateSmartRouterRequest) returns (CreateSmartRouterResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "smart-router.create"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v2/smart-routers"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create a Smart Router"
+      description: "Creates a Smart Router in the current workspace from 2 to 50 distinct eligible models. The key must be unique in the workspace and becomes part of the model reference used in AI Gateway requests."
+      operation_id: "SmartRouterCreate"
+      tags: ["Smart Routers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "smartRouters"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "create"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "smart-routers"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "create"}
+        }
+      ]
+    };
+  }
+
+  rpc GetSmartRouter(GetSmartRouterRequest) returns (GetSmartRouterResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "smart-router.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/smart-routers/{smart_router_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a Smart Router"
+      description: "Retrieves a Smart Router by ID from the current workspace, including its model reference, model pool, routing profile, and enabled state."
+      operation_id: "SmartRouterGet"
+      tags: ["Smart Routers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "smartRouters"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "smart-routers"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "get"}
+        }
+      ]
+    };
+  }
+
+  rpc ListSmartRouters(ListSmartRoutersRequest) returns (ListSmartRoutersResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "smart-router.list"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v2/smart-routers"};
+    option (openapi.v3.operation) = {
+      summary: "List Smart Routers"
+      description: "Lists Smart Routers in the current workspace, ordered newest first. Use cursor pagination and optional key, profile, or enabled-state filters to narrow the results."
+      operation_id: "SmartRouterList"
+      tags: ["Smart Routers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "smartRouters"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "list"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "smart-routers"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "list"}
+        }
+      ]
+    };
+  }
+
+  rpc UpdateSmartRouter(UpdateSmartRouterRequest) returns (UpdateSmartRouterResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "smart-router.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      patch: "/v2/smart-routers/{smart_router_id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update a Smart Router"
+      description: "Updates the model pool, routing profile, session affinity, or any combination. Omitted fields retain their current values. The router key and model reference cannot be changed."
+      operation_id: "SmartRouterUpdate"
+      tags: ["Smart Routers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "smartRouters"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "smart-routers"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "update"}
+        },
+        {
+          name: "x-speakeasy-max-method-params"
+          value: {yaml: "3"}
+        }
+      ]
+    };
+  }
+
+  rpc SetSmartRouterEnabled(SetSmartRouterEnabledRequest) returns (SetSmartRouterEnabledResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "smart-router.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v2/smart-routers/{smart_router_id}/enabled"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Enable or disable a Smart Router"
+      description: "Enables or disables a Smart Router without deleting it. Disabled Smart Routers cannot be used in AI Gateway requests."
+      operation_id: "SmartRouterSetEnabled"
+      tags: [
+        "Smart Routers",
+        "private"
+      ]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "smartRouters"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "setEnabled"}
+        },
+        {
+          name: "x-cli-hidden"
+          value: {yaml: "true"}
+        },
+        {
+          name: "x-speakeasy-ignore"
+          value: {yaml: "true"}
+        }
+      ]
+    };
+  }
+
+  rpc DeleteSmartRouter(DeleteSmartRouterRequest) returns (DeleteSmartRouterResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "smart-router.delete"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v2/smart-routers/{smart_router_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete a Smart Router"
+      description: "Permanently deletes a Smart Router and removes its AI Gateway model configuration. A Smart Router referenced by an experiment cannot be deleted."
+      operation_id: "SmartRouterDelete"
+      tags: ["Smart Routers"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "smartRouters"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "smart-routers"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "delete"}
+        }
+      ]
+    };
+  }
+
+  // PreviewSmartRouterBands is Connect-only and intentionally has no HTTP annotation,
+  // keeping this form helper out of the public REST and OpenAPI surface.
+  rpc PreviewSmartRouterBands(PreviewSmartRouterBandsRequest) returns (PreviewSmartRouterBandsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "smart-router.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+  }
+}
+
+enum SmartRouterProfile {
+  SMART_ROUTER_PROFILE_UNSPECIFIED = 0;
+  SMART_ROUTER_PROFILE_QUALITY = 1;
+  SMART_ROUTER_PROFILE_BALANCED = 2;
+  SMART_ROUTER_PROFILE_COST = 3;
+}
+
+message SmartRouterSessionAffinity {
+  option (openapi.v3.schema) = {required: ["enabled"]};
+
+  bool enabled = 1 [(openapi.v3.property) = {description: "Whether later turns of a thread stay on the model chosen for its first turn. Only requests that carry a thread id take part. Off by default."}];
+  optional int32 ttl_seconds = 2 [
+    (openapi.v3.property) = {
+      description: "Sliding idle window in seconds. A thread that stays quiet longer than this is routed afresh on its next turn. Between 60 and 3600. Defaults to 600 when omitted."
+      minimum: 60
+      maximum: 3600
+    },
+    (buf.validate.field).int32.gte = 60,
+    (buf.validate.field).int32.lte = 3600
+  ];
+}
+
+message SmartRouter {
+  option (openapi.v3.schema) = {
+    required: [
+      "smart_router_id",
+      "key",
+      "model_ref",
+      "models",
+      "profile",
+      "enabled",
+      "created_at",
+      "updated_at"
+    ]
+  };
+
+  string smart_router_id = 1 [(openapi.v3.property) = {description: "Unique identifier assigned to the Smart Router."}];
+  string key = 2 [(openapi.v3.property) = {description: "Immutable lowercase key that identifies the Smart Router within the workspace."}];
+  string model_ref = 3 [(openapi.v3.property) = {description: "Immutable workspace-qualified model reference to use in AI Gateway requests, in `<workspace-key>@orq/<key>` format."}];
+  repeated string models = 4 [(openapi.v3.property) = {description: "Pool of 2 to 50 distinct eligible models. Each value uses `provider/model` format."}];
+  SmartRouterProfile profile = 7 [(openapi.v3.property) = {description: "Routing preference: quality favors more capable models, cost favors less expensive models, and balanced trades off both."}];
+  bool enabled = 8 [(openapi.v3.property) = {description: "Whether the Smart Router can be used in AI Gateway requests."}];
+  google.protobuf.Timestamp created_at = 9 [(openapi.v3.property) = {description: "Date and time when the Smart Router was created."}];
+  google.protobuf.Timestamp updated_at = 10 [(openapi.v3.property) = {description: "Date and time when the Smart Router was last updated."}];
+  reserved 5, 6, 11;
+  SmartRouterSessionAffinity session_affinity = 12 [(openapi.v3.property) = {description: "Session affinity settings. Null when the router has never been configured for it."}];
+}
+
+message CreateSmartRouterRequest {
+  option (openapi.v3.schema) = {
+    required: [
+      "key",
+      "models",
+      "profile"
+    ]
+  };
+
+  string key = 1 [
+    (openapi.v3.property) = {description: "Unique key for the Smart Router within the workspace. Use lowercase letters, numbers, and hyphens."},
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+      pattern: "^[a-z0-9-]+$"
+    }
+  ];
+  repeated string models = 2 [
+    (openapi.v3.property) = {description: "Pool of 2 to 50 distinct eligible models. Each value uses `provider/model` format."},
+    (buf.validate.field).repeated = {
+      min_items: 2
+      max_items: 50
+      unique: true
+      items: {
+        string: {
+          min_len: 3
+          max_len: 256
+          pattern: "^[^/]+/.+$"
+        }
+      }
+    }
+  ];
+  reserved 3, 4;
+  SmartRouterProfile profile = 5 [
+    (openapi.v3.property) = {description: "Routing preference: quality favors more capable models, cost favors less expensive models, and balanced trades off both."},
+    (buf.validate.field).enum = {
+      defined_only: true
+      not_in: [0]
+    }
+  ];
+  SmartRouterSessionAffinity session_affinity = 6 [(openapi.v3.property) = {description: "Optional. Omit to leave session affinity off."}];
+}
+
+message CreateSmartRouterResponse {
+  option (openapi.v3.schema) = {required: ["smart_router"]};
+  SmartRouter smart_router = 1;
+}
+
+message GetSmartRouterRequest {
+  option (openapi.v3.schema) = {required: ["smart_router_id"]};
+  string smart_router_id = 1 [
+    (openapi.v3.property) = {description: "Unique identifier of the Smart Router to retrieve."},
+    (buf.validate.field).string.min_len = 1
+  ];
+}
+
+message GetSmartRouterResponse {
+  option (openapi.v3.schema) = {required: ["smart_router"]};
+  SmartRouter smart_router = 1;
+}
+
+message ListSmartRoutersRequest {
+  optional int32 limit = 1 [
+    (openapi.v3.property) = {description: "Optional. Number of routers to return. Defaults to 25 and must be between 1 and 200."},
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+  string starting_after = 2 [(openapi.v3.property) = {description: "Return results after this cursor for forward pagination. Cannot be combined with `ending_before`."}];
+  string ending_before = 3 [(openapi.v3.property) = {description: "Return results before this cursor for backward pagination. Cannot be combined with `starting_after`."}];
+  optional string search = 4 [(openapi.v3.property) = {description: "Case-insensitive search over Smart Router keys."}];
+  repeated SmartRouterProfile profile = 5 [
+    (openapi.v3.property) = {description: "Return only Smart Routers with one of these routing profiles."},
+    (buf.validate.field).repeated = {
+      max_items: 3
+      unique: true
+      items: {
+        enum: {
+          defined_only: true
+          not_in: [0]
+        }
+      }
+    }
+  ];
+  optional bool enabled = 6 [(openapi.v3.property) = {description: "Return only enabled or disabled Smart Routers."}];
+  reserved 7;
+}
+
+message ListSmartRoutersResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+
+  string object = 1 [(openapi.v3.property) = {description: "Object type for this collection. Always `list`."}];
+  repeated SmartRouter data = 2 [(openapi.v3.property) = {description: "Smart Routers in the current page."}];
+  bool has_more = 3 [(openapi.v3.property) = {description: "Whether more Smart Routers are available in the requested pagination direction."}];
+}
+
+message UpdateSmartRouterRequest {
+  option (openapi.v3.schema) = {required: ["smart_router_id"]};
+
+  string smart_router_id = 1 [
+    (openapi.v3.property) = {description: "Unique identifier of the Smart Router to update."},
+    (buf.validate.field).string.min_len = 1
+  ];
+  repeated string models = 2 [
+    (openapi.v3.property) = {description: "Replacement pool of 2 to 50 distinct eligible models. Each value uses `provider/model` format. Omit to keep the current pool."},
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).repeated = {
+      min_items: 2
+      max_items: 50
+      unique: true
+      items: {
+        string: {
+          min_len: 3
+          max_len: 256
+          pattern: "^[^/]+/.+$"
+        }
+      }
+    }
+  ];
+  reserved 3, 4;
+  optional SmartRouterProfile profile = 5 [
+    (openapi.v3.property) = {description: "New routing preference. Omit to keep the current profile."},
+    (buf.validate.field).enum = {
+      defined_only: true
+      not_in: [0]
+    }
+  ];
+  SmartRouterSessionAffinity session_affinity = 6 [(openapi.v3.property) = {description: "New session affinity settings. Omit to keep the current settings."}];
+}
+
+message UpdateSmartRouterResponse {
+  option (openapi.v3.schema) = {required: ["smart_router"]};
+  SmartRouter smart_router = 1;
+}
+
+message SetSmartRouterEnabledRequest {
+  option (openapi.v3.schema) = {
+    required: [
+      "smart_router_id",
+      "enabled"
+    ]
+  };
+
+  string smart_router_id = 1 [
+    (openapi.v3.property) = {description: "Unique identifier of the Smart Router to enable or disable."},
+    (buf.validate.field).string.min_len = 1
+  ];
+  bool enabled = 2 [(openapi.v3.property) = {description: "Set to `true` to enable the Smart Router or `false` to disable it."}];
+}
+
+message SetSmartRouterEnabledResponse {
+  option (openapi.v3.schema) = {required: ["smart_router"]};
+  SmartRouter smart_router = 1;
+}
+
+message DeleteSmartRouterRequest {
+  option (openapi.v3.schema) = {required: ["smart_router_id"]};
+  string smart_router_id = 1 [
+    (openapi.v3.property) = {description: "Unique identifier of the Smart Router to delete."},
+    (buf.validate.field).string.min_len = 1
+  ];
+}
+
+message DeleteSmartRouterResponse {}
+
+message PreviewSmartRouterBandsRequest {
+  repeated string models = 1 [(buf.validate.field).repeated = {
+    min_items: 2
+    max_items: 50
+    unique: true
+    items: {
+      string: {
+        min_len: 3
+        max_len: 256
+        pattern: "^[^/]+/.+$"
+      }
+    }
+  }];
+}
+
+message SmartRouterBandModel {
+  string model = 1;
+  double intelligence_index = 2;
+  double price = 3;
+}
+
+message SmartRouterBand {
+  string name = 1;
+  repeated SmartRouterBandModel models = 2;
+}
+
+message PreviewSmartRouterBandsResponse {
+  repeated SmartRouterBand bands = 1;
+}
