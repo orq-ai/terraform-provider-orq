@@ -2,22 +2,21 @@ package client
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"time"
 
-	"github.com/orq-ai/terraform-provider-orq/internal/restgen"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	platformv1 "github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1"
+	"github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1/platformv1connect"
 )
 
 // GuardrailRule is the transport-agnostic projection of a guardrail rule
-// (router entity, REST-backed). ProjectID is empty for a workspace-global rule.
+// (Connect-backed). ProjectID is empty for a workspace-global rule.
 type GuardrailRule struct {
 	ID          string
 	DisplayName string
 	Description string
 	Enabled     bool
 	ProjectID   string
-	Timeout     int64
 	Guardrails  []GuardrailRef
 	CreatedAt   string
 	UpdatedAt   string
@@ -47,7 +46,6 @@ type GuardrailRuleCreateInput struct {
 	Description *string
 	Enabled     *bool
 	ProjectID   *string
-	Timeout     *int64
 	Guardrails  []GuardrailRef
 }
 
@@ -58,12 +56,11 @@ type GuardrailRuleUpdateInput struct {
 	DisplayName *string
 	Description *string
 	Enabled     *bool
-	Timeout     *int64
 	Guardrails  []GuardrailRef
 }
 
 // GuardrailRulesAPI is the per-resource seam for the guardrail-rules domain
-// (REST-backed).
+// (Connect-backed).
 type GuardrailRulesAPI interface {
 	List(ctx context.Context, params ListParams) (*GuardrailRulePage, error)
 	Get(ctx context.Context, id string) (*GuardrailRule, error)
@@ -72,194 +69,124 @@ type GuardrailRulesAPI interface {
 	Delete(ctx context.Context, id string) error
 }
 
-type restGuardrailRules struct {
-	c *restgen.ClientWithResponses
+type connectGuardrailRules struct {
+	c platformv1connect.GuardrailRulesServiceClient
 }
 
-// guardrailRuleWire mirrors the JSON body every guardrail-rule read/write
-// returns (create/get/update share this shape). Decoding the raw body avoids
-// depending on oapi-codegen's per-operation anonymous struct types.
-type guardrailRuleWire struct {
-	ID          string  `json:"_id"`
-	DisplayName string  `json:"display_name"`
-	Description *string `json:"description"`
-	Enabled     bool    `json:"enabled"`
-	ProjectID   string  `json:"project_id"`
-	Timeout     int64   `json:"timeout"`
-	Guardrails  []struct {
-		ID          string         `json:"id"`
-		ExecuteOn   string         `json:"execute_on"`
-		SampleRate  *float64       `json:"sample_rate"`
-		IsGuardrail *bool          `json:"is_guardrail"`
-		Options     map[string]any `json:"options"`
-	} `json:"guardrails"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-func (w *guardrailRuleWire) toRule() GuardrailRule {
+func guardrailRuleFromProto(g *platformv1.GuardrailRule) GuardrailRule {
 	r := GuardrailRule{
-		ID:          w.ID,
-		DisplayName: w.DisplayName,
-		Enabled:     w.Enabled,
-		ProjectID:   w.ProjectID,
-		Timeout:     w.Timeout,
-		CreatedAt:   w.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:   w.UpdatedAt.UTC().Format(time.RFC3339),
+		ID:          g.GetId(),
+		DisplayName: g.GetDisplayName(),
+		Description: g.GetDescription(),
+		Enabled:     g.GetEnabled(),
+		ProjectID:   g.GetProjectId(),
+		CreatedAt:   formatTimestamp(g.GetCreatedAt()),
+		UpdatedAt:   formatTimestamp(g.GetUpdatedAt()),
 	}
-	if w.Description != nil {
-		r.Description = *w.Description
-	}
-	for _, g := range w.Guardrails {
-		r.Guardrails = append(r.Guardrails, GuardrailRef{
-			ID:          g.ID,
-			ExecuteOn:   g.ExecuteOn,
-			SampleRate:  g.SampleRate,
-			IsGuardrail: g.IsGuardrail,
-			Options:     g.Options,
-		})
+	for _, ref := range g.GetGuardrails() {
+		out := GuardrailRef{
+			ID:          ref.GetId(),
+			ExecuteOn:   ref.GetExecuteOn(),
+			SampleRate:  ref.SampleRate,
+			IsGuardrail: ref.IsGuardrail,
+		}
+		if ref.GetOptions() != nil {
+			out.Options = ref.GetOptions().AsMap()
+		}
+		r.Guardrails = append(r.Guardrails, out)
 	}
 	return r
 }
 
-// decodeRuleBody parses a single-rule JSON body into the transport-neutral type.
-func decodeRuleBody(body []byte) (*GuardrailRule, error) {
-	var w guardrailRuleWire
-	if err := json.Unmarshal(body, &w); err != nil {
-		return nil, &Error{Code: CodeInternal, Message: "decoding guardrail rule response: " + err.Error()}
-	}
-	r := w.toRule()
-	return &r, nil
-}
-
-func guardrailRefsToRest(refs []GuardrailRef) *[]restgen.GuardrailRef {
-	if refs == nil {
-		return nil
-	}
-	out := make([]restgen.GuardrailRef, 0, len(refs))
+func guardrailRefsToProto(refs []GuardrailRef) ([]*platformv1.GuardrailRuleGuardrail, error) {
+	out := make([]*platformv1.GuardrailRuleGuardrail, 0, len(refs))
 	for _, g := range refs {
-		rg := restgen.GuardrailRef{
+		ref := &platformv1.GuardrailRuleGuardrail{
 			Id:          g.ID,
-			ExecuteOn:   restgen.GuardrailRefExecuteOn(g.ExecuteOn),
+			ExecuteOn:   g.ExecuteOn,
 			SampleRate:  g.SampleRate,
 			IsGuardrail: g.IsGuardrail,
 		}
 		if g.Options != nil {
-			opts := map[string]interface{}(g.Options)
-			rg.Options = &opts
-		}
-		out = append(out, rg)
-	}
-	return &out
-}
-
-func (p *restGuardrailRules) List(ctx context.Context, params ListParams) (*GuardrailRulePage, error) {
-	restParams := &restgen.GuardrailRuleListParams{}
-	if params.Limit > 0 {
-		limit := int64(params.Limit)
-		restParams.Limit = &limit
-	}
-	if params.StartingAfter != "" {
-		restParams.StartingAfter = &params.StartingAfter
-	}
-	resp, err := p.c.GuardrailRuleListWithResponse(ctx, restParams)
-	if err != nil {
-		return nil, mapRESTTransportError("guardrail rule", err)
-	}
-	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
-		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
-	}
-	out := &GuardrailRulePage{HasMore: resp.JSON200.HasMore}
-	if resp.JSON200.Data != nil {
-		for _, g := range *resp.JSON200.Data {
-			w := guardrailRuleWire{
-				ID:          g.UnderscoreId,
-				DisplayName: g.DisplayName,
-				Description: g.Description,
-				Enabled:     g.Enabled,
-				ProjectID:   g.ProjectId,
-				Timeout:     g.Timeout,
-				CreatedAt:   g.CreatedAt,
-				UpdatedAt:   g.UpdatedAt,
+			options, err := structpb.NewStruct(g.Options)
+			if err != nil {
+				return nil, &Error{Code: CodeInvalid, Message: "encoding guardrail options: " + err.Error()}
 			}
-			if g.Guardrails != nil {
-				for _, ref := range *g.Guardrails {
-					var opts map[string]any
-					if ref.Options != nil {
-						opts = *ref.Options
-					}
-					w.Guardrails = append(w.Guardrails, struct {
-						ID          string         `json:"id"`
-						ExecuteOn   string         `json:"execute_on"`
-						SampleRate  *float64       `json:"sample_rate"`
-						IsGuardrail *bool          `json:"is_guardrail"`
-						Options     map[string]any `json:"options"`
-					}{ID: ref.Id, ExecuteOn: string(ref.ExecuteOn), SampleRate: ref.SampleRate, IsGuardrail: ref.IsGuardrail, Options: opts})
-				}
-			}
-			out.Rules = append(out.Rules, w.toRule())
+			ref.Options = options
 		}
+		out = append(out, ref)
 	}
 	return out, nil
 }
 
-func (p *restGuardrailRules) Get(ctx context.Context, id string) (*GuardrailRule, error) {
-	resp, err := p.c.GuardrailRuleGetWithResponse(ctx, id)
+func (c *connectGuardrailRules) List(ctx context.Context, params ListParams) (*GuardrailRulePage, error) {
+	req := &platformv1.ListGuardrailRulesRequest{StartingAfter: params.StartingAfter}
+	if params.Limit > 0 {
+		req.Limit = &params.Limit
+	}
+	resp, err := c.c.ListGuardrailRules(ctx, req)
 	if err != nil {
-		return nil, mapRESTTransportError("guardrail rule", err)
+		return nil, mapConnectError("guardrail rule", err)
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
+	out := &GuardrailRulePage{HasMore: resp.GetHasMore()}
+	for _, g := range resp.GetData() {
+		out.Rules = append(out.Rules, guardrailRuleFromProto(g))
 	}
-	return decodeRuleBody(resp.Body)
+	return out, nil
 }
 
-func (p *restGuardrailRules) Create(ctx context.Context, in GuardrailRuleCreateInput) (*GuardrailRule, error) {
-	body := restgen.GuardrailRuleCreateJSONRequestBody{
+func (c *connectGuardrailRules) Get(ctx context.Context, id string) (*GuardrailRule, error) {
+	resp, err := c.c.GetGuardrailRule(ctx, &platformv1.GetGuardrailRuleRequest{GuardrailRuleId: id})
+	if err != nil {
+		return nil, mapConnectError("guardrail rule", err)
+	}
+	r := guardrailRuleFromProto(resp.GetGuardrailRule())
+	return &r, nil
+}
+
+func (c *connectGuardrailRules) Create(ctx context.Context, in GuardrailRuleCreateInput) (*GuardrailRule, error) {
+	refs, err := guardrailRefsToProto(in.Guardrails)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.c.CreateGuardrailRule(ctx, &platformv1.CreateGuardrailRuleRequest{
 		DisplayName: in.DisplayName,
 		Description: in.Description,
 		Enabled:     in.Enabled,
 		ProjectId:   in.ProjectID,
-		Timeout:     in.Timeout,
-		Guardrails:  guardrailRefsToRest(in.Guardrails),
-	}
-	resp, err := p.c.GuardrailRuleCreateWithResponse(ctx, body)
+		Guardrails:  refs,
+	})
 	if err != nil {
-		return nil, mapRESTTransportError("guardrail rule", err)
+		return nil, mapConnectError("guardrail rule", err)
 	}
-	if resp.StatusCode() != http.StatusCreated && resp.StatusCode() != http.StatusOK {
-		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
-	}
-	return decodeRuleBody(resp.Body)
+	r := guardrailRuleFromProto(resp.GetGuardrailRule())
+	return &r, nil
 }
 
-func (p *restGuardrailRules) Update(ctx context.Context, in GuardrailRuleUpdateInput) (*GuardrailRule, error) {
-	body := restgen.GuardrailRuleUpdateJSONRequestBody{
-		DisplayName: in.DisplayName,
-		Description: in.Description,
-		Enabled:     in.Enabled,
-		Timeout:     in.Timeout,
-		Guardrails:  guardrailRefsToRest(in.Guardrails),
-	}
-	resp, err := p.c.GuardrailRuleUpdateWithResponse(ctx, in.ID, body)
+// Update always replaces the guardrail list: the resource owns it, and an
+// empty list is otherwise a no-op on the server.
+func (c *connectGuardrailRules) Update(ctx context.Context, in GuardrailRuleUpdateInput) (*GuardrailRule, error) {
+	refs, err := guardrailRefsToProto(in.Guardrails)
 	if err != nil {
-		return nil, mapRESTTransportError("guardrail rule", err)
+		return nil, err
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, mapRESTStatus(resp.StatusCode(), resp.Body)
+	replaceGuardrails := true
+	resp, err := c.c.UpdateGuardrailRule(ctx, &platformv1.UpdateGuardrailRuleRequest{
+		GuardrailRuleId:   in.ID,
+		DisplayName:       in.DisplayName,
+		Description:       in.Description,
+		Enabled:           in.Enabled,
+		Guardrails:        refs,
+		ReplaceGuardrails: &replaceGuardrails,
+	})
+	if err != nil {
+		return nil, mapConnectError("guardrail rule", err)
 	}
-	return decodeRuleBody(resp.Body)
+	r := guardrailRuleFromProto(resp.GetGuardrailRule())
+	return &r, nil
 }
 
-func (p *restGuardrailRules) Delete(ctx context.Context, id string) error {
-	resp, err := p.c.GuardrailRuleDeleteWithResponse(ctx, id)
-	if err != nil {
-		return mapRESTTransportError("guardrail rule", err)
-	}
-	switch resp.StatusCode() {
-	case http.StatusOK, http.StatusNoContent, http.StatusAccepted:
-		return nil
-	default:
-		return mapRESTStatus(resp.StatusCode(), resp.Body)
-	}
+func (c *connectGuardrailRules) Delete(ctx context.Context, id string) error {
+	_, err := c.c.DeleteGuardrailRule(ctx, &platformv1.DeleteGuardrailRuleRequest{GuardrailRuleId: id})
+	return mapConnectError("guardrail rule", err)
 }

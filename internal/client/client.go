@@ -152,6 +152,8 @@ func New(cfg Config) (*Client, error) {
 	apiKeysClient := platformv1connect.NewApiKeysServiceClient(connectHTTP, connectURL, connectOpts)
 	managementKeysClient := platformv1connect.NewManagementKeysServiceClient(connectHTTP, connectURL, connectOpts)
 	workspaceSettingsClient := platformv1connect.NewWorkspaceSettingsServiceClient(connectHTTP, connectURL, connectOpts)
+	guardrailRulesClient := platformv1connect.NewGuardrailRulesServiceClient(connectHTTP, connectURL, connectOpts)
+	routingRulesClient := platformv1connect.NewRoutingRulesServiceClient(connectHTTP, connectURL, connectOpts)
 
 	// REST transport: shared token injected via an origin-scoped bearer
 	// round-tripper, with the same redirect policy as the Connect client.
@@ -169,9 +171,9 @@ func New(cfg Config) (*Client, error) {
 		projects:        &connectProjects{c: projectsClient},
 		budgets:         &connectBudgets{c: budgetsClient},
 		notifiers:       &connectNotifiers{c: notifiersClient},
-		guardrailRules:  &restGuardrailRules{c: rest},
+		guardrailRules:  &connectGuardrailRules{c: guardrailRulesClient},
 		workspaceModels: &workspaceModels{rest: rest, sharing: modelSharingClient},
-		routingRules:    &restRoutingRules{c: rest},
+		routingRules:    &connectRoutingRules{c: routingRulesClient},
 		apiKeys:         &connectAPIKeys{c: apiKeysClient},
 		managementKeys:  &connectManagementKeys{c: managementKeysClient},
 		models:          &restModels{c: rest},
@@ -191,14 +193,14 @@ func (c *Client) Budgets() BudgetsAPI { return c.budgets }
 // Notifiers returns the transport-agnostic notifiers API (Connect-backed).
 func (c *Client) Notifiers() NotifiersAPI { return c.notifiers }
 
-// GuardrailRules returns the transport-agnostic guardrail-rules API (REST-backed).
+// GuardrailRules returns the transport-agnostic guardrail-rules API (Connect-backed).
 func (c *Client) GuardrailRules() GuardrailRulesAPI { return c.guardrailRules }
 
 // WorkspaceModels returns the transport-agnostic workspace-models API (REST
 // enable/disable + Connect sharing write + inline sharing read).
 func (c *Client) WorkspaceModels() WorkspaceModelsAPI { return c.workspaceModels }
 
-// RoutingRules returns the transport-agnostic routing-rules API (REST-backed).
+// RoutingRules returns the transport-agnostic routing-rules API (Connect-backed).
 func (c *Client) RoutingRules() RoutingRulesAPI { return c.routingRules }
 
 // APIKeys returns the transport-agnostic api-keys API (Connect-backed).

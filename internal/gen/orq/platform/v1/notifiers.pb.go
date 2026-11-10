@@ -935,32 +935,47 @@ const file_orq_platform_v1_notifiers_proto_rawDesc = "" +
 	"\x19NOTIFIER_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13NOTIFIER_TYPE_EMAIL\x10\x01\x12\x1f\n" +
 	"\x1bNOTIFIER_TYPE_SLACK_WEBHOOK\x10\x02\x12\x19\n" +
-	"\x15NOTIFIER_TYPE_WEBHOOK\x10\x032\xdd\x0e\n" +
-	"\x10NotifiersService\x12\xc2\x03\n" +
-	"\x0eCreateNotifier\x12&.orq.platform.v1.CreateNotifierRequest\x1a'.orq.platform.v1.CreateNotifierResponse\"\xde\x02\xbaG\xab\x02\n" +
+	"\x15NOTIFIER_TYPE_WEBHOOK\x10\x032\xdc\x10\n" +
+	"\x10NotifiersService\x12\xf6\x03\n" +
+	"\x0eCreateNotifier\x12&.orq.platform.v1.CreateNotifierRequest\x1a'.orq.platform.v1.CreateNotifierResponse\"\x92\x03\xbaG\xdf\x02\n" +
 	"\tNotifiers\x12\x11Create a notifier\x1a\xb1\x01Creates a notifier destination in a project. Choose `NOTIFIER_TYPE_EMAIL`, `NOTIFIER_TYPE_SLACK_WEBHOOK`, or `NOTIFIER_TYPE_WEBHOOK` and provide the matching destination fields.*\x0eNotifierCreatej \n" +
 	"\x11x-speakeasy-group\x12\v\x12\tnotifiersj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06create\x8a\xb5\x18\x13\n" +
-	"\x0fnotifier.create\x10\x03\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/v2/notifiers\x12\xee\x02\n" +
-	"\rListNotifiers\x12%.orq.platform.v1.ListNotifiersRequest\x1a&.orq.platform.v1.ListNotifiersResponse\"\x8d\x02\xbaG\xdf\x01\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06createj\x1a\n" +
+	"\vx-cli-group\x12\v\x12\tnotifiersj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06create\x8a\xb5\x18\x13\n" +
+	"\x0fnotifier.create\x10\x03\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/v2/notifiers\x12\xa0\x03\n" +
+	"\rListNotifiers\x12%.orq.platform.v1.ListNotifiersRequest\x1a&.orq.platform.v1.ListNotifiersResponse\"\xbf\x02\xbaG\x91\x02\n" +
 	"\tNotifiers\x12\x0eList notifiers\x1amReturns notifier destinations visible to the caller, ordered by creation time with the newest notifier first.*\fNotifierListj \n" +
 	"\x11x-speakeasy-group\x12\v\x12\tnotifiersj#\n" +
-	"\x19x-speakeasy-name-override\x12\x06\x12\x04list\x8a\xb5\x18\x11\n" +
-	"\rnotifier.list\x10\x03\x82\xd3\xe4\x93\x02\x0f\x12\r/v2/notifiers\x12\xb1\x02\n" +
-	"\vGetNotifier\x12#.orq.platform.v1.GetNotifierRequest\x1a$.orq.platform.v1.GetNotifierResponse\"\xd6\x01\xbaG\x9a\x01\n" +
+	"\x19x-speakeasy-name-override\x12\x06\x12\x04listj\x1a\n" +
+	"\vx-cli-group\x12\v\x12\tnotifiersj\x14\n" +
+	"\n" +
+	"x-cli-name\x12\x06\x12\x04list\x8a\xb5\x18\x11\n" +
+	"\rnotifier.list\x10\x03\x82\xd3\xe4\x93\x02\x0f\x12\r/v2/notifiers\x12\xe2\x02\n" +
+	"\vGetNotifier\x12#.orq.platform.v1.GetNotifierRequest\x1a$.orq.platform.v1.GetNotifierResponse\"\x87\x02\xbaG\xcb\x01\n" +
 	"\tNotifiers\x12\x13Retrieve a notifier\x1a%Retrieves an existing notifier by ID.*\vNotifierGetj \n" +
 	"\x11x-speakeasy-group\x12\v\x12\tnotifiersj\"\n" +
-	"\x19x-speakeasy-name-override\x12\x05\x12\x03get\x8a\xb5\x18\x11\n" +
-	"\rnotifier.view\x10\x03\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v2/notifiers/{notifier_id}\x12\x9d\x03\n" +
-	"\x0eUpdateNotifier\x12&.orq.platform.v1.UpdateNotifierRequest\x1a'.orq.platform.v1.UpdateNotifierResponse\"\xb9\x02\xbaG\xf8\x01\n" +
+	"\x19x-speakeasy-name-override\x12\x05\x12\x03getj\x1a\n" +
+	"\vx-cli-group\x12\v\x12\tnotifiersj\x13\n" +
+	"\n" +
+	"x-cli-name\x12\x05\x12\x03get\x8a\xb5\x18\x11\n" +
+	"\rnotifier.view\x10\x03\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v2/notifiers/{notifier_id}\x12\xd1\x03\n" +
+	"\x0eUpdateNotifier\x12&.orq.platform.v1.UpdateNotifierRequest\x1a'.orq.platform.v1.UpdateNotifierResponse\"\xed\x02\xbaG\xac\x02\n" +
 	"\tNotifiers\x12\x11Update a notifier\x1a\x7fPartially updates an existing notifier. When changing `type`, provide the destination fields required by the new notifier type.*\x0eNotifierUpdatej \n" +
 	"\x11x-speakeasy-group\x12\v\x12\tnotifiersj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06update\x8a\xb5\x18\x13\n" +
-	"\x0fnotifier.update\x10\x03\x82\xd3\xe4\x93\x02 :\x01*2\x1b/v2/notifiers/{notifier_id}\x12\xbe\x02\n" +
-	"\x0eDeleteNotifier\x12&.orq.platform.v1.DeleteNotifierRequest\x1a'.orq.platform.v1.DeleteNotifierResponse\"\xda\x01\xbaG\x9c\x01\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06updatej\x1a\n" +
+	"\vx-cli-group\x12\v\x12\tnotifiersj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06update\x8a\xb5\x18\x13\n" +
+	"\x0fnotifier.update\x10\x03\x82\xd3\xe4\x93\x02 :\x01*2\x1b/v2/notifiers/{notifier_id}\x12\xf2\x02\n" +
+	"\x0eDeleteNotifier\x12&.orq.platform.v1.DeleteNotifierRequest\x1a'.orq.platform.v1.DeleteNotifierResponse\"\x8e\x02\xbaG\xd0\x01\n" +
 	"\tNotifiers\x12\x11Delete a notifier\x1a#Deletes an existing notifier by ID.*\x0eNotifierDeletej \n" +
 	"\x11x-speakeasy-group\x12\v\x12\tnotifiersj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06delete\x8a\xb5\x18\x13\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06deletej\x1a\n" +
+	"\vx-cli-group\x12\v\x12\tnotifiersj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06delete\x8a\xb5\x18\x13\n" +
 	"\x0fnotifier.delete\x10\x03\x82\xd3\xe4\x93\x02\x1d*\x1b/v2/notifiers/{notifier_id}B\xae\x02\xbaGV:T\n" +
 	"\tNotifiers\x12GNotifier destinations used to send delivery and workflow notifications.\n" +
 	"\x13com.orq.platform.v1B\x0eNotifiersProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"

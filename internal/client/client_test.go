@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -98,14 +97,7 @@ func newRESTServer(t *testing.T, handler http.HandlerFunc) (srv *httptest.Server
 
 func TestRESTTransport_PathAndBearer(t *testing.T) {
 	srv, gotPath, gotAuth := newRESTServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"object": "list",
-			"data": []map[string]any{
-				{"_id": "rrl_1", "display_name": "R1", "enabled": true, "project_id": "", "created_at": "2020-01-01T00:00:00Z", "updated_at": "2020-01-01T00:00:00Z", "created_by_id": "u", "updated_by_id": "u", "priority": 0},
-			},
-			"has_more": false,
-		})
+		w.WriteHeader(http.StatusNoContent)
 	})
 
 	c, err := New(Config{URL: srv.URL, Token: sentinelToken})
@@ -113,18 +105,14 @@ func TestRESTTransport_PathAndBearer(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	page, err := c.RoutingRules().List(context.Background(), ListParams{Limit: 200})
-	if err != nil {
-		t.Fatalf("List: %v", err)
+	if err := c.Models().Delete(context.Background(), "model_1"); err != nil {
+		t.Fatalf("Delete: %v", err)
 	}
-	if *gotPath != "/v2/routing-rules" {
-		t.Errorf("REST path = %q, want /v2/routing-rules", *gotPath)
+	if *gotPath != "/v2/models/model_1" {
+		t.Errorf("REST path = %q, want /v2/models/model_1", *gotPath)
 	}
 	if want := "Bearer " + sentinelToken; *gotAuth != want {
 		t.Errorf("REST Authorization = %q, want %q", *gotAuth, want)
-	}
-	if len(page.Rules) != 1 || page.Rules[0].ID != "rrl_1" || !page.Rules[0].Enabled {
-		t.Errorf("unexpected routing rules: %+v", page.Rules)
 	}
 }
 
@@ -153,7 +141,7 @@ func TestRESTTransport_ErrorNormalization(t *testing.T) {
 			if err != nil {
 				t.Fatalf("New: %v", err)
 			}
-			_, err = c.RoutingRules().List(context.Background(), ListParams{})
+			err = c.Models().Delete(context.Background(), "model_1")
 			if err == nil {
 				t.Fatalf("expected error for status %d", tc.status)
 			}
@@ -161,7 +149,7 @@ func TestRESTTransport_ErrorNormalization(t *testing.T) {
 				t.Errorf("status %d normalized to %q, want %q", tc.status, got, tc.want)
 			}
 			// The normalized message must not leak a transport route name.
-			if strings.Contains(err.Error(), "/v2/routing-rules") {
+			if strings.Contains(err.Error(), "/v2/models") {
 				t.Errorf("error leaks REST route: %q", err.Error())
 			}
 		})

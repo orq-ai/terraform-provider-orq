@@ -33,8 +33,7 @@ type Project struct {
 	ProjectId string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Human-readable project name.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Stable project key generated from the name and used by internal
-	// workspace navigation.
+	// Stable project key generated from the name.
 	Key string `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
 	// Workspace that owns the project. Hidden from the public OpenAPI
 	// schema because workspace scope is inferred from authentication.
@@ -288,10 +287,10 @@ type ListProjectsRequest struct {
 	// Page size, 1-200. Unset uses the server default.
 	Limit *int32 `protobuf:"varint,1,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
 	// Cursor for forward pagination. Set to the `project_id` of the last
-	// item from the previous page.
+	// item from the previous page. Mutually exclusive with `ending_before`.
 	StartingAfter string `protobuf:"bytes,2,opt,name=starting_after,json=startingAfter,proto3" json:"starting_after,omitempty"`
 	// Cursor for backward pagination. Set to the `project_id` of the first
-	// item from the previous page.
+	// item from the previous page. Mutually exclusive with `starting_after`.
 	EndingBefore  string `protobuf:"bytes,3,opt,name=ending_before,json=endingBefore,proto3" json:"ending_before,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -775,39 +774,59 @@ const file_orq_platform_v1_projects_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId:\x10\xbaG\r\xba\x01\n" +
 	"project_id\"\x17\n" +
-	"\x15DeleteProjectResponse2\x9a\x0f\n" +
-	"\x0fProjectsService\x12\xb4\x03\n" +
-	"\rCreateProject\x12%.orq.platform.v1.CreateProjectRequest\x1a&.orq.platform.v1.CreateProjectResponse\"\xd3\x02\xbaG\xa2\x02\n" +
-	"\bProjects\x12\x14Create a new project\x1a\xa8\x01Creates a project in the current workspace. Projects are workspace-level containers for resources such as skills, deployments, datasets, rules, and related team access.*\rProjectCreatej\x1f\n" +
+	"\x15DeleteProjectResponse2\xa4\x15\n" +
+	"\x0fProjectsService\x12\x89\x05\n" +
+	"\rCreateProject\x12%.orq.platform.v1.CreateProjectRequest\x1a&.orq.platform.v1.CreateProjectResponse\"\xa8\x04\xbaG\xf7\x03\n" +
+	"\bProjects\x12\x14Create a new project\x1a\xca\x02Creates a project in the current workspace. Projects are workspace-level containers for resources such as skills, deployments, datasets, rules, and related team access. Requires a workspace-scoped management key or API key with Projects write access, or an admin session. Project-scoped API keys cannot be granted Projects access.*\rProjectCreatej\x1f\n" +
 	"\x11x-speakeasy-group\x12\n" +
 	"\x12\bprojectsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06create\x8a\xb5\x18\x12\n" +
-	"\x0eproject.create\x10\x02\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v2/projects\x12\xb2\x03\n" +
-	"\fListProjects\x12$.orq.platform.v1.ListProjectsRequest\x1a%.orq.platform.v1.ListProjectsResponse\"\xd4\x02\xbaG\xa8\x02\n" +
-	"\bProjects\x12\x11List all projects\x1a\xb5\x01Returns projects visible to the current workspace, ordered by creation time with the newest project first. Use `starting_after` or `ending_before` to page through large collections.*\vProjectListj\x1f\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06createj\x19\n" +
+	"\vx-cli-group\x12\n" +
+	"\x12\bprojectsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06create\x8a\xb5\x18\x12\n" +
+	"\x0eproject.create\x10\x02\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v2/projects\x12\x8b\x04\n" +
+	"\fListProjects\x12$.orq.platform.v1.ListProjectsRequest\x1a%.orq.platform.v1.ListProjectsResponse\"\xad\x03\xbaG\x81\x03\n" +
+	"\bProjects\x12\x11List all projects\x1a\xdd\x01Returns projects visible to the current workspace, ordered by creation time with the newest project first. Use `starting_after` or `ending_before` to page through large collections; the two cursors are mutually exclusive.*\vProjectListj\x1f\n" +
 	"\x11x-speakeasy-group\x12\n" +
 	"\x12\bprojectsj#\n" +
-	"\x19x-speakeasy-name-override\x12\x06\x12\x04list\x8a\xb5\x18\x10\n" +
-	"\fproject.list\x10\x02\x82\xd3\xe4\x93\x02\x0e\x12\f/v2/projects\x12\xc8\x02\n" +
+	"\x19x-speakeasy-name-override\x12\x06\x12\x04listj\x19\n" +
+	"\vx-cli-group\x12\n" +
+	"\x12\bprojectsj\x14\n" +
 	"\n" +
-	"GetProject\x12\".orq.platform.v1.GetProjectRequest\x1a#.orq.platform.v1.GetProjectResponse\"\xf0\x01\xbaG\xb7\x01\n" +
+	"x-cli-name\x12\x06\x12\x04list\x8a\xb5\x18\x10\n" +
+	"\fproject.list\x10\x02\x82\xd3\xe4\x93\x02\x0e\x12\f/v2/projects\x12\xf8\x02\n" +
+	"\n" +
+	"GetProject\x12\".orq.platform.v1.GetProjectRequest\x1a#.orq.platform.v1.GetProjectResponse\"\xa0\x02\xbaG\xe7\x01\n" +
 	"\bProjects\x12\x12Retrieve a project\x1aFRetrieves the details of an existing project by its unique project ID.*\n" +
 	"ProjectGetj\x1f\n" +
 	"\x11x-speakeasy-group\x12\n" +
 	"\x12\bprojectsj\"\n" +
-	"\x19x-speakeasy-name-override\x12\x05\x12\x03get\x8a\xb5\x18\x10\n" +
-	"\fproject.view\x10\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v2/projects/{project_id}\x12\xe1\x02\n" +
-	"\rUpdateProject\x12%.orq.platform.v1.UpdateProjectRequest\x1a&.orq.platform.v1.UpdateProjectResponse\"\x80\x02\xbaG\xc2\x01\n" +
-	"\bProjects\x12\x10Update a project\x1aMUpdates the specified project by setting the values of the parameters passed.*\rProjectUpdatej\x1f\n" +
+	"\x19x-speakeasy-name-override\x12\x05\x12\x03getj\x19\n" +
+	"\vx-cli-group\x12\n" +
+	"\x12\bprojectsj\x13\n" +
+	"\n" +
+	"x-cli-name\x12\x05\x12\x03get\x8a\xb5\x18\x10\n" +
+	"\fproject.view\x10\x03\x82\xd3\xe4\x93\x02\x1b\x12\x19/v2/projects/{project_id}\x12\xb7\x04\n" +
+	"\rUpdateProject\x12%.orq.platform.v1.UpdateProjectRequest\x1a&.orq.platform.v1.UpdateProjectResponse\"\xd6\x03\xbaG\x98\x03\n" +
+	"\bProjects\x12\x10Update a project\x1a\xef\x01Updates the specified project by setting the values of the parameters passed. Requires a workspace-scoped management key or API key with Projects write access, or an admin session. Project-scoped API keys cannot be granted Projects access.*\rProjectUpdatej\x1f\n" +
 	"\x11x-speakeasy-group\x12\n" +
 	"\x12\bprojectsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06update\x8a\xb5\x18\x12\n" +
-	"\x0eproject.update\x10\x02\x82\xd3\xe4\x93\x02\x1e:\x01*2\x19/v2/projects/{project_id}\x12\xeb\x02\n" +
-	"\rDeleteProject\x12%.orq.platform.v1.DeleteProjectRequest\x1a&.orq.platform.v1.DeleteProjectResponse\"\x8a\x02\xbaG\xcf\x01\n" +
-	"\bProjects\x12\x10Delete a project\x1aZDeletes a project from the workspace. The response body is empty when the delete succeeds.*\rProjectDeletej\x1f\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06updatej\x19\n" +
+	"\vx-cli-group\x12\n" +
+	"\x12\bprojectsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06update\x8a\xb5\x18\x12\n" +
+	"\x0eproject.update\x10\x02\x82\xd3\xe4\x93\x02\x1e:\x01*2\x19/v2/projects/{project_id}\x12\xc1\x04\n" +
+	"\rDeleteProject\x12%.orq.platform.v1.DeleteProjectRequest\x1a&.orq.platform.v1.DeleteProjectResponse\"\xe0\x03\xbaG\xa5\x03\n" +
+	"\bProjects\x12\x10Delete a project\x1a\xfc\x01Deletes a project from the workspace. The response body is empty when the delete succeeds. Requires a workspace-scoped management key or API key with Projects write access, or an admin session. Project-scoped API keys cannot be granted Projects access.*\rProjectDeletej\x1f\n" +
 	"\x11x-speakeasy-group\x12\n" +
 	"\x12\bprojectsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06delete\x8a\xb5\x18\x12\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06deletej\x19\n" +
+	"\vx-cli-group\x12\n" +
+	"\x12\bprojectsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06delete\x8a\xb5\x18\x12\n" +
 	"\x0eproject.delete\x10\x02\x82\xd3\xe4\x93\x02\x1b*\x19/v2/projects/{project_id}B\x82\x03\xbaG\xaa\x01*P:N\n" +
 	"\x1f\n" +
 	"\x06Bearer\x12\x15\n" +

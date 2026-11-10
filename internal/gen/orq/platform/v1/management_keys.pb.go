@@ -134,9 +134,8 @@ func (ManagementKeyStatus) EnumDescriptor() ([]byte, []int) {
 	return file_orq_platform_v1_management_keys_proto_rawDescGZIP(), []int{1}
 }
 
-// ManagementKey is the canonical record stored in MongoDB
-// `auth.managementKeys`. It is the source of truth for permissions,
-// expiration, and revocation. Management keys are always
+// ManagementKey defines permissions, expiration, and revocation for a
+// management key. Management keys are always
 // workspace-scoped — there is no project_scope field, and they have no
 // per-user owner (every management key is workspace-owned;
 // `created_by_id` records who created it).
@@ -152,10 +151,9 @@ type ManagementKey struct {
 	// `access` map.
 	PermissionMode ManagementPermissionMode `protobuf:"varint,4,opt,name=permission_mode,json=permissionMode,proto3,enum=orq.platform.v1.ManagementPermissionMode" json:"permission_mode,omitempty"`
 	// Per-domain access map. Only populated when `permission_mode` is
-	// `MANAGEMENT_PERMISSION_MODE_RESTRICTED`. Valid keys are the Domain.id
-	// values in the management capability catalog — see
-	// libs/catalog/orq/managementkeys/v1/catalog.textpb for the canonical
-	// list.
+	// `MANAGEMENT_PERMISSION_MODE_RESTRICTED`. The authoritative list of
+	// valid keys (Domain.id values) is returned by the List management
+	// capability catalog endpoint (GET /v2/management-keys/capabilities).
 	Access map[string]v1.AccessLevel `protobuf:"bytes,5,rep,name=access,proto3" json:"access,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=orq.managementkeys.v1.AccessLevel"`
 	// Displayable prefix for UI listings (e.g. "sk-orq-01HXY..."). Safe
 	// to expose.
@@ -174,8 +172,8 @@ type ManagementKey struct {
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Last authenticated use.
 	LastUsedAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
-	// Optional expiration. The authenticate hot-path rejects keys whose
-	// `expires_at` is in the past. Unset means the key never expires.
+	// Optional expiration. Keys whose `expires_at` is in the past are
+	// rejected when used. Unset means the key never expires.
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -306,7 +304,8 @@ type CreateManagementKeyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Human-readable name. Required.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Permission preset. Defaults to MANAGEMENT_PERMISSION_MODE_ALL when omitted.
+	// Permission preset. Required; an omitted or unspecified value is
+	// rejected with INVALID_ARGUMENT rather than defaulted to full access.
 	PermissionMode ManagementPermissionMode `protobuf:"varint,3,opt,name=permission_mode,json=permissionMode,proto3,enum=orq.platform.v1.ManagementPermissionMode" json:"permission_mode,omitempty"`
 	// Per-domain access map. Required when `permission_mode` =
 	// `MANAGEMENT_PERMISSION_MODE_RESTRICTED`. See `ManagementKey.access`
@@ -314,9 +313,8 @@ type CreateManagementKeyRequest struct {
 	// values, or fetch the live catalog via the capability catalog
 	// endpoint.
 	Access map[string]v1.AccessLevel `protobuf:"bytes,4,rep,name=access,proto3" json:"access,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=orq.managementkeys.v1.AccessLevel"`
-	// Optional expiration. When set, the authenticate hot-path rejects
-	// the key once `expires_at` is in the past. Unset means the key
-	// never expires.
+	// Optional expiration. The key is rejected once `expires_at` is in the
+	// past. Unset means the key never expires.
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -690,7 +688,8 @@ type UpdateManagementKeyRequest struct {
 	ManagementKeyId string `protobuf:"bytes,1,opt,name=management_key_id,json=managementKeyId,proto3" json:"management_key_id,omitempty"`
 	// New name. Omit to keep current.
 	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	// New lifecycle status. Omit to keep current.
+	// New lifecycle status. Omit to keep current. A revoked key cannot
+	// change status; the call fails with FAILED_PRECONDITION.
 	Status *ManagementKeyStatus `protobuf:"varint,3,opt,name=status,proto3,enum=orq.platform.v1.ManagementKeyStatus,oneof" json:"status,omitempty"`
 	// New permission preset. Omit to keep current.
 	PermissionMode *ManagementPermissionMode `protobuf:"varint,4,opt,name=permission_mode,json=permissionMode,proto3,enum=orq.platform.v1.ManagementPermissionMode,oneof" json:"permission_mode,omitempty"`
@@ -951,7 +950,7 @@ func (*ListManagementCapabilitiesRequest) Descriptor() ([]byte, []int) {
 type ListManagementCapabilitiesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Full management capability catalog.
-	Domains       []*v1.Domain `protobuf:"bytes,1,rep,name=domains,proto3" json:"domains,omitempty"`
+	Domains       []*v1.ManagementDomain `protobuf:"bytes,1,rep,name=domains,proto3" json:"domains,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -986,7 +985,7 @@ func (*ListManagementCapabilitiesResponse) Descriptor() ([]byte, []int) {
 	return file_orq_platform_v1_management_keys_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *ListManagementCapabilitiesResponse) GetDomains() []*v1.Domain {
+func (x *ListManagementCapabilitiesResponse) GetDomains() []*v1.ManagementDomain {
 	if x != nil {
 		return x.Domains
 	}
@@ -1025,7 +1024,7 @@ const file_orq_platform_v1_management_keys_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x0e2\".orq.managementkeys.v1.AccessLevelR\x05value:\x028\x01:b\xbaG_\xba\x01\x11management_key_id\xba\x01\x04name\xba\x01\x0fpermission_mode\xba\x01\ftoken_prefix\xba\x01\x06status\xba\x01\n" +
 	"created_at\xba\x01\n" +
 	"updated_atB\r\n" +
-	"\v_expires_atJ\x04\b\x03\x10\x04R\x05owner\"\xa8\x03\n" +
+	"\v_expires_atJ\x04\b\x03\x10\x04R\x05owner\"\xba\x03\n" +
 	"\x1aCreateManagementKeyRequest\x12\x1e\n" +
 	"\x04name\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x04name\x12R\n" +
@@ -1035,8 +1034,7 @@ const file_orq_platform_v1_management_keys_proto_rawDesc = "" +
 	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\texpiresAt\x88\x01\x01\x1a]\n" +
 	"\vAccessEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x128\n" +
-	"\x05value\x18\x02 \x01(\x0e2\".orq.managementkeys.v1.AccessLevelR\x05value:\x028\x01:\n" +
-	"\xbaG\a\xba\x01\x04nameB\r\n" +
+	"\x05value\x18\x02 \x01(\x0e2\".orq.managementkeys.v1.AccessLevelR\x05value:\x028\x01:\x1c\xbaG\x19\xba\x01\x04name\xba\x01\x0fpermission_modeB\r\n" +
 	"\v_expires_atJ\x04\b\x02\x10\x03R\x05owner\"\x98\x01\n" +
 	"\x1bCreateManagementKeyResponse\x12E\n" +
 	"\x0emanagement_key\x18\x01 \x01(\v2\x1e.orq.platform.v1.ManagementKeyR\rmanagementKey\x12\x14\n" +
@@ -1083,9 +1081,9 @@ const file_orq_platform_v1_management_keys_proto_rawDesc = "" +
 	"\x1aDeleteManagementKeyRequest\x123\n" +
 	"\x11management_key_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0fmanagementKeyId:\x17\xbaG\x14\xba\x01\x11management_key_id\"\x1d\n" +
 	"\x1bDeleteManagementKeyResponse\"#\n" +
-	"!ListManagementCapabilitiesRequest\"l\n" +
-	"\"ListManagementCapabilitiesResponse\x127\n" +
-	"\adomains\x18\x01 \x03(\v2\x1d.orq.managementkeys.v1.DomainR\adomains:\r\xbaG\n" +
+	"!ListManagementCapabilitiesRequest\"v\n" +
+	"\"ListManagementCapabilitiesResponse\x12A\n" +
+	"\adomains\x18\x01 \x03(\v2'.orq.managementkeys.v1.ManagementDomainR\adomains:\r\xbaG\n" +
 	"\xba\x01\adomains*\xbf\x01\n" +
 	"\x18ManagementPermissionMode\x12*\n" +
 	"&MANAGEMENT_PERMISSION_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
@@ -1096,37 +1094,55 @@ const file_orq_platform_v1_management_keys_proto_rawDesc = "" +
 	"!MANAGEMENT_KEY_STATUS_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cMANAGEMENT_KEY_STATUS_ACTIVE\x10\x01\x12\"\n" +
 	"\x1eMANAGEMENT_KEY_STATUS_DISABLED\x10\x02\x12!\n" +
-	"\x1dMANAGEMENT_KEY_STATUS_REVOKED\x10\x032\xcc\x19\n" +
-	"\x15ManagementKeysService\x12\xb5\x04\n" +
-	"\x13CreateManagementKey\x12+.orq.platform.v1.CreateManagementKeyRequest\x1a,.orq.platform.v1.CreateManagementKeyResponse\"\xc2\x03\xbaG\x83\x03\n" +
+	"\x1dMANAGEMENT_KEY_STATUS_REVOKED\x10\x032\xad\x1c\n" +
+	"\x15ManagementKeysService\x12\xef\x04\n" +
+	"\x13CreateManagementKey\x12+.orq.platform.v1.CreateManagementKeyRequest\x1a,.orq.platform.v1.CreateManagementKeyResponse\"\xfc\x03\xbaG\xbd\x03\n" +
 	"\x0fManagement keys\x12\x1bCreate a new management key\x1a\xef\x01Mints a new opaque management key (`sk-orq-<key_id>-<secret>`) in the workspace. The raw secret is returned ONCE in the response and is never retrievable afterwards. The stored record retains only `token_prefix` and a SHA-256 `token_hash`.*\x13ManagementKeyCreatej%\n" +
 	"\x11x-speakeasy-group\x12\x10\x12\x0emanagementKeysj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06create\x8a\xb5\x18\x19\n" +
-	"\x15management-key.create\x10\x02\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/v2/management-keys\x12\x84\x04\n" +
-	"\x12ListManagementKeys\x12*.orq.platform.v1.ListManagementKeysRequest\x1a+.orq.platform.v1.ListManagementKeysResponse\"\x94\x03\xbaG\xda\x02\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06createj \n" +
+	"\vx-cli-group\x12\x11\x12\x0fmanagement-keysj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06create\x8a\xb5\x18\x19\n" +
+	"\x15management-key.create\x10\x02\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/v2/management-keys\x12\xbc\x04\n" +
+	"\x12ListManagementKeys\x12*.orq.platform.v1.ListManagementKeysRequest\x1a+.orq.platform.v1.ListManagementKeysResponse\"\xcc\x03\xbaG\x92\x03\n" +
 	"\x0fManagement keys\x12\x14List management keys\x1a\xd1\x01Returns management keys in the current workspace, ordered by creation time with the newest key first. The `api_key` and `token_hash` fields are never returned by this endpoint; only `token_prefix` is included.*\x11ManagementKeyListj%\n" +
 	"\x11x-speakeasy-group\x12\x10\x12\x0emanagementKeysj#\n" +
-	"\x19x-speakeasy-name-override\x12\x06\x12\x04list\x8a\xb5\x18\x17\n" +
-	"\x13management-key.list\x10\x02\x82\xd3\xe4\x93\x02\x15\x12\x13/v2/management-keys\x12\xf6\x03\n" +
-	"\x10GetManagementKey\x12(.orq.platform.v1.GetManagementKeyRequest\x1a).orq.platform.v1.GetManagementKeyResponse\"\x8c\x03\xbaG\xbe\x02\n" +
+	"\x19x-speakeasy-name-override\x12\x06\x12\x04listj \n" +
+	"\vx-cli-group\x12\x11\x12\x0fmanagement-keysj\x14\n" +
+	"\n" +
+	"x-cli-name\x12\x06\x12\x04list\x8a\xb5\x18\x17\n" +
+	"\x13management-key.list\x10\x02\x82\xd3\xe4\x93\x02\x15\x12\x13/v2/management-keys\x12\xad\x04\n" +
+	"\x10GetManagementKey\x12(.orq.platform.v1.GetManagementKeyRequest\x1a).orq.platform.v1.GetManagementKeyResponse\"\xc3\x03\xbaG\xf5\x02\n" +
 	"\x0fManagement keys\x12\x19Retrieve a management key\x1a\xb2\x01Retrieves the metadata for an existing management key by its unique identifier. The raw secret is never returned — only `token_prefix`, `permission_mode`, and lifecycle fields.*\x10ManagementKeyGetj%\n" +
 	"\x11x-speakeasy-group\x12\x10\x12\x0emanagementKeysj\"\n" +
-	"\x19x-speakeasy-name-override\x12\x05\x12\x03get\x8a\xb5\x18\x17\n" +
-	"\x13management-key.view\x10\x02\x82\xd3\xe4\x93\x02)\x12'/v2/management-keys/{management_key_id}\x12\x8b\x04\n" +
-	"\x13UpdateManagementKey\x12+.orq.platform.v1.UpdateManagementKeyRequest\x1a,.orq.platform.v1.UpdateManagementKeyResponse\"\x98\x03\xbaG\xc5\x02\n" +
+	"\x19x-speakeasy-name-override\x12\x05\x12\x03getj \n" +
+	"\vx-cli-group\x12\x11\x12\x0fmanagement-keysj\x13\n" +
+	"\n" +
+	"x-cli-name\x12\x05\x12\x03get\x8a\xb5\x18\x17\n" +
+	"\x13management-key.view\x10\x02\x82\xd3\xe4\x93\x02)\x12'/v2/management-keys/{management_key_id}\x12\xc5\x04\n" +
+	"\x13UpdateManagementKey\x12+.orq.platform.v1.UpdateManagementKeyRequest\x1a,.orq.platform.v1.UpdateManagementKeyResponse\"\xd2\x03\xbaG\xff\x02\n" +
 	"\x0fManagement keys\x12\x17Update a management key\x1a\xb5\x01Updates mutable fields of a management key: display name, status (active / disabled / revoked), permission mode and access map, and expiry. Omitted fields keep their current values.*\x13ManagementKeyUpdatej%\n" +
 	"\x11x-speakeasy-group\x12\x10\x12\x0emanagementKeysj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06update\x8a\xb5\x18\x19\n" +
-	"\x15management-key.update\x10\x02\x82\xd3\xe4\x93\x02,:\x01*2'/v2/management-keys/{management_key_id}\x12\xf8\x03\n" +
-	"\x13DeleteManagementKey\x12+.orq.platform.v1.DeleteManagementKeyRequest\x1a,.orq.platform.v1.DeleteManagementKeyResponse\"\x85\x03\xbaG\xb5\x02\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06updatej \n" +
+	"\vx-cli-group\x12\x11\x12\x0fmanagement-keysj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06update\x8a\xb5\x18\x19\n" +
+	"\x15management-key.update\x10\x02\x82\xd3\xe4\x93\x02,:\x01*2'/v2/management-keys/{management_key_id}\x12\xb2\x04\n" +
+	"\x13DeleteManagementKey\x12+.orq.platform.v1.DeleteManagementKeyRequest\x1a,.orq.platform.v1.DeleteManagementKeyResponse\"\xbf\x03\xbaG\xef\x02\n" +
 	"\x0fManagement keys\x12\x17Delete a management key\x1a\xa5\x01Permanently deletes a management key. Cache entries are invalidated immediately so an in-flight token cannot ride out the TTL. The response body is empty on success.*\x13ManagementKeyDeletej%\n" +
 	"\x11x-speakeasy-group\x12\x10\x12\x0emanagementKeysj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06delete\x8a\xb5\x18\x19\n" +
-	"\x15management-key.delete\x10\x02\x82\xd3\xe4\x93\x02)*'/v2/management-keys/{management_key_id}\x12\xf1\x04\n" +
-	"\x1aListManagementCapabilities\x122.orq.platform.v1.ListManagementCapabilitiesRequest\x1a3.orq.platform.v1.ListManagementCapabilitiesResponse\"\xe9\x03\xbaG\xb7\x03\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06deletej \n" +
+	"\vx-cli-group\x12\x11\x12\x0fmanagement-keysj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06delete\x8a\xb5\x18\x19\n" +
+	"\x15management-key.delete\x10\x02\x82\xd3\xe4\x93\x02)*'/v2/management-keys/{management_key_id}\x12\xb5\x05\n" +
+	"\x1aListManagementCapabilities\x122.orq.platform.v1.ListManagementCapabilitiesRequest\x1a3.orq.platform.v1.ListManagementCapabilitiesResponse\"\xad\x04\xbaG\xfb\x03\n" +
 	"\x0fManagement keys\x12\"List management capability catalog\x1a\x88\x02Returns the management capability catalog: the set of workspace-admin permission domains that can be granted to a management key. Each entry includes the domain id, display name, group, and the read / write verb support. Drives the permissions UI in the dashboard.*\x1dManagementKeyListCapabilitiesj%\n" +
 	"\x11x-speakeasy-group\x12\x10\x12\x0emanagementKeysj/\n" +
-	"\x19x-speakeasy-name-override\x12\x12\x12\x10listCapabilities\x8a\xb5\x18\x02\x10\x01\x82\xd3\xe4\x93\x02\"\x12 /v2/management-keys/capabilitiesB\xde\x03\xbaG\x80\x02:\xfd\x01\n" +
+	"\x19x-speakeasy-name-override\x12\x12\x12\x10listCapabilitiesj \n" +
+	"\vx-cli-group\x12\x11\x12\x0fmanagement-keysj \n" +
+	"\n" +
+	"x-cli-name\x12\x12\x12\x10listCapabilities\x8a\xb5\x18\x02\x10\x01\x82\xd3\xe4\x93\x02\"\x12 /v2/management-keys/capabilitiesB\xde\x03\xbaG\x80\x02:\xfd\x01\n" +
 	"\x0fManagement keys\x12\xe9\x01Management keys are workspace-scoped credentials that authenticate programmatic access to workspace administration surfaces (API keys, budgets). Unlike project-scoped API keys, a management key always operates at the workspace level.\n" +
 	"\x13com.orq.platform.v1B\x13ManagementKeysProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"
 
@@ -1164,7 +1180,7 @@ var file_orq_platform_v1_management_keys_proto_goTypes = []any{
 	nil,                           // 16: orq.platform.v1.CreateManagementKeyRequest.AccessEntry
 	nil,                           // 17: orq.platform.v1.UpdateManagementKeyRequest.AccessEntry
 	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
-	(*v1.Domain)(nil),             // 19: orq.managementkeys.v1.Domain
+	(*v1.ManagementDomain)(nil),   // 19: orq.managementkeys.v1.ManagementDomain
 	(v1.AccessLevel)(0),           // 20: orq.managementkeys.v1.AccessLevel
 }
 var file_orq_platform_v1_management_keys_proto_depIdxs = []int32{
@@ -1188,7 +1204,7 @@ var file_orq_platform_v1_management_keys_proto_depIdxs = []int32{
 	17, // 17: orq.platform.v1.UpdateManagementKeyRequest.access:type_name -> orq.platform.v1.UpdateManagementKeyRequest.AccessEntry
 	18, // 18: orq.platform.v1.UpdateManagementKeyRequest.expires_at:type_name -> google.protobuf.Timestamp
 	2,  // 19: orq.platform.v1.UpdateManagementKeyResponse.management_key:type_name -> orq.platform.v1.ManagementKey
-	19, // 20: orq.platform.v1.ListManagementCapabilitiesResponse.domains:type_name -> orq.managementkeys.v1.Domain
+	19, // 20: orq.platform.v1.ListManagementCapabilitiesResponse.domains:type_name -> orq.managementkeys.v1.ManagementDomain
 	20, // 21: orq.platform.v1.ManagementKey.AccessEntry.value:type_name -> orq.managementkeys.v1.AccessLevel
 	20, // 22: orq.platform.v1.CreateManagementKeyRequest.AccessEntry.value:type_name -> orq.managementkeys.v1.AccessLevel
 	20, // 23: orq.platform.v1.UpdateManagementKeyRequest.AccessEntry.value:type_name -> orq.managementkeys.v1.AccessLevel

@@ -1,0 +1,357 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Guardrail Rules"
+      description: "Guardrail Rules conditionally enforce evaluators and plugins for AI Gateway traffic. Rules may be scoped to a project or the whole workspace."
+    }
+  ]
+};
+
+service GuardrailRulesService {
+  rpc CreateGuardrailRule(CreateGuardrailRuleRequest) returns (CreateGuardrailRuleResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "guardrail-rule.create"
+      scope: AUTHZ_SCOPE_PROJECT
+      project_id_field: "project_id"
+    };
+    option (google.api.http) = {
+      post: "/v2/guardrail-rules"
+      body: "*"
+      response_body: "guardrail_rule"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create a guardrail rule"
+      description: "Creates a guardrail rule with metadata and optional evaluator, plugin, and matching configuration. Rules default to disabled when `enabled` is omitted."
+      operation_id: "GuardrailRuleCreate"
+      tags: ["Guardrail Rules"]
+      specification_extension: [
+        {name: "x-speakeasy-group" value: {yaml: "guardrailRules"}},
+        {name: "x-speakeasy-name-override" value: {yaml: "create"}},
+        {name: "x-cli-hidden" value: {yaml: "true"}},
+        {name: "x-cli-group" value: {yaml: "guardrailRules"}},
+        {name: "x-cli-name" value: {yaml: "create"}}
+      ]
+    };
+  }
+
+  rpc ListGuardrailRules(ListGuardrailRulesRequest) returns (ListGuardrailRulesResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "guardrail-rule.list"
+      scope: AUTHZ_SCOPE_PROJECT
+      project_id_field: "project_id"
+    };
+    option (google.api.http) = {get: "/v2/guardrail-rules"};
+    option (openapi.v3.operation) = {
+      summary: "List guardrail rules"
+      description: "Returns guardrail rules with cursor pagination, search, status, project, sort, and referenced-guardrail filters."
+      operation_id: "GuardrailRuleList"
+      tags: ["Guardrail Rules"]
+      specification_extension: [
+        {name: "x-speakeasy-group" value: {yaml: "guardrailRules"}},
+        {name: "x-speakeasy-name-override" value: {yaml: "list"}},
+        {name: "x-cli-hidden" value: {yaml: "true"}},
+        {name: "x-cli-group" value: {yaml: "guardrailRules"}},
+        {name: "x-cli-name" value: {yaml: "list"}}
+      ]
+    };
+  }
+
+  rpc ListGuardrailRuleUsedGuardrails(ListGuardrailRuleUsedGuardrailsRequest) returns (ListGuardrailRuleUsedGuardrailsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "guardrail-rule.list"
+      scope: AUTHZ_SCOPE_PROJECT
+      project_id_field: "project_id"
+    };
+    option (google.api.http) = {get: "/v2/guardrail-rules/used-guardrails"};
+    option (openapi.v3.operation) = {
+      summary: "List guardrails used by guardrail rules"
+      description: "Returns the distinct guardrail identifiers used by guardrail rules in the requested scope."
+      operation_id: "GuardrailRuleListUsedGuardrails"
+      tags: ["Guardrail Rules"]
+      specification_extension: [
+        {name: "x-speakeasy-group" value: {yaml: "guardrailRules"}},
+        {name: "x-speakeasy-name-override" value: {yaml: "listUsedGuardrails"}},
+        {name: "x-cli-hidden" value: {yaml: "true"}},
+        {name: "x-cli-group" value: {yaml: "guardrailRules"}},
+        {name: "x-cli-name" value: {yaml: "listUsedGuardrails"}}
+      ]
+    };
+  }
+
+  rpc GetGuardrailRule(GetGuardrailRuleRequest) returns (GetGuardrailRuleResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "guardrail-rule.view"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {
+      get: "/v2/guardrail-rules/{guardrail_rule_id}"
+      response_body: "guardrail_rule"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Retrieve a guardrail rule"
+      description: "Retrieves a guardrail rule by its unique identifier."
+      operation_id: "GuardrailRuleGet"
+      tags: ["Guardrail Rules"]
+      specification_extension: [
+        {name: "x-speakeasy-group" value: {yaml: "guardrailRules"}},
+        {name: "x-speakeasy-name-override" value: {yaml: "retrieve"}},
+        {name: "x-cli-hidden" value: {yaml: "true"}},
+        {name: "x-cli-group" value: {yaml: "guardrailRules"}},
+        {name: "x-cli-name" value: {yaml: "retrieve"}}
+      ]
+    };
+  }
+
+  rpc UpdateGuardrailRule(UpdateGuardrailRuleRequest) returns (UpdateGuardrailRuleResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "guardrail-rule.update"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {
+      patch: "/v2/guardrail-rules/{guardrail_rule_id}"
+      body: "*"
+      response_body: "guardrail_rule"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update a guardrail rule"
+      description: "Partially updates guardrail-rule metadata or configuration. Project scope is immutable."
+      operation_id: "GuardrailRuleUpdate"
+      tags: ["Guardrail Rules"]
+      specification_extension: [
+        {name: "x-speakeasy-group" value: {yaml: "guardrailRules"}},
+        {name: "x-speakeasy-name-override" value: {yaml: "update"}},
+        {name: "x-cli-hidden" value: {yaml: "true"}},
+        {name: "x-cli-group" value: {yaml: "guardrailRules"}},
+        {name: "x-cli-name" value: {yaml: "update"}}
+      ]
+    };
+  }
+
+  rpc DeleteGuardrailRule(DeleteGuardrailRuleRequest) returns (DeleteGuardrailRuleResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "guardrail-rule.delete"
+      scope: AUTHZ_SCOPE_PROJECT
+    };
+    option (google.api.http) = {delete: "/v2/guardrail-rules/{guardrail_rule_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete a guardrail rule"
+      description: "Permanently deletes a guardrail rule."
+      operation_id: "GuardrailRuleDelete"
+      tags: ["Guardrail Rules"]
+      specification_extension: [
+        {name: "x-speakeasy-group" value: {yaml: "guardrailRules"}},
+        {name: "x-speakeasy-name-override" value: {yaml: "delete"}},
+        {name: "x-cli-hidden" value: {yaml: "true"}},
+        {name: "x-cli-group" value: {yaml: "guardrailRules"}},
+        {name: "x-cli-name" value: {yaml: "delete"}}
+      ]
+    };
+  }
+}
+
+message GuardrailRule {
+  option (openapi.v3.schema) = {
+    required: [
+      "id",
+      "created_at",
+      "updated_at",
+      "created_by_id",
+      "updated_by_id",
+      "project_id",
+      "display_name",
+      "description",
+      "enabled",
+      "guardrails",
+      "plugins"
+    ]
+  };
+
+  reserved 13;
+  reserved "timeout";
+
+  string id = 1 [json_name = "_id"];
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp updated_at = 3;
+  string created_by_id = 4;
+  string updated_by_id = 5;
+  string project_id = 6 [(openapi.v3.property) = {description: "Project that contains the rule. Empty for workspace-wide rules."}];
+  string display_name = 7 [(openapi.v3.property) = {description: "Human-readable guardrail-rule name."}];
+  string description = 8;
+  bool enabled = 9;
+  GuardrailRuleExpression expression = 10;
+  repeated GuardrailRuleGuardrail guardrails = 11;
+  repeated GuardrailRulePlugin plugins = 12;
+}
+
+message GuardrailRuleExpression {
+  google.protobuf.Struct config = 1;
+  string cel = 2 [
+    (buf.validate.field).string.max_len = 2000,
+    (openapi.v3.property) = {description: "CEL expression used to match requests. Empty means the rule always matches."}
+  ];
+}
+
+message GuardrailRuleGuardrail {
+  option (openapi.v3.schema) = {required: ["id", "execute_on"]};
+
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  string execute_on = 2 [(buf.validate.field).string = {
+    in: ["input", "output", "both"]
+  }];
+  optional double sample_rate = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  optional bool is_guardrail = 4;
+  google.protobuf.Struct options = 5;
+}
+
+message GuardrailRulePlugin {
+  string id = 1 [
+    (buf.validate.field).string = {
+      in: ["pii_redaction", "response_healing", "response-healing"]
+    },
+    (openapi.v3.property) = {description: "Plugin discriminator."}
+  ];
+  // Languages, regions and entity types are checked against the live
+  // pii-detection capabilities catalog when the rule is saved, not pinned
+  // here, so a language or region the detector gains becomes writable without
+  // a future update.
+  optional string language = 2;
+  repeated string entities = 3 [(openapi.v3.property) = {description: "Entity types to redact. On their own a strict allowlist; alongside regions they add to the region coverage."}];
+  optional string on_failure = 4 [(buf.validate.field).string = {in: ["", "block", "passthrough"]}];
+  optional double threshold = 5 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  repeated string regions = 6 [(openapi.v3.property) = {description: "Regions of coverage by ISO 3166-1 alpha-2 code, or [\"all\"]. Combines with entities: the two selections are unioned."}];
+  map<string, double> entity_thresholds = 7 [
+    (buf.validate.field).map.values.double = {
+      gte: 0
+      lte: 1
+    },
+    (openapi.v3.property) = {description: "Per-entity-type confidence cutoff. Every key must also appear in entities."}
+  ];
+}
+
+message CreateGuardrailRuleRequest {
+  option (openapi.v3.schema) = {required: ["display_name"]};
+
+  string display_name = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 256
+  ];
+  optional string description = 2 [(buf.validate.field).string.max_len = 2048];
+  optional string project_id = 3 [(openapi.v3.property) = {description: "Optional project scope. Omit for a workspace-wide rule."}];
+  optional bool enabled = 4 [(openapi.v3.property) = {description: "Whether the rule is active. Defaults to false when omitted."}];
+  GuardrailRuleExpression expression = 5;
+  repeated GuardrailRuleGuardrail guardrails = 6;
+  repeated GuardrailRulePlugin plugins = 7;
+
+  reserved 8;
+  reserved "timeout";
+}
+
+message CreateGuardrailRuleResponse {
+  option (openapi.v3.schema) = {required: ["guardrail_rule"]};
+  GuardrailRule guardrail_rule = 1;
+}
+
+message ListGuardrailRulesRequest {
+  optional int32 limit = 1 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+  string starting_after = 2;
+  string ending_before = 3;
+  string project_id = 4;
+  optional string search = 5;
+  optional string sort_by = 6 [(buf.validate.field).string = {
+    in: ["created_at", "updated_at", "display_name"]
+  }];
+  optional bool enabled = 7;
+  repeated string guardrail_id = 8;
+}
+
+message ListGuardrailRulesResponse {
+  option (openapi.v3.schema) = {required: ["object", "data", "has_more"]};
+
+  string object = 1;
+  repeated GuardrailRule data = 2;
+  bool has_more = 3;
+}
+
+message ListGuardrailRuleUsedGuardrailsRequest {
+  string project_id = 1;
+}
+
+message ListGuardrailRuleUsedGuardrailsResponse {
+  option (openapi.v3.schema) = {required: ["object", "guardrail_ids"]};
+
+  string object = 1;
+  repeated string guardrail_ids = 2;
+}
+
+message GetGuardrailRuleRequest {
+  option (openapi.v3.schema) = {required: ["guardrail_rule_id"]};
+  string guardrail_rule_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetGuardrailRuleResponse {
+  option (openapi.v3.schema) = {required: ["guardrail_rule"]};
+  GuardrailRule guardrail_rule = 1;
+}
+
+message UpdateGuardrailRuleRequest {
+  option (openapi.v3.schema) = {required: ["guardrail_rule_id"]};
+
+  string guardrail_rule_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional string display_name = 2 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 256
+  ];
+  optional string description = 3 [(buf.validate.field).string.max_len = 2048];
+  optional bool enabled = 4;
+  GuardrailRuleExpression expression = 5;
+  repeated GuardrailRuleGuardrail guardrails = 6;
+  repeated GuardrailRulePlugin plugins = 7;
+
+  reserved 8;
+  reserved "timeout";
+
+  optional bool replace_guardrails = 9 [(openapi.v3.property) = {
+    specification_extension: [
+      {name: "x-orq-hidden" value: {yaml: "true"}},
+      {name: "x-speakeasy-ignore" value: {yaml: "true"}}
+    ]
+  }];
+  optional bool replace_plugins = 10 [(openapi.v3.property) = {
+    specification_extension: [
+      {name: "x-orq-hidden" value: {yaml: "true"}},
+      {name: "x-speakeasy-ignore" value: {yaml: "true"}}
+    ]
+  }];
+}
+
+message UpdateGuardrailRuleResponse {
+  option (openapi.v3.schema) = {required: ["guardrail_rule"]};
+  GuardrailRule guardrail_rule = 1;
+}
+
+message DeleteGuardrailRuleRequest {
+  option (openapi.v3.schema) = {required: ["guardrail_rule_id"]};
+  string guardrail_rule_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteGuardrailRuleResponse {}

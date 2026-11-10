@@ -41,6 +41,14 @@ service NotifiersService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "create"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "create"}
         }
       ]
     };
@@ -65,6 +73,14 @@ service NotifiersService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "list"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "list"}
         }
       ]
     };
@@ -88,6 +104,14 @@ service NotifiersService {
         },
         {
           name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-cli-name"
           value: {yaml: "get"}
         }
       ]
@@ -116,6 +140,14 @@ service NotifiersService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "update"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "update"}
         }
       ]
     };
@@ -139,6 +171,14 @@ service NotifiersService {
         },
         {
           name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "notifiers"}
+        },
+        {
+          name: "x-cli-name"
           value: {yaml: "delete"}
         }
       ]

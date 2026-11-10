@@ -28,7 +28,7 @@ const (
 )
 
 // Which limit the threshold is a percentage of. UNSPECIFIED means COST.
-// TOKENS is accepted and persisted but not yet evaluated.
+// TOKENS is reserved; a TOKENS alert is rejected.
 type BudgetAlertDimension int32
 
 const (
@@ -257,23 +257,20 @@ func (BudgetSortField) EnumDescriptor() ([]byte, []int) {
 	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{3}
 }
 
-// Budget is the canonical record stored in MongoDB `budgets.entities`.
-// It replaces the embedded `constraints.budget` on api-keys and the
-// legacy CONTACT-only `budgets.configs` collection (see ADR 0007).
+// Budget defines limits and matching rules used to govern consumption.
 type Budget struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	BudgetId string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
-	// Denormalized metadata for UI rendering, list filters, and the
-	// resolver's prefilter index. Never consulted for matching — the
-	// `match` expression is the single source of matching semantics.
-	// Unset for budgets created from a raw CEL expression ("custom").
+	// Scope the budget was created for, used to group and filter budgets in
+	// the console. Not used for matching: the `match` expression decides
+	// which requests a budget applies to. Unset for budgets created from a
+	// raw CEL expression ("custom").
 	Scope *BudgetScope `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
-	// The matching semantics of the budget. The enforcement resolver
-	// evaluates `match.cel` against the request context; a budget
-	// applies to a request if and only if the expression evaluates to
-	// true. Scoped creates derive a canonical expression (e.g.
-	// `provider == "openai"`); an empty expression always matches
-	// (workspace-wide).
+	// The matching semantics of the budget. A budget applies to a request
+	// when `match.cel` evaluates to true against the request context.
+	// Creating a budget for a scope derives the expression for that scope
+	// (e.g. `provider == "openai"`); an empty expression matches every
+	// request in the workspace.
 	Match     *BudgetMatch           `protobuf:"bytes,9,opt,name=match,proto3" json:"match,omitempty"`
 	Limits    *BudgetLimits          `protobuf:"bytes,3,opt,name=limits,proto3" json:"limits,omitempty"`
 	RateLimit *RateLimit             `protobuf:"bytes,4,opt,name=rate_limit,json=rateLimit,proto3" json:"rate_limit,omitempty"`
@@ -281,8 +278,8 @@ type Budget struct {
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	// Live consumption for the current period, read from the Redis
-	// counters the enforcement gate maintains. Populated by read paths
+	// Latest available consumption used for enforcement in the current
+	// period. This is not an exact billing ledger. Populated by read paths
 	// (Get / List); omitted on write responses (Create / Update / Reset)
 	// where it carries no signal. Absent or all-zero for a budget that
 	// has not been spent against in the current period.
@@ -404,6 +401,7 @@ func (x *Budget) GetAlerts() []*BudgetAlert {
 // `dimension` reaches `threshold_percent` of the matching limit. Each alert
 // fires at most once per period, re-arming on rollover or a limit change.
 // The dimension must have a limit set, or the write is rejected.
+// A TOKENS alert is rejected.
 type BudgetAlert struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Assigned by ORQ. Supply an existing id to edit that alert in place.
@@ -476,8 +474,8 @@ func (x *BudgetAlert) GetDimension() BudgetAlertDimension {
 	return BudgetAlertDimension_BUDGET_ALERT_DIMENSION_UNSPECIFIED
 }
 
-// BudgetUsage is the current-period consumption of a budget, sourced
-// from the live Redis counters (not the exact ledger). Each dimension is
+// BudgetUsage is the latest available current-period consumption used
+// for budget enforcement, not an exact billing ledger. Each dimension is
 // the consumed side of the matching limit dimension: `amount` is the
 // accumulated cost in USD (vs limits.amount), `tokens` is the accumulated
 // token count (vs limits.token_limit), and `requests` is the count in the
@@ -488,8 +486,7 @@ func (x *BudgetAlert) GetDimension() BudgetAlertDimension {
 type BudgetUsage struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Amount *float64               `protobuf:"fixed64,1,opt,name=amount,proto3,oneof" json:"amount,omitempty"`
-	// Carried as a double (not int64) so it serializes as a JSON number
-	// rather than a quoted string, matching limits.token_limit.
+	// Tokens accumulated in the current period.
 	Tokens        *float64 `protobuf:"fixed64,2,opt,name=tokens,proto3,oneof" json:"tokens,omitempty"`
 	Requests      *int32   `protobuf:"varint,3,opt,name=requests,proto3,oneof" json:"requests,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -548,8 +545,8 @@ func (x *BudgetUsage) GetRequests() int32 {
 }
 
 // BudgetScope is a closed oneof. Exactly one variant must be set. The
-// six variants are ordered by enforcement precedence (most specific to
-// most general) and mirror the BudgetScopeKind filter enum.
+// six variants mirror the BudgetScopeKind filter enum. A request that
+// matches several budgets is checked against every one of them.
 type BudgetScope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Kind:
@@ -697,10 +694,7 @@ func (*BudgetScope_Provider) isBudgetScope_Kind() {}
 func (*BudgetScope_Model) isBudgetScope_Kind() {}
 
 // BudgetMatch carries the CEL expression that decides whether a budget
-// applies to a request. Available variables: `model`, `provider`,
-// `model_id`, `api_key`, `identity`, `project`, `metadata` (map),
-// `headers` (map, lowercase keys). An empty expression always matches.
-// Expressions are syntax-validated at write time.
+// applies to a request. An empty expression always matches.
 type BudgetMatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cel           string                 `protobuf:"bytes,1,opt,name=cel,proto3" json:"cel,omitempty"`
@@ -827,8 +821,8 @@ func (x *ProjectBudgetScope) GetProjectId() string {
 	return ""
 }
 
-// Per-identity cap. Keyed by the contact's external_id (not the
-// internal Mongo `_id`) so the scope is stable across imports.
+// Per-identity cap. Keyed by the contact's external identifier so the
+// scope is stable across imports.
 type IdentityBudgetScope struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	IdentityExternalId string                 `protobuf:"bytes,1,opt,name=identity_external_id,json=identityExternalId,proto3" json:"identity_external_id,omitempty"`
@@ -874,7 +868,7 @@ func (x *IdentityBudgetScope) GetIdentityExternalId() string {
 }
 
 // Per-api-key cap. Replaces the legacy embedded `constraints.budget`
-// on auth.apiKeys.
+// associated with an API key.
 type ApiKeyBudgetScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ApiKeyId      string                 `protobuf:"bytes,1,opt,name=api_key_id,json=apiKeyId,proto3" json:"api_key_id,omitempty"`
@@ -919,8 +913,8 @@ func (x *ApiKeyBudgetScope) GetApiKeyId() string {
 	return ""
 }
 
-// Per-provider cap. The value is the provider enum string (e.g.
-// "openai", "anthropic") drawn from ModelIntegrationIdentifier.
+// Per-provider cap. The value is the provider identifier, for example
+// "openai" or "anthropic".
 type ProviderBudgetScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
@@ -967,7 +961,7 @@ func (x *ProviderBudgetScope) GetProvider() string {
 
 // Per-model cap. The value is the FULL model reference as callers send
 // it ("openai/gpt-4o", or "workspaceKey@openai/gpt-4o" for private
-// models) — NOT the Mongo `_id` of the model master-data document.
+// models).
 type ModelBudgetScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ModelId       string                 `protobuf:"bytes,1,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
@@ -1014,15 +1008,13 @@ func (x *ModelBudgetScope) GetModelId() string {
 
 // BudgetLimits is the per-period spend and token ceiling. At least one
 // of `amount`, `token_limit`, or RateLimit.requests_per_minute MUST be
-// set on a Budget; that invariant is enforced by the handler.
+// set on a Budget; the API rejects a budget that sets none of the three.
 type BudgetLimits struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Period BudgetPeriod           `protobuf:"varint,1,opt,name=period,proto3,enum=orq.platform.v1.BudgetPeriod" json:"period,omitempty"`
 	Amount *float64               `protobuf:"fixed64,2,opt,name=amount,proto3,oneof" json:"amount,omitempty"`
-	// Token ceiling. Carried as a double so it serializes as a JSON number
-	// (proto int64 would serialize as a quoted string); token counts are
-	// whole and well within double's exact-integer range (2^53). Stored as
-	// an integer server-side.
+	// Token ceiling for the budget period. Token counts are whole numbers
+	// and stored as integers.
 	TokenLimit    *float64 `protobuf:"fixed64,3,opt,name=token_limit,json=tokenLimit,proto3,oneof" json:"token_limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1079,8 +1071,8 @@ func (x *BudgetLimits) GetTokenLimit() float64 {
 	return 0
 }
 
-// RateLimit is the per-minute request ceiling. Enforced via atomic
-// increment-first semantics in the enforcement middleware.
+// Per-minute request ceiling applied to the requests this budget
+// matches.
 type RateLimit struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	RequestsPerMinute *int32                 `protobuf:"varint,1,opt,name=requests_per_minute,json=requestsPerMinute,proto3,oneof" json:"requests_per_minute,omitempty"`
@@ -1130,22 +1122,22 @@ type CreateBudgetRequest struct {
 	// Structured scope. Mutually exclusive with `match`: provide a scope
 	// for the six canonical kinds (the server derives the matching CEL),
 	// or provide `match` for a dynamic budget. Exactly one of the two
-	// must be set; the handler enforces that invariant.
+	// must be set.
 	Scope *BudgetScope `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	// Raw CEL matching expression for dynamic budgets (e.g.
 	// `metadata.team == "ml" && provider == "openai"`). Validated via
 	// CEL parse at write time. Mutually exclusive with `scope`.
 	Match *BudgetMatch `protobuf:"bytes,6,opt,name=match,proto3" json:"match,omitempty"`
 	// At least one of amount / token_limit / rate_limit.requests_per_minute
-	// must be provided on the budget; the handler enforces that invariant.
+	// must be provided on the budget.
 	Limits *BudgetLimits `protobuf:"bytes,2,opt,name=limits,proto3" json:"limits,omitempty"`
 	// Optional rate limit.
 	RateLimit *RateLimit `protobuf:"bytes,3,opt,name=rate_limit,json=rateLimit,proto3" json:"rate_limit,omitempty"`
 	// Whether the budget should be active immediately. Defaults to true
-	// when omitted (handler enforces).
+	// when omitted.
 	IsActive *bool `protobuf:"varint,4,opt,name=is_active,json=isActive,proto3,oneof" json:"is_active,omitempty"`
 	// Optional expiration. When set in combination with is_active=true,
-	// the value MUST be in the future; the handler rejects past values.
+	// the value MUST be in the future; the API rejects a past value.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
 	// Optional threshold notifications. Ids are assigned by the server, so
 	// `alerts[].id` must be omitted here; supplying one is rejected.
@@ -1388,9 +1380,8 @@ type ListBudgetsRequest struct {
 	// Optional filter: only return budgets whose limits.period matches
 	// one of the listed values. Empty means no period filter.
 	Period []BudgetPeriod `protobuf:"varint,7,rep,packed,name=period,proto3,enum=orq.platform.v1.BudgetPeriod" json:"period,omitempty"`
-	// Optional free-text query. Server translates this into a Typesense
-	// search over the denormalized `scope_target_name` and id fields on
-	// the per-workspace `{workspace_id}_budgets` collection.
+	// Optional free-text query matched against a budget's scope target
+	// name and id.
 	Query *string `protobuf:"bytes,8,opt,name=query,proto3,oneof" json:"query,omitempty"`
 	// Field used to order the list. Unset orders by most-recently-updated.
 	SortBy        BudgetSortField `protobuf:"varint,9,opt,name=sort_by,json=sortBy,proto3,enum=orq.platform.v1.BudgetSortField" json:"sort_by,omitempty"`
@@ -1949,9 +1940,7 @@ type GetBudgetConsumptionResponse struct {
 	PeriodDate string `protobuf:"bytes,3,opt,name=period_date,json=periodDate,proto3" json:"period_date,omitempty"`
 	// Cost accumulated in the current period, in USD.
 	Cost float64 `protobuf:"fixed64,4,opt,name=cost,proto3" json:"cost,omitempty"`
-	// Tokens accumulated in the current period. Carried as a double (not
-	// int64) so it serializes as a JSON number rather than a quoted
-	// string, matching BudgetUsage.tokens and limits.token_limit.
+	// Tokens accumulated in the current period.
 	Tokens float64 `protobuf:"fixed64,5,opt,name=tokens,proto3" json:"tokens,omitempty"`
 	// Requests counted in the current 60-second rolling window.
 	RequestsInWindow int32 `protobuf:"varint,6,opt,name=requests_in_window,json=requestsInWindow,proto3" json:"requests_in_window,omitempty"`
@@ -2392,17 +2381,17 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\brequests\x18\x03 \x01(\x05H\x02R\brequests\x88\x01\x01B\t\n" +
 	"\a_amountB\t\n" +
 	"\a_tokensB\v\n" +
-	"\t_requests\"\x9f\x03\n" +
+	"\t_requests\"\xa1\x04\n" +
 	"\vBudgetScope\x12E\n" +
 	"\tworkspace\x18\x01 \x01(\v2%.orq.platform.v1.WorkspaceBudgetScopeH\x00R\tworkspace\x12?\n" +
 	"\aproject\x18\x02 \x01(\v2#.orq.platform.v1.ProjectBudgetScopeH\x00R\aproject\x12B\n" +
 	"\bidentity\x18\x03 \x01(\v2$.orq.platform.v1.IdentityBudgetScopeH\x00R\bidentity\x12=\n" +
 	"\aapi_key\x18\x04 \x01(\v2\".orq.platform.v1.ApiKeyBudgetScopeH\x00R\x06apiKey\x12B\n" +
 	"\bprovider\x18\x05 \x01(\v2$.orq.platform.v1.ProviderBudgetScopeH\x00R\bprovider\x129\n" +
-	"\x05model\x18\x06 \x01(\v2!.orq.platform.v1.ModelBudgetScopeH\x00R\x05modelB\x06\n" +
-	"\x04kind\")\n" +
+	"\x05model\x18\x06 \x01(\v2!.orq.platform.v1.ModelBudgetScopeH\x00R\x05model:q\xbaGn\x92\x02kClosed oneof of workspace, project, identity, api_key, provider, or model. Exactly one variant must be set.B\x06\n" +
+	"\x04kindJ\x04\b\a\x10\bR\afactory\"\xf1\x03\n" +
 	"\vBudgetMatch\x12\x1a\n" +
-	"\x03cel\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x10R\x03cel\"\x16\n" +
+	"\x03cel\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x10R\x03cel:\xc5\x03\xbaG\xc1\x03\x92\x02\xbd\x03CEL expression that decides whether a budget applies to a request. Available variables: `model`, `provider`, `model_id`, `api_key`, `identity`, `project`, `metadata` (map), `headers` (map, lowercase keys). Required unless the budget is created from a `scope`, and rejected on update when left empty. A workspace-wide budget stores an empty expression, which matches every request in the workspace. Expressions are syntax-validated at write time.\"\x16\n" +
 	"\x14WorkspaceBudgetScope\"<\n" +
 	"\x12ProjectBudgetScope\x12&\n" +
 	"\n" +
@@ -2504,7 +2493,7 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"periodDate\x12\x12\n" +
 	"\x04cost\x18\x04 \x01(\x01R\x04cost\x12\x16\n" +
 	"\x06tokens\x18\x05 \x01(\x01R\x06tokens\x12,\n" +
-	"\x12requests_in_window\x18\x06 \x01(\x05R\x10requestsInWindow\"\xf9\x02\n" +
+	"\x12requests_in_window\x18\x06 \x01(\x05R\x10requestsInWindow\"\x8f\x03\n" +
 	"\x13CheckBudgetsRequest\x12\x1c\n" +
 	"\n" +
 	"api_key_id\x18\x01 \x01(\tR\bapiKeyId\x12\x1d\n" +
@@ -2517,7 +2506,7 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\aheaders\x18\a \x03(\v21.orq.platform.v1.CheckBudgetsRequest.HeadersEntryR\aheaders\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x98\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\b\x10\tR\x0eapi_key_labels\"\x98\x02\n" +
 	"\x14CheckBudgetsResponse\x12\x18\n" +
 	"\aallowed\x18\x01 \x01(\bR\aallowed\x12>\n" +
 	"\trejection\x18\x02 \x01(\v2 .orq.platform.v1.BudgetRejectionR\trejection\x122\n" +
@@ -2545,7 +2534,7 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x14BUDGET_PERIOD_WEEKLY\x10\x02\x12\x19\n" +
 	"\x15BUDGET_PERIOD_MONTHLY\x10\x03\x12\x18\n" +
 	"\x14BUDGET_PERIOD_YEARLY\x10\x04\x12\x1a\n" +
-	"\x16BUDGET_PERIOD_ONE_TIME\x10\x05*\xf0\x01\n" +
+	"\x16BUDGET_PERIOD_ONE_TIME\x10\x05*\x91\x02\n" +
 	"\x0fBudgetScopeKind\x12!\n" +
 	"\x1dBUDGET_SCOPE_KIND_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bBUDGET_SCOPE_KIND_WORKSPACE\x10\x01\x12\x1d\n" +
@@ -2553,52 +2542,80 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x1aBUDGET_SCOPE_KIND_IDENTITY\x10\x03\x12\x1d\n" +
 	"\x19BUDGET_SCOPE_KIND_API_KEY\x10\x04\x12\x1e\n" +
 	"\x1aBUDGET_SCOPE_KIND_PROVIDER\x10\x05\x12\x1b\n" +
-	"\x17BUDGET_SCOPE_KIND_MODEL\x10\x06*\x9a\x01\n" +
+	"\x17BUDGET_SCOPE_KIND_MODEL\x10\x06\"\x04\b\a\x10\a*\x19BUDGET_SCOPE_KIND_FACTORY*\x9a\x01\n" +
 	"\x0fBudgetSortField\x12!\n" +
 	"\x1dBUDGET_SORT_FIELD_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cBUDGET_SORT_FIELD_EXPIRES_AT\x10\x01\x12 \n" +
 	"\x1cBUDGET_SORT_FIELD_CREATED_AT\x10\x02\x12 \n" +
-	"\x1cBUDGET_SORT_FIELD_UPDATED_AT\x10\x032\xd5 \n" +
-	"\x0eBudgetsService\x12\xfe\x05\n" +
-	"\fCreateBudget\x12$.orq.platform.v1.CreateBudgetRequest\x1a%.orq.platform.v1.CreateBudgetResponse\"\xa0\x05\xbaG\xf1\x04\n" +
-	"\aBudgets\x12\x13Create a new budget\x1a\xc3\x02Creates a new budget in the workspace. Exactly one scope variant must be set (workspace / project / identity / api_key / provider / model). At least one of `limits.amount`, `limits.token_limit`, or `rate_limit.requests_per_minute` MUST be provided. Uniqueness is enforced across (workspace_id, scope_kind, scope_target_id).*\fBudgetCreatej\x1e\n" +
+	"\x1cBUDGET_SORT_FIELD_UPDATED_AT\x10\x032\xec*\n" +
+	"\x0eBudgetsService\x12\xea\t\n" +
+	"\fCreateBudget\x12$.orq.platform.v1.CreateBudgetRequest\x1a%.orq.platform.v1.CreateBudgetResponse\"\x8c\t\xbaG\xdd\b\n" +
+	"\aBudgets\x12\x13Create a new budget\x1a\xa9\x03Creates a new budget in the workspace. Exactly one scope variant must be set (workspace / project / identity / api_key / provider / model). At least one of `limits.amount`, `limits.token_limit`, or `rate_limit.requests_per_minute` MUST be provided. Uniqueness is enforced across (workspace_id, scope_kind, scope_target_id). Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\fBudgetCreatej\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06createj\xb5\x01\n" +
-	"\x0ex-code-samples\x12\xa2\x01\x12\x9f\x01- lang: typescript\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06createj\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06createj\x89\x04\n" +
+	"\x0ex-code-samples\x12\xf6\x03\x12\xf3\x03- lang: curl\n" +
+	"  label: \"cURL\"\n" +
+	"  source: |\n" +
+	"    curl -X POST 'https://my.orq.ai/v2/budgets' \\\n" +
+	"      --header \"Authorization: Bearer $ORQ_API_KEY\" \\\n" +
+	"      --header 'Content-Type: application/json' \\\n" +
+	"      --data '{\n" +
+	"        \"scope\": { \"workspace\": {} },\n" +
+	"        \"limits\": { \"period\": \"BUDGET_PERIOD_MONTHLY\", \"amount\": 1000 }\n" +
+	"      }'\n" +
+	"- lang: typescript\n" +
 	"  label: \"Node.js\"\n" +
 	"  source: |\n" +
-	"    await orq.budgets.create({ scope: { kind: \"workspace\" }, limits: { period: \"MONTHLY\", amount: 1000 } });\n" +
+	"    await orq.budgets.create({ scope: { workspace: {} }, limits: { period: \"BUDGET_PERIOD_MONTHLY\", amount: 1000 } });\n" +
 	"\x8a\xb5\x18\x11\n" +
-	"\rbudget.create\x10\x02\x82\xd3\xe4\x93\x02\x10:\x01*\"\v/v2/budgets\x12\x8d\x03\n" +
-	"\tGetBudget\x12!.orq.platform.v1.GetBudgetRequest\x1a\".orq.platform.v1.GetBudgetResponse\"\xb8\x02\xbaG\x82\x02\n" +
-	"\aBudgets\x12\x11Retrieve a budget\x1a\x94\x01Retrieves the metadata for an existing budget by its unique identifier. Returns `NotFound` when the budget does not exist in the caller's workspace.*\tBudgetGetj\x1e\n" +
+	"\rbudget.create\x10\x02\x82\xd3\xe4\x93\x02\x10:\x01*\"\v/v2/budgets\x12\xa2\x04\n" +
+	"\tGetBudget\x12!.orq.platform.v1.GetBudgetRequest\x1a\".orq.platform.v1.GetBudgetResponse\"\xcd\x03\xbaG\x97\x03\n" +
+	"\aBudgets\x12\x11Retrieve a budget\x1a\xfa\x01Retrieves the metadata for an existing budget by its unique identifier. Returns `NotFound` when the budget does not exist in the caller's workspace. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\tBudgetGetj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj\"\n" +
-	"\x19x-speakeasy-name-override\x12\x05\x12\x03get\x8a\xb5\x18\x0f\n" +
-	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02\x19\x12\x17/v2/budgets/{budget_id}\x12\xfd\x03\n" +
-	"\vListBudgets\x12#.orq.platform.v1.ListBudgetsRequest\x1a$.orq.platform.v1.ListBudgetsResponse\"\xa2\x03\xbaG\xf8\x02\n" +
-	"\aBudgets\x12\fList budgets\x1a\x8d\x02Returns budgets visible to the current workspace, ordered by creation time with the newest first. Supports filtering by scope kind, scope target id, period, and active state, plus an optional free-text query that searches across denormalized target names via Typesense.*\n" +
+	"\x19x-speakeasy-name-override\x12\x05\x12\x03getj\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x13\n" +
+	"\n" +
+	"x-cli-name\x12\x05\x12\x03get\x8a\xb5\x18\x0f\n" +
+	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02\x19\x12\x17/v2/budgets/{budget_id}\x12\x86\x05\n" +
+	"\vListBudgets\x12#.orq.platform.v1.ListBudgetsRequest\x1a$.orq.platform.v1.ListBudgetsResponse\"\xab\x04\xbaG\x81\x04\n" +
+	"\aBudgets\x12\fList budgets\x1a\xe6\x02Returns budgets visible to the current workspace, ordered by most recently updated with the newest first. Supports filtering by scope kind, scope target id, period, and active state, plus an optional free-text query that matches scope target names and ids. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\n" +
 	"BudgetListj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj#\n" +
-	"\x19x-speakeasy-name-override\x12\x06\x12\x04list\x8a\xb5\x18\x0f\n" +
-	"\vbudget.list\x10\x02\x82\xd3\xe4\x93\x02\r\x12\v/v2/budgets\x12\xd8\x03\n" +
-	"\fUpdateBudget\x12$.orq.platform.v1.UpdateBudgetRequest\x1a%.orq.platform.v1.UpdateBudgetResponse\"\xfa\x02\xbaG\xbf\x02\n" +
-	"\aBudgets\x12\x0fUpdate a budget\x1a\xcd\x01Updates mutable fields of a budget: limits, rate limit, activation, and expiration. The scope is immutable — to change a budget's target, delete and recreate it. Omitted fields keep their current values.*\fBudgetUpdatej\x1e\n" +
+	"\x19x-speakeasy-name-override\x12\x06\x12\x04listj\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x14\n" +
+	"\n" +
+	"x-cli-name\x12\x06\x12\x04list\x8a\xb5\x18\x0f\n" +
+	"\vbudget.list\x10\x02\x82\xd3\xe4\x93\x02\r\x12\v/v2/budgets\x12\xf0\x04\n" +
+	"\fUpdateBudget\x12$.orq.platform.v1.UpdateBudgetRequest\x1a%.orq.platform.v1.UpdateBudgetResponse\"\x92\x04\xbaG\xd7\x03\n" +
+	"\aBudgets\x12\x0fUpdate a budget\x1a\xb3\x02Updates mutable fields of a budget: limits, rate limit, activation, and expiration. The scope is immutable — to change a budget's target, delete and recreate it. Omitted fields keep their current values. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\fBudgetUpdatej\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06update\x8a\xb5\x18\x11\n" +
-	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02\x1c:\x01*2\x17/v2/budgets/{budget_id}\x12\x93\x03\n" +
-	"\fDeleteBudget\x12$.orq.platform.v1.DeleteBudgetRequest\x1a%.orq.platform.v1.DeleteBudgetResponse\"\xb5\x02\xbaG\xfd\x01\n" +
-	"\aBudgets\x12\x0fDelete a budget\x1a\x8b\x01Permanently deletes a budget. Consumption counters in Redis for this budget are cleared immediately. The response body is empty on success.*\fBudgetDeletej\x1e\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06updatej\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06update\x8a\xb5\x18\x11\n" +
+	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02\x1c:\x01*2\x17/v2/budgets/{budget_id}\x12\x96\x04\n" +
+	"\fDeleteBudget\x12$.orq.platform.v1.DeleteBudgetRequest\x1a%.orq.platform.v1.DeleteBudgetResponse\"\xb8\x03\xbaG\x80\x03\n" +
+	"\aBudgets\x12\x0fDelete a budget\x1a\xdc\x01Permanently deletes a budget. Its consumption counters are cleared immediately. The response body is empty on success. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\fBudgetDeletej\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06delete\x8a\xb5\x18\x11\n" +
-	"\rbudget.delete\x10\x02\x82\xd3\xe4\x93\x02\x19*\x17/v2/budgets/{budget_id}\x12\xed\x03\n" +
-	"\x16ResetBudgetConsumption\x12..orq.platform.v1.ResetBudgetConsumptionRequest\x1a/.orq.platform.v1.ResetBudgetConsumptionResponse\"\xf1\x02\xbaG\xa4\x02\n" +
-	"\aBudgets\x12\x18Reset budget consumption\x1a\x95\x01Clears the current-period cost, token, and request counters for the budget. The budget record itself is preserved; only the Redis counters are reset.*\x16BudgetResetConsumptionj\x1e\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06deletej\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06delete\x8a\xb5\x18\x11\n" +
+	"\rbudget.delete\x10\x02\x82\xd3\xe4\x93\x02\x19*\x17/v2/budgets/{budget_id}\x12\xec\x04\n" +
+	"\x16ResetBudgetConsumption\x12..orq.platform.v1.ResetBudgetConsumptionRequest\x1a/.orq.platform.v1.ResetBudgetConsumptionResponse\"\xf0\x03\xbaG\xa3\x03\n" +
+	"\aBudgets\x12\x18Reset budget consumption\x1a\xd8\x01Clears the current-period cost, token, and request counters for the budget. The budget record itself is preserved. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\x16BudgetResetConsumptionj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj/\n" +
-	"\x19x-speakeasy-name-override\x12\x12\x12\x10resetConsumption\x8a\xb5\x18\x11\n" +
-	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02.:\x01*\")/v2/budgets/{budget_id}/reset-consumption\x12\x89\x04\n" +
-	"\x14GetBudgetConsumption\x12,.orq.platform.v1.GetBudgetConsumptionRequest\x1a-.orq.platform.v1.GetBudgetConsumptionResponse\"\x93\x03\xbaG\xd1\x02\n" +
+	"\x19x-speakeasy-name-override\x12\x12\x12\x10resetConsumptionj\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj \n" +
+	"\n" +
+	"x-cli-name\x12\x12\x12\x10resetConsumption\x8a\xb5\x18\x11\n" +
+	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02.:\x01*\")/v2/budgets/{budget_id}/reset-consumption\x12\xfc\x04\n" +
+	"\x14GetBudgetConsumption\x12,.orq.platform.v1.GetBudgetConsumptionRequest\x1a-.orq.platform.v1.GetBudgetConsumptionResponse\"\x86\x04\xbaG\xc4\x03\n" +
 	"\aBudgets\n" +
-	"\aprivate\x12\x1eGet current-period consumption\x1a\x99\x01Returns the current-period cost, token, and per-minute request counters for the budget. Values reflect the live Redis state for the active period bucket.*\x14BudgetGetConsumptionj\x1e\n" +
+	"\aprivate\x12\x1eGet current-period consumption\x1a\x8c\x02Returns the latest available current-period cost, token, and per-minute request consumption used for budget enforcement. These values are not an exact billing ledger. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\x14BudgetGetConsumptionj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj-\n" +
 	"\x19x-speakeasy-name-override\x12\x10\x12\x0egetConsumptionj\x1c\n" +
 	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x0f\n" +
@@ -2609,8 +2626,8 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj$\n" +
 	"\x19x-speakeasy-name-override\x12\a\x12\x05checkj\x16\n" +
 	"\fx-cli-hidden\x12\x06\x12\x04truej\x1c\n" +
-	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x02\x10\x03\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v2/budgets/checkB\x82\x04\xbaG\xab\x02:\xa8\x02\n" +
-	"\aBudgets\x12\x9c\x02Budgets govern spend, token usage, and request rate across six scopes: workspace, project, identity, api-key, provider, and model. A budget is hierarchical and defense-in-depth — every applicable budget is a hard gate, and the most restrictive one wins per dimension (see ADR 0007).\n" +
+	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x02\x10\x03\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v2/budgets/checkB\xc3\x03\xbaG\xec\x01:\xe9\x01\n" +
+	"\aBudgets\x12\xdd\x01Budgets govern spend, token usage, and request rate across six scopes: workspace, project, identity, API key, provider, and model. Every applicable budget is enforced, and the most restrictive limit applies per dimension.\n" +
 	"\x13com.orq.platform.v1B\fBudgetsProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"
 
 var (

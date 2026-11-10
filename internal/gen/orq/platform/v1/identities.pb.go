@@ -300,7 +300,7 @@ func (x *IdentityMetrics) GetErrorRate() float64 {
 
 type IdentityFilter struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Return only identities that have at least one of these tags.
+	// Return only identities that have all of these tags.
 	Tags          []string `protobuf:"bytes,1,rep,name=tags,proto3" json:"tags,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -769,7 +769,7 @@ type UpdateIdentityRequest struct {
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// New display name. Omit to keep the current display name.
 	DisplayName *string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
-	// New email address. Omit to keep the current email.
+	// New email address. Omit to keep the current email, or send an empty string to clear it.
 	Email *string `protobuf:"bytes,3,opt,name=email,proto3,oneof" json:"email,omitempty"`
 	// New avatar image URL. Omit to keep the current avatar URL.
 	AvatarUrl *string `protobuf:"bytes,4,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
@@ -1051,11 +1051,12 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\x0finclude_metrics\x18\x02 \x01(\bR\x0eincludeMetrics\x12%\n" +
 	"\x0einclude_budget\x18\x03 \x01(\bR\rincludeBudget:\b\xbaG\x05\xba\x01\x02id\"a\n" +
 	"\x18RetrieveIdentityResponse\x125\n" +
-	"\bidentity\x18\x01 \x01(\v2\x19.orq.platform.v1.IdentityR\bidentity:\x0e\xbaG\v\xba\x01\bidentity\"\xb1\x02\n" +
+	"\bidentity\x18\x01 \x01(\v2\x19.orq.platform.v1.IdentityR\bidentity:\x0e\xbaG\v\xba\x01\bidentity\"\x8d\x03\n" +
 	"\x15UpdateIdentityRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12&\n" +
-	"\fdisplay_name\x18\x02 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12\"\n" +
-	"\x05email\x18\x03 \x01(\tB\a\xbaH\x04r\x02`\x01H\x01R\x05email\x88\x01\x01\x12,\n" +
+	"\fdisplay_name\x18\x02 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12~\n" +
+	"\x05email\x18\x03 \x01(\tBc\xbaH`\xba\x01]\n" +
+	"\x15identity.update.email\x12&must be empty or a valid email address\x1a\x1cthis == '' || this.isEmail()H\x01R\x05email\x88\x01\x01\x12,\n" +
 	"\n" +
 	"avatar_url\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01H\x02R\tavatarUrl\x88\x01\x01\x12\x12\n" +
 	"\x04tags\x18\x05 \x03(\tR\x04tags\x12=\n" +
@@ -1071,14 +1072,19 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\x11IdentitySortField\x12#\n" +
 	"\x1fIDENTITY_SORT_FIELD_UNSPECIFIED\x10\x00\x12$\n" +
 	" IDENTITY_SORT_FIELD_DISPLAY_NAME\x10\x01\x12\x1f\n" +
-	"\x1bIDENTITY_SORT_FIELD_UPDATED\x10\x022\xe0\x12\n" +
-	"\x11IdentitiesService\x12\xc3\x04\n" +
-	"\x0eCreateIdentity\x12&.orq.platform.v1.CreateIdentityRequest\x1a'.orq.platform.v1.CreateIdentityResponse\"\xdf\x03\xbaG\xab\x03\n" +
+	"\x1bIDENTITY_SORT_FIELD_UPDATED\x10\x022\xaa\x13\n" +
+	"\x11IdentitiesService\x12\x8d\x05\n" +
+	"\x0eCreateIdentity\x12&.orq.platform.v1.CreateIdentityRequest\x1a'.orq.platform.v1.CreateIdentityResponse\"\xa9\x04\xbaG\xf5\x03\n" +
 	"\n" +
-	"Identities\x12\x12Create an identity\x1a\x83\x01Creates a new identity with a unique external_id. If an identity with the same external_id already exists, the operation will fail.*\x0eCreateIdentityBt\x12r\n" +
-	"\x03201\x12k\n" +
-	"i\n" +
-	"\x1eIdentity created successfully.\x1aG\n" +
+	"Identities\x12\x12Create an identity\x1a\x83\x01Creates a new identity with a unique external_id. If an identity with the same external_id already exists, the operation will fail.*\x0eCreateIdentityB\xbd\x01\x12\xba\x01\n" +
+	"\x03201\x12\xb2\x01\n" +
+	"\xaf\x01\n" +
+	"\x1eIdentity created successfully.\x12D\n" +
+	"B\n" +
+	"\bLocation\x126\n" +
+	"4\n" +
+	"%Relative URI of the created identity.B\v\n" +
+	"\t\xca\x01\x06string\x1aG\n" +
 	"E\n" +
 	"\x10application/json\x121\n" +
 	"/\x12-\n" +
@@ -1090,7 +1096,7 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"identitiesj\x16\n" +
 	"\n" +
 	"x-cli-name\x12\b\x12\x06create\x8a\xb5\x18\x13\n" +
-	"\x0fidentity.create\x10\x02\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v2/identities\x12\xc9\x03\n" +
+	"\x0fidentity.create\x10\x03\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v2/identities\x12\xc9\x03\n" +
 	"\x0eListIdentities\x12&.orq.platform.v1.ListIdentitiesRequest\x1a'.orq.platform.v1.ListIdentitiesResponse\"\xe5\x02\xbaG\xb6\x02\n" +
 	"\n" +
 	"Identities\x12\x0fList identities\x1a\x8b\x01Retrieves a paginated list of identities in your workspace. Use pagination parameters to navigate through large identity lists efficiently.*\x0eListIdentitiesj!\n" +
@@ -1101,7 +1107,7 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"identitiesj\x14\n" +
 	"\n" +
 	"x-cli-name\x12\x06\x12\x04list\x8a\xb5\x18\x11\n" +
-	"\ridentity.list\x10\x02\x82\xd3\xe4\x93\x02\x10\x12\x0e/v2/identities\x12\xc8\x03\n" +
+	"\ridentity.list\x10\x03\x82\xd3\xe4\x93\x02\x10\x12\x0e/v2/identities\x12\xc8\x03\n" +
 	"\x10RetrieveIdentity\x12(.orq.platform.v1.RetrieveIdentityRequest\x1a).orq.platform.v1.RetrieveIdentityResponse\"\xde\x02\xbaG\xaa\x02\n" +
 	"\n" +
 	"Identities\x12\x14Retrieve an identity\x1aqRetrieves detailed information about a specific identity using their identity ID or external ID from your system.*\x10RetrieveIdentityj!\n" +
@@ -1114,7 +1120,7 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\n" +
 	"x-cli-name\x12\n" +
 	"\x12\bretrieve\x8a\xb5\x18\x11\n" +
-	"\ridentity.view\x10\x02\x82\xd3\xe4\x93\x02\x15\x12\x13/v2/identities/{id}\x12\xbc\x03\n" +
+	"\ridentity.view\x10\x03\x82\xd3\xe4\x93\x02\x15\x12\x13/v2/identities/{id}\x12\xbc\x03\n" +
 	"\x0eUpdateIdentity\x12&.orq.platform.v1.UpdateIdentityRequest\x1a'.orq.platform.v1.UpdateIdentityResponse\"\xd8\x02\xbaG\x9f\x02\n" +
 	"\n" +
 	"Identities\x12\x12Update an identity\x1anUpdates specific fields of an existing identity. Only the fields provided in the request body will be updated.*\x0eUpdateIdentityj!\n" +
@@ -1125,7 +1131,7 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"identitiesj\x16\n" +
 	"\n" +
 	"x-cli-name\x12\b\x12\x06update\x8a\xb5\x18\x13\n" +
-	"\x0fidentity.update\x10\x02\x82\xd3\xe4\x93\x02\x18:\x01*2\x13/v2/identities/{id}\x12\xae\x03\n" +
+	"\x0fidentity.update\x10\x03\x82\xd3\xe4\x93\x02\x18:\x01*2\x13/v2/identities/{id}\x12\xae\x03\n" +
 	"\x0eDeleteIdentity\x12&.orq.platform.v1.DeleteIdentityRequest\x1a'.orq.platform.v1.DeleteIdentityResponse\"\xca\x02\xbaG\x94\x02\n" +
 	"\n" +
 	"Identities\x12\x12Delete an identity\x1acPermanently deletes an identity from your workspace and cleans up associated budget configurations.*\x0eDeleteIdentityj!\n" +
@@ -1136,7 +1142,7 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"identitiesj\x16\n" +
 	"\n" +
 	"x-cli-name\x12\b\x12\x06delete\x8a\xb5\x18\x13\n" +
-	"\x0fidentity.delete\x10\x02\x82\xd3\xe4\x93\x02\x15*\x13/v2/identities/{id}B\xbb\x02\xbaGb:`\n" +
+	"\x0fidentity.delete\x10\x03\x82\xd3\xe4\x93\x02\x15*\x13/v2/identities/{id}B\xbb\x02\xbaGb:`\n" +
 	"\n" +
 	"Identities\x12RIdentities represent end users from your system for usage and engagement tracking.\n" +
 	"\x13com.orq.platform.v1B\x0fIdentitiesProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"
