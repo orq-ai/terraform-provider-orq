@@ -100,9 +100,10 @@ record-source-commit: fetch-source
 proto-sync: record-source-commit
 	@set -e; \
 	rev=$$(awk '/^orquesta-web /{print $$2}' SOURCE_COMMIT); \
-	for f in projects budgets management_keys notifiers model_sharing api_keys identities sharing workspace_settings guardrail_rules routing_rules vaults secrets; do \
+	for f in projects budgets management_keys notifiers model_sharing api_keys identities sharing workspace_settings guardrail_rules routing_rules vaults secrets audit_log_destinations; do \
 		git -C $(MONOREPO) show $$rev:apps/platform-api/proto/orq/platform/v1/$$f.proto > proto/orq/platform/v1/$$f.proto; \
 	done; \
+	git -C $(MONOREPO) show $$rev:apps/observability-api/proto/orq/traces/v1/telemetry_destinations.proto > proto/orq/traces/v1/telemetry_destinations.proto; \
 	git -C $(MONOREPO) show $$rev:libs/catalog/orq/authz/v1/authz.proto > proto/orq/authz/v1/authz.proto; \
 	git -C $(MONOREPO) show $$rev:libs/catalog/orq/apikeys/v1/catalog.proto > proto/orq/apikeys/v1/catalog.proto; \
 	git -C $(MONOREPO) show $$rev:libs/catalog/orq/managementkeys/v1/catalog.proto > proto/orq/managementkeys/v1/catalog.proto; \

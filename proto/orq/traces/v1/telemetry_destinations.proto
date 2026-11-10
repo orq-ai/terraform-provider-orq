@@ -1,0 +1,155 @@
+syntax = "proto3";
+package orq.traces.v1;
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+service TelemetryDestinationsService {
+  rpc CreateDestination(CreateTelemetryDestinationRequest) returns (TelemetryDestinationResponse) {
+    option (orq.authz.v1.authz) = { verb: "telemetry-destination.create" scope: AUTHZ_SCOPE_WORKSPACE };
+    option (google.api.http) = { post: "/v3/telemetry-destinations" body: "*" };
+    option (openapi.v3.operation) = {
+      summary: "Create an OpenTelemetry destination"
+      tags: ["Telemetry destinations"]
+      operation_id: "TelemetryDestinationsCreateDestination"
+      specification_extension: [
+        { name: "x-speakeasy-group" value: {yaml: "telemetryDestinations"} },
+        { name: "x-speakeasy-name-override" value: {yaml: "createDestination"} }
+      ]
+    };
+  }
+  rpc ListDestinations(ListTelemetryDestinationsRequest) returns (ListTelemetryDestinationsResponse) {
+    option (orq.authz.v1.authz) = { verb: "telemetry-destination.list" scope: AUTHZ_SCOPE_WORKSPACE };
+    option (google.api.http) = { get: "/v3/telemetry-destinations" };
+    option (openapi.v3.operation) = {
+      summary: "List OpenTelemetry destinations"
+      tags: ["Telemetry destinations"]
+      operation_id: "TelemetryDestinationsListDestinations"
+      specification_extension: [
+        { name: "x-speakeasy-group" value: {yaml: "telemetryDestinations"} },
+        { name: "x-speakeasy-name-override" value: {yaml: "listDestinations"} }
+      ]
+    };
+  }
+  rpc GetDestination(GetTelemetryDestinationRequest) returns (TelemetryDestinationResponse) {
+    option (orq.authz.v1.authz) = { verb: "telemetry-destination.view" scope: AUTHZ_SCOPE_WORKSPACE };
+    option (google.api.http) = { get: "/v3/telemetry-destinations/{destination_id}" };
+    option (openapi.v3.operation) = {
+      summary: "Retrieve an OpenTelemetry destination"
+      tags: ["Telemetry destinations"]
+      operation_id: "TelemetryDestinationsGetDestination"
+      specification_extension: [
+        { name: "x-speakeasy-group" value: {yaml: "telemetryDestinations"} },
+        { name: "x-speakeasy-name-override" value: {yaml: "getDestination"} }
+      ]
+    };
+  }
+  rpc UpdateDestination(UpdateTelemetryDestinationRequest) returns (TelemetryDestinationResponse) {
+    option (orq.authz.v1.authz) = { verb: "telemetry-destination.update" scope: AUTHZ_SCOPE_WORKSPACE };
+    option (google.api.http) = { put: "/v3/telemetry-destinations/{destination_id}" body: "*" };
+    option (openapi.v3.operation) = {
+      summary: "Update an OpenTelemetry destination"
+      tags: ["Telemetry destinations"]
+      operation_id: "TelemetryDestinationsUpdateDestination"
+      specification_extension: [
+        { name: "x-speakeasy-group" value: {yaml: "telemetryDestinations"} },
+        { name: "x-speakeasy-name-override" value: {yaml: "updateDestination"} }
+      ]
+    };
+  }
+  rpc DeleteDestination(DeleteTelemetryDestinationRequest) returns (DeleteTelemetryDestinationResponse) {
+    option (orq.authz.v1.authz) = { verb: "telemetry-destination.delete" scope: AUTHZ_SCOPE_WORKSPACE };
+    option (google.api.http) = { delete: "/v3/telemetry-destinations/{destination_id}" };
+    option (openapi.v3.operation) = {
+      summary: "Delete an OpenTelemetry destination"
+      tags: ["Telemetry destinations"]
+      operation_id: "TelemetryDestinationsDeleteDestination"
+      specification_extension: [
+        { name: "x-speakeasy-group" value: {yaml: "telemetryDestinations"} },
+        { name: "x-speakeasy-name-override" value: {yaml: "deleteDestination"} }
+      ]
+    };
+  }
+
+}
+
+enum TelemetryContentMode {
+  TELEMETRY_CONTENT_MODE_UNSPECIFIED = 0;
+  TELEMETRY_CONTENT_MODE_METADATA_ONLY = 1;
+  TELEMETRY_CONTENT_MODE_FULL_CONTENT = 2;
+}
+enum TelemetryProjectScope {
+  TELEMETRY_PROJECT_SCOPE_UNSPECIFIED = 0;
+  TELEMETRY_PROJECT_SCOPE_ALL = 1;
+  TELEMETRY_PROJECT_SCOPE_SELECTED = 2;
+  TELEMETRY_PROJECT_SCOPE_ALL_EXCEPT = 3;
+}
+enum TelemetryExportStatus {
+  TELEMETRY_EXPORT_STATUS_UNSPECIFIED = 0;
+  TELEMETRY_EXPORT_STATUS_PENDING = 1;
+  TELEMETRY_EXPORT_STATUS_RUNNING = 2;
+  TELEMETRY_EXPORT_STATUS_COMPLETED = 3;
+  TELEMETRY_EXPORT_STATUS_FAILED = 4;
+  TELEMETRY_EXPORT_STATUS_PARTIAL = 5;
+}
+message TelemetryDestination {
+  string id = 1 [json_name = "_id"];
+  string workspace_id = 2;
+  string display_name = 3 [(buf.validate.field).string = {max_len: 160}];
+  string provider = 4 [(buf.validate.field).string = {min_len: 1, max_len: 40}];
+  string endpoint_url = 5 [
+    (buf.validate.field).string = {min_len: 1, max_len: 2048},
+    (openapi.v3.property) = {description: "Full OTLP/HTTP traces URL, including the path such as `/v1/traces`."}
+  ];
+  map<string, string> request_headers = 6 [(buf.validate.field).map = {
+    max_pairs: 20,
+    keys: {string: {min_bytes: 1, max_bytes: 128}},
+    values: {string: {max_bytes: 4096}}
+  }];
+  map<string, string> settings = 7 [(buf.validate.field).map.max_pairs = 32];
+  TelemetryContentMode content_mode = 8 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  TelemetryProjectScope project_scope = 9 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  repeated string project_ids = 10 [(buf.validate.field).repeated.max_items = 1000];
+  bool enabled = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  uint32 failure_count = 14 [(openapi.v3.property) = {description: "Server-managed number of consecutive failed deliveries.", read_only: true}];
+  string last_error = 15 [(openapi.v3.property) = {description: "Server-managed reason for the latest failed delivery.", read_only: true}];
+  int32 last_status_code = 16 [(openapi.v3.property) = {description: "Server-managed HTTP status of the latest failed delivery.", read_only: true}];
+  google.protobuf.Timestamp last_attempt_at = 17 [(openapi.v3.property) = {description: "Server-managed time of the latest failed delivery.", read_only: true}];
+  string disabled_reason = 18 [(openapi.v3.property) = {description: "Server-managed reason the platform disabled this destination: `failure_threshold`.", read_only: true}];
+}
+message TelemetryExportDelivery {
+  string id = 1 [json_name = "_id"];
+  string workspace_id = 2;
+  string destination_id = 3;
+  bytes spans_json = 4;
+  TelemetryExportStatus status = 5;
+  uint32 attempts = 6;
+  google.protobuf.Timestamp next_attempt_at = 7;
+  string lease_owner = 8;
+  google.protobuf.Timestamp lease_until = 9;
+  string error_message = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  uint64 exported_spans = 13;
+  uint64 failed_spans = 14;
+  TelemetryDestination destination_snapshot = 15;
+  google.protobuf.Timestamp source_expires_at = 16;
+}
+message CreateTelemetryDestinationRequest { TelemetryDestination destination = 1 [(buf.validate.field).required = true]; }
+message UpdateTelemetryDestinationRequest {
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+  TelemetryDestination destination = 2 [(buf.validate.field).required = true];
+}
+message GetTelemetryDestinationRequest { string destination_id = 1 [(buf.validate.field).string.min_len = 1]; }
+message DeleteTelemetryDestinationRequest { string destination_id = 1 [(buf.validate.field).string.min_len = 1]; }
+message DeleteTelemetryDestinationResponse {}
+message TelemetryDestinationResponse { TelemetryDestination destination = 1; }
+message ListTelemetryDestinationsRequest {
+  int32 limit = 1 [(buf.validate.field).int32 = {gte: 0, lte: 100}];
+  string starting_after = 2;
+}
+message ListTelemetryDestinationsResponse { repeated TelemetryDestination destinations = 1; bool has_more = 2; }

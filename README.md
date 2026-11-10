@@ -37,11 +37,13 @@ dispatches each domain to its native transport:
 
 | Transport | Generator | Source | Output | Domains |
 |-----------|-----------|--------|--------|---------|
-| Connect (connect-go) | `buf` (`buf.gen.yaml`) | `proto/` (committed copy) | `internal/gen` | projects, budgets, notifiers, management-keys, model-sharing, api-keys, identities, workspace-settings, guardrail-rules, routing-rules, vaults, secrets |
+| Connect (connect-go) | `buf` (`buf.gen.yaml`) | `proto/` (committed copy) | `internal/gen` | projects, budgets, notifiers, management-keys, model-sharing, api-keys, identities, workspace-settings, guardrail-rules, routing-rules, vaults, secrets, audit-log-destinations, telemetry-destinations |
 | REST | `oapi-codegen` (`openapi/oapi-codegen.yaml`) | `openapi/openapi.json` (committed copy) | `internal/restgen` | models, workspace-models, evaluators |
 
 Connect calls go to `${ORQ_API_BASE_URL}/v3/rpc/platform` (the gateway strips that prefix
-to the bare `/orq.platform.v1.<Service>/...` path). REST calls go to
+to the bare `/orq.platform.v1.<Service>/...` path). Telemetry destinations live in
+the observability-api binary, reached at `${ORQ_API_BASE_URL}/v3/rpc/traces`
+(`/orq.traces.v1.<Service>/...`). REST calls go to
 `${ORQ_API_BASE_URL}/v2/...`.
 
 The REST client is expected to be retired over time; the `internal/client`
@@ -57,6 +59,7 @@ The proto and OpenAPI inputs are **committed copies** synced from the platform
 monorepo (`../orquesta-web` by default; override `MONOREPO=`):
 
 - `proto/orq/platform/v1/*.proto` ← `apps/platform-api/proto/orq/platform/v1/`
+- `proto/orq/traces/v1/*.proto` ← `apps/observability-api/proto/orq/traces/v1/`
 - `proto/openapiv3/*.proto` ← `apps/platform-api/proto/openapiv3/`
 - `proto/orq/{authz,apikeys,managementkeys}/**` ← `libs/catalog/orq/...`
 - `openapi/openapi.json` ← `.openapi/v2/public/openapi.json`
