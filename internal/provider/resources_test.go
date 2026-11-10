@@ -27,8 +27,8 @@ func TestResourcesRegistered(t *testing.T) {
 	p := New("test")()
 
 	factories := p.Resources(ctx)
-	if len(factories) != 21 {
-		t.Fatalf("expected 21 resources, got %d", len(factories))
+	if len(factories) != 23 {
+		t.Fatalf("expected 23 resources, got %d", len(factories))
 	}
 	want := map[string]bool{
 		"orq_project":               false,
@@ -52,6 +52,8 @@ func TestResourcesRegistered(t *testing.T) {
 		"orq_environment":           false,
 		"orq_mcp_server":            false,
 		"orq_mcp_gateway":           false,
+		"orq_smart_router":          false,
+		"orq_model_fusion":          false,
 	}
 	for _, f := range factories {
 		r := f()
