@@ -111,8 +111,10 @@ Optional:
 Values are validated against the per-language catalog SERVER-side only: the catalog is long, language-dependent and grows with the detector, so mirroring it in the provider would reject values the server accepts. An unknown entity is rejected at apply, not at plan.
 
 Entities round-trip VERBATIM, so no canonical spelling is imposed on your config: the server upper-cases and trims a COPY of each value purely to look it up in the catalog, but stores — and returns from both read and update — exactly the strings and the order that were sent. (The gateway canonicalises only the effective per-request plugin it assembles at call time, which is not this stored value.)
-- `language` (String) Detector language: `en` or `nl`. Omit for the gateway default (`en`). The valid `entities` catalog depends on this value.
+- `entity_thresholds` (Map of Number) Per-entity-type confidence cutoff, in the `[0, 1]` range. Every key must also appear in `entities`.
+- `language` (String) Detector language, or `auto` to detect it per request (the default when omitted). The supported languages are validated server-side. The valid `entities` catalog depends on this value.
 - `on_failure` (String) Behaviour when redaction cannot run: `block` (fail closed, the gateway default) or `passthrough` (fail open, send the original text).
+- `regions` (List of String) Regions of coverage by lowercase ISO 3166-1 alpha-2 code, or `["all"]`. Adds every entity type the regions cover on top of `entities`.
 - `threshold` (Number) Detection confidence threshold, in the `[0, 1]` range.
 
 ## Import
