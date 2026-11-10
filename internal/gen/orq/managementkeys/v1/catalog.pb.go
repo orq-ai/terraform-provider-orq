@@ -21,52 +21,58 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// DomainGroup is the logical grouping shown in the dashboard
-// permission picker.
-type DomainGroup int32
+// ManagementDomainGroup is the logical grouping shown in the dashboard
+// permission picker. Named with the Management prefix so the OpenAPI
+// schema does not collide with orq.apikeys.v1.DomainGroup — the
+// generator flattens schema names across packages.
+// Value names keep the DOMAIN_GROUP_ prefix: protojson serializes value
+// names, so renaming them would change the deployed wire format.
+type ManagementDomainGroup int32
 
 const (
-	DomainGroup_DOMAIN_GROUP_UNSPECIFIED DomainGroup = 0
+	// buf:lint:ignore ENUM_VALUE_PREFIX
+	ManagementDomainGroup_DOMAIN_GROUP_UNSPECIFIED ManagementDomainGroup = 0
 	// Domains grantable to workspace-level management keys.
-	DomainGroup_DOMAIN_GROUP_WORKSPACE_ADMIN DomainGroup = 1
+	// buf:lint:ignore ENUM_VALUE_PREFIX
+	ManagementDomainGroup_DOMAIN_GROUP_WORKSPACE_ADMIN ManagementDomainGroup = 1
 )
 
-// Enum value maps for DomainGroup.
+// Enum value maps for ManagementDomainGroup.
 var (
-	DomainGroup_name = map[int32]string{
+	ManagementDomainGroup_name = map[int32]string{
 		0: "DOMAIN_GROUP_UNSPECIFIED",
 		1: "DOMAIN_GROUP_WORKSPACE_ADMIN",
 	}
-	DomainGroup_value = map[string]int32{
+	ManagementDomainGroup_value = map[string]int32{
 		"DOMAIN_GROUP_UNSPECIFIED":     0,
 		"DOMAIN_GROUP_WORKSPACE_ADMIN": 1,
 	}
 )
 
-func (x DomainGroup) Enum() *DomainGroup {
-	p := new(DomainGroup)
+func (x ManagementDomainGroup) Enum() *ManagementDomainGroup {
+	p := new(ManagementDomainGroup)
 	*p = x
 	return p
 }
 
-func (x DomainGroup) String() string {
+func (x ManagementDomainGroup) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (DomainGroup) Descriptor() protoreflect.EnumDescriptor {
+func (ManagementDomainGroup) Descriptor() protoreflect.EnumDescriptor {
 	return file_orq_managementkeys_v1_catalog_proto_enumTypes[0].Descriptor()
 }
 
-func (DomainGroup) Type() protoreflect.EnumType {
+func (ManagementDomainGroup) Type() protoreflect.EnumType {
 	return &file_orq_managementkeys_v1_catalog_proto_enumTypes[0]
 }
 
-func (x DomainGroup) Number() protoreflect.EnumNumber {
+func (x ManagementDomainGroup) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use DomainGroup.Descriptor instead.
-func (DomainGroup) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ManagementDomainGroup.Descriptor instead.
+func (ManagementDomainGroup) EnumDescriptor() ([]byte, []int) {
 	return file_orq_managementkeys_v1_catalog_proto_rawDescGZIP(), []int{0}
 }
 
@@ -123,9 +129,9 @@ func (AccessLevel) EnumDescriptor() ([]byte, []int) {
 	return file_orq_managementkeys_v1_catalog_proto_rawDescGZIP(), []int{1}
 }
 
-// Domain describes a permission domain that can be granted to a
-// management key. Verbs are derived from id + readable/writable.
-type Domain struct {
+// ManagementDomain describes a permission domain that can be granted
+// to a management key. Verbs are derived from id + readable/writable.
+type ManagementDomain struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable domain identifier (e.g. "api-key", "budget"). Used as the
 	// key in ManagementKey.access and as the verb prefix in resolved
@@ -134,7 +140,7 @@ type Domain struct {
 	// Human-readable label for the dashboard.
 	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Logical group used by the UI to render this entry.
-	Group DomainGroup `protobuf:"varint,3,opt,name=group,proto3,enum=orq.managementkeys.v1.DomainGroup" json:"group,omitempty"`
+	Group ManagementDomainGroup `protobuf:"varint,3,opt,name=group,proto3,enum=orq.managementkeys.v1.ManagementDomainGroup" json:"group,omitempty"`
 	// Whether this domain can be granted read access.
 	Readable bool `protobuf:"varint,4,opt,name=readable,proto3" json:"readable,omitempty"`
 	// Whether this domain can be granted write access.
@@ -143,20 +149,20 @@ type Domain struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Domain) Reset() {
-	*x = Domain{}
+func (x *ManagementDomain) Reset() {
+	*x = ManagementDomain{}
 	mi := &file_orq_managementkeys_v1_catalog_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Domain) String() string {
+func (x *ManagementDomain) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Domain) ProtoMessage() {}
+func (*ManagementDomain) ProtoMessage() {}
 
-func (x *Domain) ProtoReflect() protoreflect.Message {
+func (x *ManagementDomain) ProtoReflect() protoreflect.Message {
 	mi := &file_orq_managementkeys_v1_catalog_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -168,40 +174,40 @@ func (x *Domain) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Domain.ProtoReflect.Descriptor instead.
-func (*Domain) Descriptor() ([]byte, []int) {
+// Deprecated: Use ManagementDomain.ProtoReflect.Descriptor instead.
+func (*ManagementDomain) Descriptor() ([]byte, []int) {
 	return file_orq_managementkeys_v1_catalog_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Domain) GetId() string {
+func (x *ManagementDomain) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *Domain) GetDisplayName() string {
+func (x *ManagementDomain) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
 	}
 	return ""
 }
 
-func (x *Domain) GetGroup() DomainGroup {
+func (x *ManagementDomain) GetGroup() ManagementDomainGroup {
 	if x != nil {
 		return x.Group
 	}
-	return DomainGroup_DOMAIN_GROUP_UNSPECIFIED
+	return ManagementDomainGroup_DOMAIN_GROUP_UNSPECIFIED
 }
 
-func (x *Domain) GetReadable() bool {
+func (x *ManagementDomain) GetReadable() bool {
 	if x != nil {
 		return x.Readable
 	}
 	return false
 }
 
-func (x *Domain) GetWritable() bool {
+func (x *ManagementDomain) GetWritable() bool {
 	if x != nil {
 		return x.Writable
 	}
@@ -215,7 +221,7 @@ type Catalog struct {
 	// Catalog schema version. Bump only on a breaking shape change.
 	Version int32 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
 	// Full ordered list of permission domains.
-	Domains       []*Domain `protobuf:"bytes,2,rep,name=domains,proto3" json:"domains,omitempty"`
+	Domains       []*ManagementDomain `protobuf:"bytes,2,rep,name=domains,proto3" json:"domains,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -257,7 +263,7 @@ func (x *Catalog) GetVersion() int32 {
 	return 0
 }
 
-func (x *Catalog) GetDomains() []*Domain {
+func (x *Catalog) GetDomains() []*ManagementDomain {
 	if x != nil {
 		return x.Domains
 	}
@@ -268,17 +274,17 @@ var File_orq_managementkeys_v1_catalog_proto protoreflect.FileDescriptor
 
 const file_orq_managementkeys_v1_catalog_proto_rawDesc = "" +
 	"\n" +
-	"#orq/managementkeys/v1/catalog.proto\x12\x15orq.managementkeys.v1\"\xad\x01\n" +
-	"\x06Domain\x12\x0e\n" +
+	"#orq/managementkeys/v1/catalog.proto\x12\x15orq.managementkeys.v1\"\xc1\x01\n" +
+	"\x10ManagementDomain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x128\n" +
-	"\x05group\x18\x03 \x01(\x0e2\".orq.managementkeys.v1.DomainGroupR\x05group\x12\x1a\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12B\n" +
+	"\x05group\x18\x03 \x01(\x0e2,.orq.managementkeys.v1.ManagementDomainGroupR\x05group\x12\x1a\n" +
 	"\breadable\x18\x04 \x01(\bR\breadable\x12\x1a\n" +
-	"\bwritable\x18\x05 \x01(\bR\bwritable\"\\\n" +
+	"\bwritable\x18\x05 \x01(\bR\bwritable\"f\n" +
 	"\aCatalog\x12\x18\n" +
-	"\aversion\x18\x01 \x01(\x05R\aversion\x127\n" +
-	"\adomains\x18\x02 \x03(\v2\x1d.orq.managementkeys.v1.DomainR\adomains*M\n" +
-	"\vDomainGroup\x12\x1c\n" +
+	"\aversion\x18\x01 \x01(\x05R\aversion\x12A\n" +
+	"\adomains\x18\x02 \x03(\v2'.orq.managementkeys.v1.ManagementDomainR\adomains*W\n" +
+	"\x15ManagementDomainGroup\x12\x1c\n" +
 	"\x18DOMAIN_GROUP_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cDOMAIN_GROUP_WORKSPACE_ADMIN\x10\x01*q\n" +
 	"\vAccessLevel\x12\x1c\n" +
@@ -303,14 +309,14 @@ func file_orq_managementkeys_v1_catalog_proto_rawDescGZIP() []byte {
 var file_orq_managementkeys_v1_catalog_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_orq_managementkeys_v1_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_orq_managementkeys_v1_catalog_proto_goTypes = []any{
-	(DomainGroup)(0), // 0: orq.managementkeys.v1.DomainGroup
-	(AccessLevel)(0), // 1: orq.managementkeys.v1.AccessLevel
-	(*Domain)(nil),   // 2: orq.managementkeys.v1.Domain
-	(*Catalog)(nil),  // 3: orq.managementkeys.v1.Catalog
+	(ManagementDomainGroup)(0), // 0: orq.managementkeys.v1.ManagementDomainGroup
+	(AccessLevel)(0),           // 1: orq.managementkeys.v1.AccessLevel
+	(*ManagementDomain)(nil),   // 2: orq.managementkeys.v1.ManagementDomain
+	(*Catalog)(nil),            // 3: orq.managementkeys.v1.Catalog
 }
 var file_orq_managementkeys_v1_catalog_proto_depIdxs = []int32{
-	0, // 0: orq.managementkeys.v1.Domain.group:type_name -> orq.managementkeys.v1.DomainGroup
-	2, // 1: orq.managementkeys.v1.Catalog.domains:type_name -> orq.managementkeys.v1.Domain
+	0, // 0: orq.managementkeys.v1.ManagementDomain.group:type_name -> orq.managementkeys.v1.ManagementDomainGroup
+	2, // 1: orq.managementkeys.v1.Catalog.domains:type_name -> orq.managementkeys.v1.ManagementDomain
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

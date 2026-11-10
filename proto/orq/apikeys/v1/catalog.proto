@@ -10,9 +10,10 @@ package orq.apikeys.v1;
 // the same `catalog.textpb` fixture and reconstruct the in-memory
 // catalog from it, so the two runtimes can never drift.
 //
-// Verb derivation (read/write -> *.list/*.view/*.create/*.update/
-// *.delete/*.execute) stays hand-written in each runtime — that is
-// logic, not data, and lives next to the authorize() path.
+// Standard verb derivation (read/write -> *.list/*.view/*.create/
+// *.update/*.delete/*.execute) stays hand-written in each runtime.
+// Domains with additional write capabilities declare their full verb
+// names in extra_write_verbs.
 //
 // To add or change a domain: edit `catalog.textpb`, run the catalog
 // codegen target, commit both the textpb and the generated artifacts.
@@ -49,7 +50,8 @@ enum AccessLevel {
 }
 
 // Domain describes a permission domain that can be granted to an
-// API key. Verbs are derived from id + group + readable/writable.
+// API key. Standard verbs are derived from id + group +
+// readable/writable; exceptional write verbs are explicit data.
 message Domain {
   // Stable domain identifier (e.g. "agent", "chat_completions"). Used
   // as the key in ApiKey.access and as the verb prefix in resolved
@@ -71,6 +73,11 @@ message Domain {
 
   // Whether this domain can be granted write access.
   bool writable = 6;
+
+  // Additional full verb names granted only with write access. This is
+  // additive to the standard group-derived verbs and intentionally does
+  // not affect read access (e.g. "insights.run").
+  repeated string extra_write_verbs = 7;
 }
 
 // RouterPresetEntry maps a domain id to the AccessLevel that the

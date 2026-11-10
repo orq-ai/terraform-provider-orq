@@ -17,11 +17,17 @@ package orq.managementkeys.v1;
 // To add or change a domain: edit `catalog.textpb`, run the catalog
 // codegen target, commit both the textpb and the generated artifacts.
 
-// DomainGroup is the logical grouping shown in the dashboard
-// permission picker.
-enum DomainGroup {
+// ManagementDomainGroup is the logical grouping shown in the dashboard
+// permission picker. Named with the Management prefix so the OpenAPI
+// schema does not collide with orq.apikeys.v1.DomainGroup — the
+// generator flattens schema names across packages.
+// Value names keep the DOMAIN_GROUP_ prefix: protojson serializes value
+// names, so renaming them would change the deployed wire format.
+enum ManagementDomainGroup {
+  // buf:lint:ignore ENUM_VALUE_PREFIX
   DOMAIN_GROUP_UNSPECIFIED = 0;
   // Domains grantable to workspace-level management keys.
+  // buf:lint:ignore ENUM_VALUE_PREFIX
   DOMAIN_GROUP_WORKSPACE_ADMIN = 1;
 }
 
@@ -33,9 +39,9 @@ enum AccessLevel {
   ACCESS_LEVEL_WRITE = 3;
 }
 
-// Domain describes a permission domain that can be granted to a
-// management key. Verbs are derived from id + readable/writable.
-message Domain {
+// ManagementDomain describes a permission domain that can be granted
+// to a management key. Verbs are derived from id + readable/writable.
+message ManagementDomain {
   // Stable domain identifier (e.g. "api-key", "budget"). Used as the
   // key in ManagementKey.access and as the verb prefix in resolved
   // permissions (e.g. budget.list, budget.view, budget.create).
@@ -45,7 +51,7 @@ message Domain {
   string display_name = 2;
 
   // Logical group used by the UI to render this entry.
-  DomainGroup group = 3;
+  ManagementDomainGroup group = 3;
 
   // Whether this domain can be granted read access.
   bool readable = 4;
@@ -61,5 +67,5 @@ message Catalog {
   int32 version = 1;
 
   // Full ordered list of permission domains.
-  repeated Domain domains = 2;
+  repeated ManagementDomain domains = 2;
 }

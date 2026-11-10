@@ -2,35 +2,48 @@ package client
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+
+	connect "connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	platformv1 "github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1"
+	"github.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1/platformv1connect"
 )
 
-// guardrailRuleJSON is the canned single-rule body the fake server returns.
-func guardrailRuleJSON(projectID string) map[string]any {
-	return map[string]any{
-		"_id":           "gr_1",
-		"display_name":  "pii",
-		"description":   "block pii",
-		"enabled":       true,
-		"project_id":    projectID,
-		"timeout":       1000,
-		"created_at":    "2020-01-01T00:00:00Z",
-		"updated_at":    "2020-01-02T00:00:00Z",
-		"created_by_id": "u",
-		"updated_by_id": "u",
-		"guardrails": []map[string]any{
-			{"id": "guard_1", "execute_on": "input", "sample_rate": 0.5, "is_guardrail": true},
-		},
-	}
+type fakeGuardrailRulesHandler struct {
+	platformv1connect.UnimplementedGuardrailRulesServiceHandler
+	lastCreate *platformv1.CreateGuardrailRuleRequest
+	lastUpdate *platformv1.UpdateGuardrailRuleRequest
+	rule       *platformv1.GuardrailRule
 }
 
-func newGuardrailServer(t *testing.T, handler http.HandlerFunc) *Client {
+func (f *fakeGuardrailRulesHandler) CreateGuardrailRule(_ context.Context, req *platformv1.CreateGuardrailRuleRequest) (*platformv1.CreateGuardrailRuleResponse, error) {
+	f.lastCreate = req
+	return &platformv1.CreateGuardrailRuleResponse{GuardrailRule: f.rule}, nil
+}
+
+func (f *fakeGuardrailRulesHandler) UpdateGuardrailRule(_ context.Context, req *platformv1.UpdateGuardrailRuleRequest) (*platformv1.UpdateGuardrailRuleResponse, error) {
+	f.lastUpdate = req
+	return &platformv1.UpdateGuardrailRuleResponse{GuardrailRule: f.rule}, nil
+}
+
+func (f *fakeGuardrailRulesHandler) GetGuardrailRule(_ context.Context, _ *platformv1.GetGuardrailRuleRequest) (*platformv1.GetGuardrailRuleResponse, error) {
+	if f.rule == nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("gone"))
+	}
+	return &platformv1.GetGuardrailRuleResponse{GuardrailRule: f.rule}, nil
+}
+
+func newGuardrailRulesClient(t *testing.T, h *fakeGuardrailRulesHandler) *Client {
 	t.Helper()
-	srv := httptest.NewServer(handler)
+	path, handler := platformv1connect.NewGuardrailRulesServiceHandler(h)
+	mux := http.NewServeMux()
+	mux.Handle("/v3/rpc/platform"+path, http.StripPrefix("/v3/rpc/platform", handler))
+	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 	c, err := New(Config{URL: srv.URL, Token: sentinelToken})
 	if err != nil {
@@ -39,16 +52,30 @@ func newGuardrailServer(t *testing.T, handler http.HandlerFunc) *Client {
 	return c
 }
 
+func guardrailRuleProto(t *testing.T, projectID string, options map[string]any) *platformv1.GuardrailRule {
+	t.Helper()
+	sampleRate, isGuardrail := 0.5, true
+	ref := &platformv1.GuardrailRuleGuardrail{Id: "guard_1", ExecuteOn: "input", SampleRate: &sampleRate, IsGuardrail: &isGuardrail}
+	if options != nil {
+		encoded, err := structpb.NewStruct(options)
+		if err != nil {
+			t.Fatalf("encoding options: %v", err)
+		}
+		ref.Options = encoded
+	}
+	return &platformv1.GuardrailRule{
+		Id:          "gr_1",
+		DisplayName: "pii",
+		Description: "block pii",
+		Enabled:     true,
+		ProjectId:   projectID,
+		Guardrails:  []*platformv1.GuardrailRuleGuardrail{ref},
+	}
+}
+
 func TestGuardrailRules_CreateRoundTrip(t *testing.T) {
-	var gotBody map[string]any
-	var gotPath, gotMethod string
-	c := newGuardrailServer(t, func(w http.ResponseWriter, r *http.Request) {
-		gotPath, gotMethod = r.URL.Path, r.Method
-		_ = json.NewDecoder(r.Body).Decode(&gotBody)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(guardrailRuleJSON("proj_7"))
-	})
+	h := &fakeGuardrailRulesHandler{rule: guardrailRuleProto(t, "proj_7", nil)}
+	c := newGuardrailRulesClient(t, h)
 
 	pid := "proj_7"
 	rule, err := c.GuardrailRules().Create(context.Background(), GuardrailRuleCreateInput{
@@ -59,11 +86,8 @@ func TestGuardrailRules_CreateRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if gotMethod != http.MethodPost || gotPath != "/v2/guardrail-rules" {
-		t.Errorf("wrong request: %s %s", gotMethod, gotPath)
-	}
-	if gotBody["project_id"] != "proj_7" {
-		t.Errorf("project_id not sent: %v", gotBody["project_id"])
+	if h.lastCreate.GetProjectId() != "proj_7" {
+		t.Errorf("project_id not sent: %v", h.lastCreate.GetProjectId())
 	}
 	if rule.ID != "gr_1" || rule.ProjectID != "proj_7" || !rule.Enabled {
 		t.Errorf("read-back wrong: %+v", rule)
@@ -71,27 +95,8 @@ func TestGuardrailRules_CreateRoundTrip(t *testing.T) {
 	if len(rule.Guardrails) != 1 || rule.Guardrails[0].ID != "guard_1" || rule.Guardrails[0].SampleRate == nil {
 		t.Errorf("guardrails read-back wrong: %+v", rule.Guardrails)
 	}
-}
-
-func TestGuardrailRules_UpdateOmitsProjectID(t *testing.T) {
-	var gotBody map[string]any
-	var gotMethod string
-	c := newGuardrailServer(t, func(w http.ResponseWriter, r *http.Request) {
-		gotMethod = r.Method
-		_ = json.NewDecoder(r.Body).Decode(&gotBody)
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(guardrailRuleJSON("proj_7"))
-	})
-	name := "pii2"
-	if _, err := c.GuardrailRules().Update(context.Background(), GuardrailRuleUpdateInput{ID: "gr_1", DisplayName: &name}); err != nil {
-		t.Fatalf("Update: %v", err)
-	}
-	if gotMethod != http.MethodPatch {
-		t.Errorf("expected PATCH, got %s", gotMethod)
-	}
-	// The update wire contract has no project_id field.
-	if _, ok := gotBody["project_id"]; ok {
-		t.Errorf("update body must not carry project_id: %v", gotBody)
+	if rule.Guardrails[0].Options != nil {
+		t.Errorf("absent options must read back as nil, got %+v", rule.Guardrails[0].Options)
 	}
 }
 
@@ -99,18 +104,8 @@ func TestGuardrailRules_UpdateOmitsProjectID(t *testing.T) {
 // a write and read back, so an update never silently drops them.
 func TestGuardrailRules_OptionsRoundTrip(t *testing.T) {
 	opts := map[string]any{"language": "en", "threshold": 0.8, "entities": []any{"EMAIL", "PHONE"}}
-	echo := guardrailRuleJSON("proj_7")
-	echo["guardrails"] = []map[string]any{
-		{"id": "guard_1", "execute_on": "input", "options": opts},
-	}
-
-	var gotBody map[string]any
-	c := newGuardrailServer(t, func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&gotBody)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(echo)
-	})
+	h := &fakeGuardrailRulesHandler{rule: guardrailRuleProto(t, "proj_7", opts)}
+	c := newGuardrailRulesClient(t, h)
 
 	created, err := c.GuardrailRules().Create(context.Background(), GuardrailRuleCreateInput{
 		DisplayName: "pii",
@@ -119,16 +114,10 @@ func TestGuardrailRules_OptionsRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	// The request body must carry the options object.
-	gs, ok := gotBody["guardrails"].([]any)
-	if !ok || len(gs) != 1 {
-		t.Fatalf("guardrails not in request body: %v", gotBody["guardrails"])
+	sent := h.lastCreate.GetGuardrails()
+	if len(sent) != 1 || sent[0].GetOptions().AsMap()["language"] != "en" {
+		t.Fatalf("options not sent on create: %v", sent)
 	}
-	sentOpts, ok := gs[0].(map[string]any)["options"].(map[string]any)
-	if !ok || sentOpts["language"] != "en" {
-		t.Errorf("options not sent on create: %v", gs[0])
-	}
-	// The read-back must preserve the options map.
 	if len(created.Guardrails) != 1 || created.Guardrails[0].Options == nil {
 		t.Fatalf("options dropped on read-back: %+v", created.Guardrails)
 	}
@@ -141,15 +130,8 @@ func TestGuardrailRules_OptionsRoundTrip(t *testing.T) {
 // they are not wiped from the stored guardrail ref.
 func TestGuardrailRules_UpdateCarriesOptions(t *testing.T) {
 	opts := map[string]any{"language": "fr"}
-	echo := guardrailRuleJSON("proj_7")
-	echo["guardrails"] = []map[string]any{{"id": "guard_1", "execute_on": "input", "options": opts}}
-
-	var gotBody map[string]any
-	c := newGuardrailServer(t, func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&gotBody)
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(echo)
-	})
+	h := &fakeGuardrailRulesHandler{rule: guardrailRuleProto(t, "proj_7", opts)}
+	c := newGuardrailRulesClient(t, h)
 
 	name := "pii"
 	updated, err := c.GuardrailRules().Update(context.Background(), GuardrailRuleUpdateInput{
@@ -160,10 +142,12 @@ func TestGuardrailRules_UpdateCarriesOptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	gs := gotBody["guardrails"].([]any)
-	sentOpts, ok := gs[0].(map[string]any)["options"].(map[string]any)
-	if !ok || sentOpts["language"] != "fr" {
-		t.Errorf("update did not carry options: %v", gs[0])
+	sent := h.lastUpdate.GetGuardrails()
+	if len(sent) != 1 || sent[0].GetOptions().AsMap()["language"] != "fr" {
+		t.Errorf("update did not carry options: %v", sent)
+	}
+	if !h.lastUpdate.GetReplaceGuardrails() {
+		t.Errorf("update must replace the guardrail list")
 	}
 	if updated.Guardrails[0].Options["language"] != "fr" {
 		t.Errorf("options not read back on update: %+v", updated.Guardrails[0].Options)
@@ -171,15 +155,9 @@ func TestGuardrailRules_UpdateCarriesOptions(t *testing.T) {
 }
 
 func TestGuardrailRules_NotFoundNormalized(t *testing.T) {
-	c := newGuardrailServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error":"gone"}`))
-	})
+	c := newGuardrailRulesClient(t, &fakeGuardrailRulesHandler{})
 	_, err := c.GuardrailRules().Get(context.Background(), "missing")
 	if err == nil || CodeOf(err) != CodeNotFound {
 		t.Fatalf("expected not_found, got %v", err)
-	}
-	if strings.Contains(err.Error(), "/v2/guardrail-rules") {
-		t.Errorf("error leaks REST route: %q", err.Error())
 	}
 }

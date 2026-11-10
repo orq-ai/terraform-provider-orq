@@ -125,7 +125,6 @@ resource "orq_guardrail_rule" "shakespeare_guard" {
   description  = "Blocks any response the judge deems non-Shakespearean"
 
   enabled = true
-  timeout = 30000
 
   guardrails {
     id           = orq_evaluator.shakespearean.id

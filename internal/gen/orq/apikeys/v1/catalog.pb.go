@@ -186,7 +186,8 @@ func (AccessLevel) EnumDescriptor() ([]byte, []int) {
 }
 
 // Domain describes a permission domain that can be granted to an
-// API key. Verbs are derived from id + group + readable/writable.
+// API key. Standard verbs are derived from id + group +
+// readable/writable; exceptional write verbs are explicit data.
 type Domain struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable domain identifier (e.g. "agent", "chat_completions"). Used
@@ -203,9 +204,13 @@ type Domain struct {
 	// Whether this domain can be granted read access.
 	Readable bool `protobuf:"varint,5,opt,name=readable,proto3" json:"readable,omitempty"`
 	// Whether this domain can be granted write access.
-	Writable      bool `protobuf:"varint,6,opt,name=writable,proto3" json:"writable,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Writable bool `protobuf:"varint,6,opt,name=writable,proto3" json:"writable,omitempty"`
+	// Additional full verb names granted only with write access. This is
+	// additive to the standard group-derived verbs and intentionally does
+	// not affect read access (e.g. "insights.run").
+	ExtraWriteVerbs []string `protobuf:"bytes,7,rep,name=extra_write_verbs,json=extraWriteVerbs,proto3" json:"extra_write_verbs,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Domain) Reset() {
@@ -278,6 +283,13 @@ func (x *Domain) GetWritable() bool {
 		return x.Writable
 	}
 	return false
+}
+
+func (x *Domain) GetExtraWriteVerbs() []string {
+	if x != nil {
+		return x.ExtraWriteVerbs
+	}
+	return nil
 }
 
 // RouterPresetEntry maps a domain id to the AccessLevel that the
@@ -408,14 +420,15 @@ var File_orq_apikeys_v1_catalog_proto protoreflect.FileDescriptor
 
 const file_orq_apikeys_v1_catalog_proto_rawDesc = "" +
 	"\n" +
-	"\x1corq/apikeys/v1/catalog.proto\x12\x0eorq.apikeys.v1\"\xe8\x01\n" +
+	"\x1corq/apikeys/v1/catalog.proto\x12\x0eorq.apikeys.v1\"\x94\x02\n" +
 	"\x06Domain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x121\n" +
 	"\x05group\x18\x03 \x01(\x0e2\x1b.orq.apikeys.v1.DomainGroupR\x05group\x12@\n" +
 	"\x0eallowed_scopes\x18\x04 \x03(\x0e2\x19.orq.apikeys.v1.ScopeModeR\rallowedScopes\x12\x1a\n" +
 	"\breadable\x18\x05 \x01(\bR\breadable\x12\x1a\n" +
-	"\bwritable\x18\x06 \x01(\bR\bwritable\"c\n" +
+	"\bwritable\x18\x06 \x01(\bR\bwritable\x12*\n" +
+	"\x11extra_write_verbs\x18\a \x03(\tR\x0fextraWriteVerbs\"c\n" +
 	"\x11RouterPresetEntry\x12\x1b\n" +
 	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\x121\n" +
 	"\x05level\x18\x02 \x01(\x0e2\x1b.orq.apikeys.v1.AccessLevelR\x05level\"\x9d\x01\n" +

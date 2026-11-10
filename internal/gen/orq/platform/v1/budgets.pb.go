@@ -28,7 +28,7 @@ const (
 )
 
 // Which limit the threshold is a percentage of. UNSPECIFIED means COST.
-// TOKENS is accepted and persisted but not yet evaluated.
+// TOKENS is reserved; a TOKENS alert is rejected.
 type BudgetAlertDimension int32
 
 const (
@@ -144,34 +144,43 @@ func (BudgetPeriod) EnumDescriptor() ([]byte, []int) {
 type BudgetScopeKind int32
 
 const (
-	BudgetScopeKind_BUDGET_SCOPE_KIND_UNSPECIFIED BudgetScopeKind = 0
-	BudgetScopeKind_BUDGET_SCOPE_KIND_WORKSPACE   BudgetScopeKind = 1
-	BudgetScopeKind_BUDGET_SCOPE_KIND_PROJECT     BudgetScopeKind = 2
-	BudgetScopeKind_BUDGET_SCOPE_KIND_IDENTITY    BudgetScopeKind = 3
-	BudgetScopeKind_BUDGET_SCOPE_KIND_API_KEY     BudgetScopeKind = 4
-	BudgetScopeKind_BUDGET_SCOPE_KIND_PROVIDER    BudgetScopeKind = 5
-	BudgetScopeKind_BUDGET_SCOPE_KIND_MODEL       BudgetScopeKind = 6
+	BudgetScopeKind_BUDGET_SCOPE_KIND_UNSPECIFIED      BudgetScopeKind = 0
+	BudgetScopeKind_BUDGET_SCOPE_KIND_WORKSPACE        BudgetScopeKind = 1
+	BudgetScopeKind_BUDGET_SCOPE_KIND_PROJECT          BudgetScopeKind = 2
+	BudgetScopeKind_BUDGET_SCOPE_KIND_IDENTITY         BudgetScopeKind = 3
+	BudgetScopeKind_BUDGET_SCOPE_KIND_API_KEY          BudgetScopeKind = 4
+	BudgetScopeKind_BUDGET_SCOPE_KIND_PROVIDER         BudgetScopeKind = 5
+	BudgetScopeKind_BUDGET_SCOPE_KIND_MODEL            BudgetScopeKind = 6
+	BudgetScopeKind_BUDGET_SCOPE_KIND_AGENT_DEPLOYMENT BudgetScopeKind = 8
+	BudgetScopeKind_BUDGET_SCOPE_KIND_FACTORY_SCOPE    BudgetScopeKind = 9
+	BudgetScopeKind_BUDGET_SCOPE_KIND_CATEGORY         BudgetScopeKind = 10
 )
 
 // Enum value maps for BudgetScopeKind.
 var (
 	BudgetScopeKind_name = map[int32]string{
-		0: "BUDGET_SCOPE_KIND_UNSPECIFIED",
-		1: "BUDGET_SCOPE_KIND_WORKSPACE",
-		2: "BUDGET_SCOPE_KIND_PROJECT",
-		3: "BUDGET_SCOPE_KIND_IDENTITY",
-		4: "BUDGET_SCOPE_KIND_API_KEY",
-		5: "BUDGET_SCOPE_KIND_PROVIDER",
-		6: "BUDGET_SCOPE_KIND_MODEL",
+		0:  "BUDGET_SCOPE_KIND_UNSPECIFIED",
+		1:  "BUDGET_SCOPE_KIND_WORKSPACE",
+		2:  "BUDGET_SCOPE_KIND_PROJECT",
+		3:  "BUDGET_SCOPE_KIND_IDENTITY",
+		4:  "BUDGET_SCOPE_KIND_API_KEY",
+		5:  "BUDGET_SCOPE_KIND_PROVIDER",
+		6:  "BUDGET_SCOPE_KIND_MODEL",
+		8:  "BUDGET_SCOPE_KIND_AGENT_DEPLOYMENT",
+		9:  "BUDGET_SCOPE_KIND_FACTORY_SCOPE",
+		10: "BUDGET_SCOPE_KIND_CATEGORY",
 	}
 	BudgetScopeKind_value = map[string]int32{
-		"BUDGET_SCOPE_KIND_UNSPECIFIED": 0,
-		"BUDGET_SCOPE_KIND_WORKSPACE":   1,
-		"BUDGET_SCOPE_KIND_PROJECT":     2,
-		"BUDGET_SCOPE_KIND_IDENTITY":    3,
-		"BUDGET_SCOPE_KIND_API_KEY":     4,
-		"BUDGET_SCOPE_KIND_PROVIDER":    5,
-		"BUDGET_SCOPE_KIND_MODEL":       6,
+		"BUDGET_SCOPE_KIND_UNSPECIFIED":      0,
+		"BUDGET_SCOPE_KIND_WORKSPACE":        1,
+		"BUDGET_SCOPE_KIND_PROJECT":          2,
+		"BUDGET_SCOPE_KIND_IDENTITY":         3,
+		"BUDGET_SCOPE_KIND_API_KEY":          4,
+		"BUDGET_SCOPE_KIND_PROVIDER":         5,
+		"BUDGET_SCOPE_KIND_MODEL":            6,
+		"BUDGET_SCOPE_KIND_AGENT_DEPLOYMENT": 8,
+		"BUDGET_SCOPE_KIND_FACTORY_SCOPE":    9,
+		"BUDGET_SCOPE_KIND_CATEGORY":         10,
 	}
 )
 
@@ -257,23 +266,20 @@ func (BudgetSortField) EnumDescriptor() ([]byte, []int) {
 	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{3}
 }
 
-// Budget is the canonical record stored in MongoDB `budgets.entities`.
-// It replaces the embedded `constraints.budget` on api-keys and the
-// legacy CONTACT-only `budgets.configs` collection (see ADR 0007).
+// Budget defines limits and matching rules used to govern consumption.
 type Budget struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	BudgetId string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
-	// Denormalized metadata for UI rendering, list filters, and the
-	// resolver's prefilter index. Never consulted for matching — the
-	// `match` expression is the single source of matching semantics.
-	// Unset for budgets created from a raw CEL expression ("custom").
+	// Scope the budget was created for, used to group and filter budgets in
+	// the console. Not used for matching: the `match` expression decides
+	// which requests a budget applies to. Unset for budgets created from a
+	// raw CEL expression ("custom").
 	Scope *BudgetScope `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
-	// The matching semantics of the budget. The enforcement resolver
-	// evaluates `match.cel` against the request context; a budget
-	// applies to a request if and only if the expression evaluates to
-	// true. Scoped creates derive a canonical expression (e.g.
-	// `provider == "openai"`); an empty expression always matches
-	// (workspace-wide).
+	// The matching semantics of the budget. A budget applies to a request
+	// when `match.cel` evaluates to true against the request context.
+	// Creating a budget for a scope derives the expression for that scope
+	// (e.g. `provider == "openai"`); an empty expression matches every
+	// request in the workspace.
 	Match     *BudgetMatch           `protobuf:"bytes,9,opt,name=match,proto3" json:"match,omitempty"`
 	Limits    *BudgetLimits          `protobuf:"bytes,3,opt,name=limits,proto3" json:"limits,omitempty"`
 	RateLimit *RateLimit             `protobuf:"bytes,4,opt,name=rate_limit,json=rateLimit,proto3" json:"rate_limit,omitempty"`
@@ -281,8 +287,8 @@ type Budget struct {
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	// Live consumption for the current period, read from the Redis
-	// counters the enforcement gate maintains. Populated by read paths
+	// Latest available consumption used for enforcement in the current
+	// period. This is not an exact billing ledger. Populated by read paths
 	// (Get / List); omitted on write responses (Create / Update / Reset)
 	// where it carries no signal. Absent or all-zero for a budget that
 	// has not been spent against in the current period.
@@ -404,6 +410,7 @@ func (x *Budget) GetAlerts() []*BudgetAlert {
 // `dimension` reaches `threshold_percent` of the matching limit. Each alert
 // fires at most once per period, re-arming on rollover or a limit change.
 // The dimension must have a limit set, or the write is rejected.
+// A TOKENS alert is rejected.
 type BudgetAlert struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Assigned by ORQ. Supply an existing id to edit that alert in place.
@@ -476,20 +483,20 @@ func (x *BudgetAlert) GetDimension() BudgetAlertDimension {
 	return BudgetAlertDimension_BUDGET_ALERT_DIMENSION_UNSPECIFIED
 }
 
-// BudgetUsage is the current-period consumption of a budget, sourced
-// from the live Redis counters (not the exact ledger). Each dimension is
+// BudgetUsage is the latest available current-period consumption used
+// for budget enforcement, not an exact billing ledger. Each dimension is
 // the consumed side of the matching limit dimension: `amount` is the
 // accumulated cost in USD (vs limits.amount), `tokens` is the accumulated
 // token count (vs limits.token_limit), and `requests` is the count in the
-// rolling 60-second window (vs rate_limit.requests_per_minute). All three
+// fixed 60-second window that starts with the first request (vs
+// rate_limit.requests_per_minute). All three
 // are explicit-presence so the triple is always emitted in full, zeros
 // included — a never-spent budget serializes {amount:0, tokens:0,
 // requests:0} rather than dropping its zero dimensions.
 type BudgetUsage struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Amount *float64               `protobuf:"fixed64,1,opt,name=amount,proto3,oneof" json:"amount,omitempty"`
-	// Carried as a double (not int64) so it serializes as a JSON number
-	// rather than a quoted string, matching limits.token_limit.
+	// Tokens accumulated in the current period.
 	Tokens        *float64 `protobuf:"fixed64,2,opt,name=tokens,proto3,oneof" json:"tokens,omitempty"`
 	Requests      *int32   `protobuf:"varint,3,opt,name=requests,proto3,oneof" json:"requests,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -548,8 +555,8 @@ func (x *BudgetUsage) GetRequests() int32 {
 }
 
 // BudgetScope is a closed oneof. Exactly one variant must be set. The
-// six variants are ordered by enforcement precedence (most specific to
-// most general) and mirror the BudgetScopeKind filter enum.
+// eight variants mirror the BudgetScopeKind filter enum. A request that
+// matches several budgets is checked against every one of them.
 type BudgetScope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Kind:
@@ -560,6 +567,9 @@ type BudgetScope struct {
 	//	*BudgetScope_ApiKey
 	//	*BudgetScope_Provider
 	//	*BudgetScope_Model
+	//	*BudgetScope_AgentDeployment
+	//	*BudgetScope_FactoryScope
+	//	*BudgetScope_Category
 	Kind          isBudgetScope_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -656,6 +666,33 @@ func (x *BudgetScope) GetModel() *ModelBudgetScope {
 	return nil
 }
 
+func (x *BudgetScope) GetAgentDeployment() *AgentDeploymentBudgetScope {
+	if x != nil {
+		if x, ok := x.Kind.(*BudgetScope_AgentDeployment); ok {
+			return x.AgentDeployment
+		}
+	}
+	return nil
+}
+
+func (x *BudgetScope) GetFactoryScope() *FactoryBudgetScope {
+	if x != nil {
+		if x, ok := x.Kind.(*BudgetScope_FactoryScope); ok {
+			return x.FactoryScope
+		}
+	}
+	return nil
+}
+
+func (x *BudgetScope) GetCategory() *CategoryBudgetScope {
+	if x != nil {
+		if x, ok := x.Kind.(*BudgetScope_Category); ok {
+			return x.Category
+		}
+	}
+	return nil
+}
+
 type isBudgetScope_Kind interface {
 	isBudgetScope_Kind()
 }
@@ -684,6 +721,18 @@ type BudgetScope_Model struct {
 	Model *ModelBudgetScope `protobuf:"bytes,6,opt,name=model,proto3,oneof"`
 }
 
+type BudgetScope_AgentDeployment struct {
+	AgentDeployment *AgentDeploymentBudgetScope `protobuf:"bytes,8,opt,name=agent_deployment,json=agentDeployment,proto3,oneof"`
+}
+
+type BudgetScope_FactoryScope struct {
+	FactoryScope *FactoryBudgetScope `protobuf:"bytes,9,opt,name=factory_scope,json=factoryScope,proto3,oneof"`
+}
+
+type BudgetScope_Category struct {
+	Category *CategoryBudgetScope `protobuf:"bytes,10,opt,name=category,proto3,oneof"`
+}
+
 func (*BudgetScope_Workspace) isBudgetScope_Kind() {}
 
 func (*BudgetScope_Project) isBudgetScope_Kind() {}
@@ -696,11 +745,14 @@ func (*BudgetScope_Provider) isBudgetScope_Kind() {}
 
 func (*BudgetScope_Model) isBudgetScope_Kind() {}
 
+func (*BudgetScope_AgentDeployment) isBudgetScope_Kind() {}
+
+func (*BudgetScope_FactoryScope) isBudgetScope_Kind() {}
+
+func (*BudgetScope_Category) isBudgetScope_Kind() {}
+
 // BudgetMatch carries the CEL expression that decides whether a budget
-// applies to a request. Available variables: `model`, `provider`,
-// `model_id`, `api_key`, `identity`, `project`, `metadata` (map),
-// `headers` (map, lowercase keys). An empty expression always matches.
-// Expressions are syntax-validated at write time.
+// applies to a request. An empty expression always matches.
 type BudgetMatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cel           string                 `protobuf:"bytes,1,opt,name=cel,proto3" json:"cel,omitempty"`
@@ -782,6 +834,51 @@ func (*WorkspaceBudgetScope) Descriptor() ([]byte, []int) {
 	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{5}
 }
 
+// A separate allowance per entity; an active individual budget takes precedence.
+type CategoryBudgetScope struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Category      BudgetScopeKind        `protobuf:"varint,1,opt,name=category,proto3,enum=orq.platform.v1.BudgetScopeKind" json:"category,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CategoryBudgetScope) Reset() {
+	*x = CategoryBudgetScope{}
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CategoryBudgetScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CategoryBudgetScope) ProtoMessage() {}
+
+func (x *CategoryBudgetScope) ProtoReflect() protoreflect.Message {
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CategoryBudgetScope.ProtoReflect.Descriptor instead.
+func (*CategoryBudgetScope) Descriptor() ([]byte, []int) {
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CategoryBudgetScope) GetCategory() BudgetScopeKind {
+	if x != nil {
+		return x.Category
+	}
+	return BudgetScopeKind_BUDGET_SCOPE_KIND_UNSPECIFIED
+}
+
 // Per-project cap.
 type ProjectBudgetScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -792,7 +889,7 @@ type ProjectBudgetScope struct {
 
 func (x *ProjectBudgetScope) Reset() {
 	*x = ProjectBudgetScope{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[6]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -804,7 +901,7 @@ func (x *ProjectBudgetScope) String() string {
 func (*ProjectBudgetScope) ProtoMessage() {}
 
 func (x *ProjectBudgetScope) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[6]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -817,7 +914,7 @@ func (x *ProjectBudgetScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectBudgetScope.ProtoReflect.Descriptor instead.
 func (*ProjectBudgetScope) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{6}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ProjectBudgetScope) GetProjectId() string {
@@ -827,8 +924,8 @@ func (x *ProjectBudgetScope) GetProjectId() string {
 	return ""
 }
 
-// Per-identity cap. Keyed by the contact's external_id (not the
-// internal Mongo `_id`) so the scope is stable across imports.
+// Per-identity cap. Keyed by the contact's external identifier so the
+// scope is stable across imports.
 type IdentityBudgetScope struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	IdentityExternalId string                 `protobuf:"bytes,1,opt,name=identity_external_id,json=identityExternalId,proto3" json:"identity_external_id,omitempty"`
@@ -838,7 +935,7 @@ type IdentityBudgetScope struct {
 
 func (x *IdentityBudgetScope) Reset() {
 	*x = IdentityBudgetScope{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[7]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -850,7 +947,7 @@ func (x *IdentityBudgetScope) String() string {
 func (*IdentityBudgetScope) ProtoMessage() {}
 
 func (x *IdentityBudgetScope) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[7]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -863,7 +960,7 @@ func (x *IdentityBudgetScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IdentityBudgetScope.ProtoReflect.Descriptor instead.
 func (*IdentityBudgetScope) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{7}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *IdentityBudgetScope) GetIdentityExternalId() string {
@@ -874,7 +971,7 @@ func (x *IdentityBudgetScope) GetIdentityExternalId() string {
 }
 
 // Per-api-key cap. Replaces the legacy embedded `constraints.budget`
-// on auth.apiKeys.
+// associated with an API key.
 type ApiKeyBudgetScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ApiKeyId      string                 `protobuf:"bytes,1,opt,name=api_key_id,json=apiKeyId,proto3" json:"api_key_id,omitempty"`
@@ -884,7 +981,7 @@ type ApiKeyBudgetScope struct {
 
 func (x *ApiKeyBudgetScope) Reset() {
 	*x = ApiKeyBudgetScope{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[8]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -896,7 +993,7 @@ func (x *ApiKeyBudgetScope) String() string {
 func (*ApiKeyBudgetScope) ProtoMessage() {}
 
 func (x *ApiKeyBudgetScope) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[8]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -909,7 +1006,7 @@ func (x *ApiKeyBudgetScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApiKeyBudgetScope.ProtoReflect.Descriptor instead.
 func (*ApiKeyBudgetScope) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{8}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ApiKeyBudgetScope) GetApiKeyId() string {
@@ -919,8 +1016,8 @@ func (x *ApiKeyBudgetScope) GetApiKeyId() string {
 	return ""
 }
 
-// Per-provider cap. The value is the provider enum string (e.g.
-// "openai", "anthropic") drawn from ModelIntegrationIdentifier.
+// Per-provider cap. The value is the provider identifier, for example
+// "openai" or "anthropic".
 type ProviderBudgetScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
@@ -930,7 +1027,7 @@ type ProviderBudgetScope struct {
 
 func (x *ProviderBudgetScope) Reset() {
 	*x = ProviderBudgetScope{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[9]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -942,7 +1039,7 @@ func (x *ProviderBudgetScope) String() string {
 func (*ProviderBudgetScope) ProtoMessage() {}
 
 func (x *ProviderBudgetScope) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[9]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -955,7 +1052,7 @@ func (x *ProviderBudgetScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderBudgetScope.ProtoReflect.Descriptor instead.
 func (*ProviderBudgetScope) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{9}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ProviderBudgetScope) GetProvider() string {
@@ -967,7 +1064,7 @@ func (x *ProviderBudgetScope) GetProvider() string {
 
 // Per-model cap. The value is the FULL model reference as callers send
 // it ("openai/gpt-4o", or "workspaceKey@openai/gpt-4o" for private
-// models) — NOT the Mongo `_id` of the model master-data document.
+// models).
 type ModelBudgetScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ModelId       string                 `protobuf:"bytes,1,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
@@ -977,7 +1074,7 @@ type ModelBudgetScope struct {
 
 func (x *ModelBudgetScope) Reset() {
 	*x = ModelBudgetScope{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[10]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -989,7 +1086,7 @@ func (x *ModelBudgetScope) String() string {
 func (*ModelBudgetScope) ProtoMessage() {}
 
 func (x *ModelBudgetScope) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[10]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1002,7 +1099,7 @@ func (x *ModelBudgetScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelBudgetScope.ProtoReflect.Descriptor instead.
 func (*ModelBudgetScope) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{10}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ModelBudgetScope) GetModelId() string {
@@ -1012,17 +1109,104 @@ func (x *ModelBudgetScope) GetModelId() string {
 	return ""
 }
 
+type AgentDeploymentBudgetScope struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentDeploymentBudgetScope) Reset() {
+	*x = AgentDeploymentBudgetScope{}
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentDeploymentBudgetScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentDeploymentBudgetScope) ProtoMessage() {}
+
+func (x *AgentDeploymentBudgetScope) ProtoReflect() protoreflect.Message {
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentDeploymentBudgetScope.ProtoReflect.Descriptor instead.
+func (*AgentDeploymentBudgetScope) Descriptor() ([]byte, []int) {
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *AgentDeploymentBudgetScope) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+// Per-factory cap. Matches requests from the factory's work units.
+type FactoryBudgetScope struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FactoryId     string                 `protobuf:"bytes,1,opt,name=factory_id,json=factoryId,proto3" json:"factory_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FactoryBudgetScope) Reset() {
+	*x = FactoryBudgetScope{}
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FactoryBudgetScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FactoryBudgetScope) ProtoMessage() {}
+
+func (x *FactoryBudgetScope) ProtoReflect() protoreflect.Message {
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FactoryBudgetScope.ProtoReflect.Descriptor instead.
+func (*FactoryBudgetScope) Descriptor() ([]byte, []int) {
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *FactoryBudgetScope) GetFactoryId() string {
+	if x != nil {
+		return x.FactoryId
+	}
+	return ""
+}
+
 // BudgetLimits is the per-period spend and token ceiling. At least one
 // of `amount`, `token_limit`, or RateLimit.requests_per_minute MUST be
-// set on a Budget; that invariant is enforced by the handler.
+// set on a Budget; the API rejects a budget that sets none of the three.
 type BudgetLimits struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Period BudgetPeriod           `protobuf:"varint,1,opt,name=period,proto3,enum=orq.platform.v1.BudgetPeriod" json:"period,omitempty"`
 	Amount *float64               `protobuf:"fixed64,2,opt,name=amount,proto3,oneof" json:"amount,omitempty"`
-	// Token ceiling. Carried as a double so it serializes as a JSON number
-	// (proto int64 would serialize as a quoted string); token counts are
-	// whole and well within double's exact-integer range (2^53). Stored as
-	// an integer server-side.
+	// Token ceiling for the budget period. Token counts are whole numbers
+	// and stored as integers.
 	TokenLimit    *float64 `protobuf:"fixed64,3,opt,name=token_limit,json=tokenLimit,proto3,oneof" json:"token_limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1030,7 +1214,7 @@ type BudgetLimits struct {
 
 func (x *BudgetLimits) Reset() {
 	*x = BudgetLimits{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[11]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1042,7 +1226,7 @@ func (x *BudgetLimits) String() string {
 func (*BudgetLimits) ProtoMessage() {}
 
 func (x *BudgetLimits) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[11]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1055,7 +1239,7 @@ func (x *BudgetLimits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BudgetLimits.ProtoReflect.Descriptor instead.
 func (*BudgetLimits) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{11}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *BudgetLimits) GetPeriod() BudgetPeriod {
@@ -1079,8 +1263,8 @@ func (x *BudgetLimits) GetTokenLimit() float64 {
 	return 0
 }
 
-// RateLimit is the per-minute request ceiling. Enforced via atomic
-// increment-first semantics in the enforcement middleware.
+// Per-minute request ceiling applied to the requests this budget
+// matches.
 type RateLimit struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	RequestsPerMinute *int32                 `protobuf:"varint,1,opt,name=requests_per_minute,json=requestsPerMinute,proto3,oneof" json:"requests_per_minute,omitempty"`
@@ -1090,7 +1274,7 @@ type RateLimit struct {
 
 func (x *RateLimit) Reset() {
 	*x = RateLimit{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[12]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1102,7 +1286,7 @@ func (x *RateLimit) String() string {
 func (*RateLimit) ProtoMessage() {}
 
 func (x *RateLimit) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[12]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1115,7 +1299,7 @@ func (x *RateLimit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RateLimit.ProtoReflect.Descriptor instead.
 func (*RateLimit) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{12}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RateLimit) GetRequestsPerMinute() int32 {
@@ -1128,24 +1312,24 @@ func (x *RateLimit) GetRequestsPerMinute() int32 {
 type CreateBudgetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Structured scope. Mutually exclusive with `match`: provide a scope
-	// for the six canonical kinds (the server derives the matching CEL),
+	// for the canonical kinds (the server derives the matching CEL),
 	// or provide `match` for a dynamic budget. Exactly one of the two
-	// must be set; the handler enforces that invariant.
+	// must be set.
 	Scope *BudgetScope `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	// Raw CEL matching expression for dynamic budgets (e.g.
 	// `metadata.team == "ml" && provider == "openai"`). Validated via
 	// CEL parse at write time. Mutually exclusive with `scope`.
 	Match *BudgetMatch `protobuf:"bytes,6,opt,name=match,proto3" json:"match,omitempty"`
 	// At least one of amount / token_limit / rate_limit.requests_per_minute
-	// must be provided on the budget; the handler enforces that invariant.
+	// must be provided on the budget.
 	Limits *BudgetLimits `protobuf:"bytes,2,opt,name=limits,proto3" json:"limits,omitempty"`
 	// Optional rate limit.
 	RateLimit *RateLimit `protobuf:"bytes,3,opt,name=rate_limit,json=rateLimit,proto3" json:"rate_limit,omitempty"`
 	// Whether the budget should be active immediately. Defaults to true
-	// when omitted (handler enforces).
+	// when omitted.
 	IsActive *bool `protobuf:"varint,4,opt,name=is_active,json=isActive,proto3,oneof" json:"is_active,omitempty"`
 	// Optional expiration. When set in combination with is_active=true,
-	// the value MUST be in the future; the handler rejects past values.
+	// the value MUST be in the future; the API rejects a past value.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
 	// Optional threshold notifications. Ids are assigned by the server, so
 	// `alerts[].id` must be omitted here; supplying one is rejected.
@@ -1156,7 +1340,7 @@ type CreateBudgetRequest struct {
 
 func (x *CreateBudgetRequest) Reset() {
 	*x = CreateBudgetRequest{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[13]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1168,7 +1352,7 @@ func (x *CreateBudgetRequest) String() string {
 func (*CreateBudgetRequest) ProtoMessage() {}
 
 func (x *CreateBudgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[13]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1181,7 +1365,7 @@ func (x *CreateBudgetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBudgetRequest.ProtoReflect.Descriptor instead.
 func (*CreateBudgetRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{13}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateBudgetRequest) GetScope() *BudgetScope {
@@ -1243,7 +1427,7 @@ type CreateBudgetResponse struct {
 
 func (x *CreateBudgetResponse) Reset() {
 	*x = CreateBudgetResponse{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[14]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1255,7 +1439,7 @@ func (x *CreateBudgetResponse) String() string {
 func (*CreateBudgetResponse) ProtoMessage() {}
 
 func (x *CreateBudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[14]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1268,7 +1452,7 @@ func (x *CreateBudgetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBudgetResponse.ProtoReflect.Descriptor instead.
 func (*CreateBudgetResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{14}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateBudgetResponse) GetBudget() *Budget {
@@ -1288,7 +1472,7 @@ type GetBudgetRequest struct {
 
 func (x *GetBudgetRequest) Reset() {
 	*x = GetBudgetRequest{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[15]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1300,7 +1484,7 @@ func (x *GetBudgetRequest) String() string {
 func (*GetBudgetRequest) ProtoMessage() {}
 
 func (x *GetBudgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[15]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1313,7 +1497,7 @@ func (x *GetBudgetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBudgetRequest.ProtoReflect.Descriptor instead.
 func (*GetBudgetRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{15}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetBudgetRequest) GetBudgetId() string {
@@ -1333,7 +1517,7 @@ type GetBudgetResponse struct {
 
 func (x *GetBudgetResponse) Reset() {
 	*x = GetBudgetResponse{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[16]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1345,7 +1529,7 @@ func (x *GetBudgetResponse) String() string {
 func (*GetBudgetResponse) ProtoMessage() {}
 
 func (x *GetBudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[16]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1358,7 +1542,7 @@ func (x *GetBudgetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBudgetResponse.ProtoReflect.Descriptor instead.
 func (*GetBudgetResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{16}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetBudgetResponse) GetBudget() *Budget {
@@ -1388,19 +1572,20 @@ type ListBudgetsRequest struct {
 	// Optional filter: only return budgets whose limits.period matches
 	// one of the listed values. Empty means no period filter.
 	Period []BudgetPeriod `protobuf:"varint,7,rep,packed,name=period,proto3,enum=orq.platform.v1.BudgetPeriod" json:"period,omitempty"`
-	// Optional free-text query. Server translates this into a Typesense
-	// search over the denormalized `scope_target_name` and id fields on
-	// the per-workspace `{workspace_id}_budgets` collection.
+	// Optional free-text query matched against a budget's scope target
+	// name and id.
 	Query *string `protobuf:"bytes,8,opt,name=query,proto3,oneof" json:"query,omitempty"`
 	// Field used to order the list. Unset orders by most-recently-updated.
-	SortBy        BudgetSortField `protobuf:"varint,9,opt,name=sort_by,json=sortBy,proto3,enum=orq.platform.v1.BudgetSortField" json:"sort_by,omitempty"`
+	SortBy BudgetSortField `protobuf:"varint,9,opt,name=sort_by,json=sortBy,proto3,enum=orq.platform.v1.BudgetSortField" json:"sort_by,omitempty"`
+	// True lists budget profiles, false lists individual/workspace/custom budgets.
+	IsProfile     *bool `protobuf:"varint,10,opt,name=is_profile,json=isProfile,proto3,oneof" json:"is_profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListBudgetsRequest) Reset() {
 	*x = ListBudgetsRequest{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[17]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1412,7 +1597,7 @@ func (x *ListBudgetsRequest) String() string {
 func (*ListBudgetsRequest) ProtoMessage() {}
 
 func (x *ListBudgetsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[17]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1425,7 +1610,7 @@ func (x *ListBudgetsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBudgetsRequest.ProtoReflect.Descriptor instead.
 func (*ListBudgetsRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{17}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListBudgetsRequest) GetLimit() int32 {
@@ -1491,6 +1676,13 @@ func (x *ListBudgetsRequest) GetSortBy() BudgetSortField {
 	return BudgetSortField_BUDGET_SORT_FIELD_UNSPECIFIED
 }
 
+func (x *ListBudgetsRequest) GetIsProfile() bool {
+	if x != nil && x.IsProfile != nil {
+		return *x.IsProfile
+	}
+	return false
+}
+
 type ListBudgetsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Object discriminator for list responses; always `list`.
@@ -1506,7 +1698,7 @@ type ListBudgetsResponse struct {
 
 func (x *ListBudgetsResponse) Reset() {
 	*x = ListBudgetsResponse{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[18]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1518,7 +1710,7 @@ func (x *ListBudgetsResponse) String() string {
 func (*ListBudgetsResponse) ProtoMessage() {}
 
 func (x *ListBudgetsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[18]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1531,7 +1723,7 @@ func (x *ListBudgetsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBudgetsResponse.ProtoReflect.Descriptor instead.
 func (*ListBudgetsResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{18}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListBudgetsResponse) GetObject() string {
@@ -1585,7 +1777,7 @@ type UpdateBudgetRequest struct {
 
 func (x *UpdateBudgetRequest) Reset() {
 	*x = UpdateBudgetRequest{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[19]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1597,7 +1789,7 @@ func (x *UpdateBudgetRequest) String() string {
 func (*UpdateBudgetRequest) ProtoMessage() {}
 
 func (x *UpdateBudgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[19]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1610,7 +1802,7 @@ func (x *UpdateBudgetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateBudgetRequest.ProtoReflect.Descriptor instead.
 func (*UpdateBudgetRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{19}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *UpdateBudgetRequest) GetBudgetId() string {
@@ -1686,7 +1878,7 @@ type UpdateBudgetResponse struct {
 
 func (x *UpdateBudgetResponse) Reset() {
 	*x = UpdateBudgetResponse{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[20]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1698,7 +1890,7 @@ func (x *UpdateBudgetResponse) String() string {
 func (*UpdateBudgetResponse) ProtoMessage() {}
 
 func (x *UpdateBudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[20]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1711,7 +1903,7 @@ func (x *UpdateBudgetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateBudgetResponse.ProtoReflect.Descriptor instead.
 func (*UpdateBudgetResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{20}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UpdateBudgetResponse) GetBudget() *Budget {
@@ -1731,7 +1923,7 @@ type DeleteBudgetRequest struct {
 
 func (x *DeleteBudgetRequest) Reset() {
 	*x = DeleteBudgetRequest{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[21]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1743,7 +1935,7 @@ func (x *DeleteBudgetRequest) String() string {
 func (*DeleteBudgetRequest) ProtoMessage() {}
 
 func (x *DeleteBudgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[21]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1756,7 +1948,7 @@ func (x *DeleteBudgetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBudgetRequest.ProtoReflect.Descriptor instead.
 func (*DeleteBudgetRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{21}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DeleteBudgetRequest) GetBudgetId() string {
@@ -1774,7 +1966,7 @@ type DeleteBudgetResponse struct {
 
 func (x *DeleteBudgetResponse) Reset() {
 	*x = DeleteBudgetResponse{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[22]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1786,7 +1978,7 @@ func (x *DeleteBudgetResponse) String() string {
 func (*DeleteBudgetResponse) ProtoMessage() {}
 
 func (x *DeleteBudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[22]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1799,20 +1991,22 @@ func (x *DeleteBudgetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBudgetResponse.ProtoReflect.Descriptor instead.
 func (*DeleteBudgetResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{22}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{25}
 }
 
 type ResetBudgetConsumptionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Budget id whose current-period counters should be cleared.
-	BudgetId      string `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	BudgetId string `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	// Category entity target; omit on reset to reset every entity.
+	ScopeTargetId *string `protobuf:"bytes,2,opt,name=scope_target_id,json=scopeTargetId,proto3,oneof" json:"scope_target_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResetBudgetConsumptionRequest) Reset() {
 	*x = ResetBudgetConsumptionRequest{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[23]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1824,7 +2018,7 @@ func (x *ResetBudgetConsumptionRequest) String() string {
 func (*ResetBudgetConsumptionRequest) ProtoMessage() {}
 
 func (x *ResetBudgetConsumptionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[23]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1837,7 +2031,7 @@ func (x *ResetBudgetConsumptionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetBudgetConsumptionRequest.ProtoReflect.Descriptor instead.
 func (*ResetBudgetConsumptionRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{23}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ResetBudgetConsumptionRequest) GetBudgetId() string {
@@ -1847,10 +2041,16 @@ func (x *ResetBudgetConsumptionRequest) GetBudgetId() string {
 	return ""
 }
 
+func (x *ResetBudgetConsumptionRequest) GetScopeTargetId() string {
+	if x != nil && x.ScopeTargetId != nil {
+		return *x.ScopeTargetId
+	}
+	return ""
+}
+
 type ResetBudgetConsumptionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Budget after reset. The record itself is unchanged; only counters
-	// were cleared.
+	// Budget after reset; category-wide resets advance its internal counter generation.
 	Budget        *Budget `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1858,7 +2058,7 @@ type ResetBudgetConsumptionResponse struct {
 
 func (x *ResetBudgetConsumptionResponse) Reset() {
 	*x = ResetBudgetConsumptionResponse{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[24]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1870,7 +2070,7 @@ func (x *ResetBudgetConsumptionResponse) String() string {
 func (*ResetBudgetConsumptionResponse) ProtoMessage() {}
 
 func (x *ResetBudgetConsumptionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[24]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1883,7 +2083,7 @@ func (x *ResetBudgetConsumptionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetBudgetConsumptionResponse.ProtoReflect.Descriptor instead.
 func (*ResetBudgetConsumptionResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{24}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ResetBudgetConsumptionResponse) GetBudget() *Budget {
@@ -1896,14 +2096,16 @@ func (x *ResetBudgetConsumptionResponse) GetBudget() *Budget {
 type GetBudgetConsumptionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Budget id whose counters should be returned.
-	BudgetId      string `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	BudgetId string `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	// Required for category defaults; omit for individual or workspace budgets.
+	ScopeTargetId *string `protobuf:"bytes,2,opt,name=scope_target_id,json=scopeTargetId,proto3,oneof" json:"scope_target_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetBudgetConsumptionRequest) Reset() {
 	*x = GetBudgetConsumptionRequest{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[25]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1915,7 +2117,7 @@ func (x *GetBudgetConsumptionRequest) String() string {
 func (*GetBudgetConsumptionRequest) ProtoMessage() {}
 
 func (x *GetBudgetConsumptionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[25]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1928,12 +2130,19 @@ func (x *GetBudgetConsumptionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBudgetConsumptionRequest.ProtoReflect.Descriptor instead.
 func (*GetBudgetConsumptionRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{25}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetBudgetConsumptionRequest) GetBudgetId() string {
 	if x != nil {
 		return x.BudgetId
+	}
+	return ""
+}
+
+func (x *GetBudgetConsumptionRequest) GetScopeTargetId() string {
+	if x != nil && x.ScopeTargetId != nil {
+		return *x.ScopeTargetId
 	}
 	return ""
 }
@@ -1949,19 +2158,20 @@ type GetBudgetConsumptionResponse struct {
 	PeriodDate string `protobuf:"bytes,3,opt,name=period_date,json=periodDate,proto3" json:"period_date,omitempty"`
 	// Cost accumulated in the current period, in USD.
 	Cost float64 `protobuf:"fixed64,4,opt,name=cost,proto3" json:"cost,omitempty"`
-	// Tokens accumulated in the current period. Carried as a double (not
-	// int64) so it serializes as a JSON number rather than a quoted
-	// string, matching BudgetUsage.tokens and limits.token_limit.
+	// Tokens accumulated in the current period.
 	Tokens float64 `protobuf:"fixed64,5,opt,name=tokens,proto3" json:"tokens,omitempty"`
-	// Requests counted in the current 60-second rolling window.
+	// Requests counted in the current 60-second window, which starts with the
+	// first request.
 	RequestsInWindow int32 `protobuf:"varint,6,opt,name=requests_in_window,json=requestsInWindow,proto3" json:"requests_in_window,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The category entity whose counters are reported, when supplied.
+	ScopeTargetId *string `protobuf:"bytes,7,opt,name=scope_target_id,json=scopeTargetId,proto3,oneof" json:"scope_target_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetBudgetConsumptionResponse) Reset() {
 	*x = GetBudgetConsumptionResponse{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[26]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1973,7 +2183,7 @@ func (x *GetBudgetConsumptionResponse) String() string {
 func (*GetBudgetConsumptionResponse) ProtoMessage() {}
 
 func (x *GetBudgetConsumptionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[26]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1986,7 +2196,7 @@ func (x *GetBudgetConsumptionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBudgetConsumptionResponse.ProtoReflect.Descriptor instead.
 func (*GetBudgetConsumptionResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{26}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetBudgetConsumptionResponse) GetBudgetId() string {
@@ -2031,6 +2241,112 @@ func (x *GetBudgetConsumptionResponse) GetRequestsInWindow() int32 {
 	return 0
 }
 
+func (x *GetBudgetConsumptionResponse) GetScopeTargetId() string {
+	if x != nil && x.ScopeTargetId != nil {
+		return *x.ScopeTargetId
+	}
+	return ""
+}
+
+type BatchGetBudgetConsumptionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Category default whose entities' counters should be returned.
+	BudgetId string `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	// Entities of the category, one page at a time.
+	ScopeTargetIds []string `protobuf:"bytes,2,rep,name=scope_target_ids,json=scopeTargetIds,proto3" json:"scope_target_ids,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *BatchGetBudgetConsumptionRequest) Reset() {
+	*x = BatchGetBudgetConsumptionRequest{}
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetBudgetConsumptionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetBudgetConsumptionRequest) ProtoMessage() {}
+
+func (x *BatchGetBudgetConsumptionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetBudgetConsumptionRequest.ProtoReflect.Descriptor instead.
+func (*BatchGetBudgetConsumptionRequest) Descriptor() ([]byte, []int) {
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *BatchGetBudgetConsumptionRequest) GetBudgetId() string {
+	if x != nil {
+		return x.BudgetId
+	}
+	return ""
+}
+
+func (x *BatchGetBudgetConsumptionRequest) GetScopeTargetIds() []string {
+	if x != nil {
+		return x.ScopeTargetIds
+	}
+	return nil
+}
+
+type BatchGetBudgetConsumptionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One entry per requested entity, in request order.
+	Consumptions  []*GetBudgetConsumptionResponse `protobuf:"bytes,1,rep,name=consumptions,proto3" json:"consumptions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchGetBudgetConsumptionResponse) Reset() {
+	*x = BatchGetBudgetConsumptionResponse{}
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetBudgetConsumptionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetBudgetConsumptionResponse) ProtoMessage() {}
+
+func (x *BatchGetBudgetConsumptionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetBudgetConsumptionResponse.ProtoReflect.Descriptor instead.
+func (*BatchGetBudgetConsumptionResponse) Descriptor() ([]byte, []int) {
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *BatchGetBudgetConsumptionResponse) GetConsumptions() []*GetBudgetConsumptionResponse {
+	if x != nil {
+		return x.Consumptions
+	}
+	return nil
+}
+
 type CheckBudgetsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// API key that issued the request, resolved by the gateway.
@@ -2057,7 +2373,7 @@ type CheckBudgetsRequest struct {
 
 func (x *CheckBudgetsRequest) Reset() {
 	*x = CheckBudgetsRequest{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[27]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2069,7 +2385,7 @@ func (x *CheckBudgetsRequest) String() string {
 func (*CheckBudgetsRequest) ProtoMessage() {}
 
 func (x *CheckBudgetsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[27]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2082,7 +2398,7 @@ func (x *CheckBudgetsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckBudgetsRequest.ProtoReflect.Descriptor instead.
 func (*CheckBudgetsRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{27}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *CheckBudgetsRequest) GetApiKeyId() string {
@@ -2153,7 +2469,7 @@ type CheckBudgetsResponse struct {
 
 func (x *CheckBudgetsResponse) Reset() {
 	*x = CheckBudgetsResponse{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[28]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2165,7 +2481,7 @@ func (x *CheckBudgetsResponse) String() string {
 func (*CheckBudgetsResponse) ProtoMessage() {}
 
 func (x *CheckBudgetsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[28]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2178,7 +2494,7 @@ func (x *CheckBudgetsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckBudgetsResponse.ProtoReflect.Descriptor instead.
 func (*CheckBudgetsResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{28}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CheckBudgetsResponse) GetAllowed() bool {
@@ -2230,7 +2546,7 @@ type BudgetRejection struct {
 
 func (x *BudgetRejection) Reset() {
 	*x = BudgetRejection{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[29]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2242,7 +2558,7 @@ func (x *BudgetRejection) String() string {
 func (*BudgetRejection) ProtoMessage() {}
 
 func (x *BudgetRejection) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[29]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2255,7 +2571,7 @@ func (x *BudgetRejection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BudgetRejection.ProtoReflect.Descriptor instead.
 func (*BudgetRejection) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{29}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *BudgetRejection) GetScopeKind() string {
@@ -2305,7 +2621,7 @@ type DimensionInfo struct {
 
 func (x *DimensionInfo) Reset() {
 	*x = DimensionInfo{}
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[30]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2317,7 +2633,7 @@ func (x *DimensionInfo) String() string {
 func (*DimensionInfo) ProtoMessage() {}
 
 func (x *DimensionInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_budgets_proto_msgTypes[30]
+	mi := &file_orq_platform_v1_budgets_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2330,7 +2646,7 @@ func (x *DimensionInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DimensionInfo.ProtoReflect.Descriptor instead.
 func (*DimensionInfo) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{30}
+	return file_orq_platform_v1_budgets_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *DimensionInfo) GetLimit() float64 {
@@ -2392,18 +2708,25 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\brequests\x18\x03 \x01(\x05H\x02R\brequests\x88\x01\x01B\t\n" +
 	"\a_amountB\t\n" +
 	"\a_tokensB\v\n" +
-	"\t_requests\"\x9f\x03\n" +
+	"\t_requests\"\xb9\x06\n" +
 	"\vBudgetScope\x12E\n" +
 	"\tworkspace\x18\x01 \x01(\v2%.orq.platform.v1.WorkspaceBudgetScopeH\x00R\tworkspace\x12?\n" +
 	"\aproject\x18\x02 \x01(\v2#.orq.platform.v1.ProjectBudgetScopeH\x00R\aproject\x12B\n" +
 	"\bidentity\x18\x03 \x01(\v2$.orq.platform.v1.IdentityBudgetScopeH\x00R\bidentity\x12=\n" +
 	"\aapi_key\x18\x04 \x01(\v2\".orq.platform.v1.ApiKeyBudgetScopeH\x00R\x06apiKey\x12B\n" +
 	"\bprovider\x18\x05 \x01(\v2$.orq.platform.v1.ProviderBudgetScopeH\x00R\bprovider\x129\n" +
-	"\x05model\x18\x06 \x01(\v2!.orq.platform.v1.ModelBudgetScopeH\x00R\x05modelB\x06\n" +
-	"\x04kind\")\n" +
+	"\x05model\x18\x06 \x01(\v2!.orq.platform.v1.ModelBudgetScopeH\x00R\x05model\x12X\n" +
+	"\x10agent_deployment\x18\b \x01(\v2+.orq.platform.v1.AgentDeploymentBudgetScopeH\x00R\x0fagentDeployment\x12J\n" +
+	"\rfactory_scope\x18\t \x01(\v2#.orq.platform.v1.FactoryBudgetScopeH\x00R\ffactoryScope\x12B\n" +
+	"\bcategory\x18\n" +
+	" \x01(\v2$.orq.platform.v1.CategoryBudgetScopeH\x00R\bcategory:\x9e\x01\xbaG\x9a\x01\x92\x02\x96\x01Closed oneof of workspace, project, identity, api_key, provider, model, agent_deployment, factory_scope, or category. Exactly one variant must be set.B\x06\n" +
+	"\x04kindJ\x04\b\a\x10\bR\afactory\"\xf1\x03\n" +
 	"\vBudgetMatch\x12\x1a\n" +
-	"\x03cel\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x10R\x03cel\"\x16\n" +
-	"\x14WorkspaceBudgetScope\"<\n" +
+	"\x03cel\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x10R\x03cel:\xc5\x03\xbaG\xc1\x03\x92\x02\xbd\x03CEL expression that decides whether a budget applies to a request. Available variables: `model`, `provider`, `model_id`, `api_key`, `identity`, `project`, `metadata` (map), `headers` (map, lowercase keys). Required unless the budget is created from a `scope`, and rejected on update when left empty. A workspace-wide budget stores an empty expression, which matches every request in the workspace. Expressions are syntax-validated at write time.\"\x16\n" +
+	"\x14WorkspaceBudgetScope\"e\n" +
+	"\x13CategoryBudgetScope\x12N\n" +
+	"\bcategory\x18\x01 \x01(\x0e2 .orq.platform.v1.BudgetScopeKindB\x10\xbaH\r\x82\x01\n" +
+	"\x18\x02\x18\x03\x18\x04\x18\x05\x18\x06R\bcategory\"<\n" +
 	"\x12ProjectBudgetScope\x12&\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tprojectId\"P\n" +
@@ -2415,7 +2738,13 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x13ProviderBudgetScope\x12#\n" +
 	"\bprovider\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bprovider\"F\n" +
 	"\x10ModelBudgetScope\x12\"\n" +
-	"\bmodel_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amodelId:\x0e\xbaG\v\xba\x01\bmodel_id\"\xc3\x01\n" +
+	"\bmodel_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amodelId:\x0e\xbaG\v\xba\x01\bmodel_id\"J\n" +
+	"\x1aAgentDeploymentBudgetScope\x12,\n" +
+	"\rdeployment_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fdeploymentId\"N\n" +
+	"\x12FactoryBudgetScope\x12&\n" +
+	"\n" +
+	"factory_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tfactoryId:\x10\xbaG\r\xba\x01\n" +
+	"factory_id\"\xc3\x01\n" +
 	"\fBudgetLimits\x125\n" +
 	"\x06period\x18\x01 \x01(\x0e2\x1d.orq.platform.v1.BudgetPeriodR\x06period\x12+\n" +
 	"\x06amount\x18\x02 \x01(\x01B\x0e\xbaH\v\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x06amount\x88\x01\x01\x124\n" +
@@ -2445,7 +2774,7 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x10GetBudgetRequest\x12$\n" +
 	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\"R\n" +
 	"\x11GetBudgetResponse\x12/\n" +
-	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget:\f\xbaG\t\xba\x01\x06budget\"\xda\x03\n" +
+	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget:\f\xbaG\t\xba\x01\x06budget\"\x8d\x04\n" +
 	"\x12ListBudgetsRequest\x12%\n" +
 	"\x05limit\x18\x01 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x01H\x00R\x05limit\x88\x01\x01\x12%\n" +
@@ -2457,12 +2786,16 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\tis_active\x18\x06 \x01(\bH\x02R\bisActive\x88\x01\x01\x125\n" +
 	"\x06period\x18\a \x03(\x0e2\x1d.orq.platform.v1.BudgetPeriodR\x06period\x12\x19\n" +
 	"\x05query\x18\b \x01(\tH\x03R\x05query\x88\x01\x01\x129\n" +
-	"\asort_by\x18\t \x01(\x0e2 .orq.platform.v1.BudgetSortFieldR\x06sortByB\b\n" +
+	"\asort_by\x18\t \x01(\x0e2 .orq.platform.v1.BudgetSortFieldR\x06sortBy\x12\"\n" +
+	"\n" +
+	"is_profile\x18\n" +
+	" \x01(\bH\x04R\tisProfile\x88\x01\x01B\b\n" +
 	"\x06_limitB\x12\n" +
 	"\x10_scope_target_idB\f\n" +
 	"\n" +
 	"_is_activeB\b\n" +
-	"\x06_query\"\x8a\x01\n" +
+	"\x06_queryB\r\n" +
+	"\v_is_profile\"\x8a\x01\n" +
 	"\x13ListBudgetsResponse\x12\x16\n" +
 	"\x06object\x18\x01 \x01(\tR\x06object\x12+\n" +
 	"\x04data\x18\x02 \x03(\v2\x17.orq.platform.v1.BudgetR\x04data\x12\x19\n" +
@@ -2490,13 +2823,17 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget:\f\xbaG\t\xba\x01\x06budget\";\n" +
 	"\x13DeleteBudgetRequest\x12$\n" +
 	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\"\x16\n" +
-	"\x14DeleteBudgetResponse\"E\n" +
+	"\x14DeleteBudgetResponse\"\x8f\x01\n" +
 	"\x1dResetBudgetConsumptionRequest\x12$\n" +
-	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\"Q\n" +
+	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\x124\n" +
+	"\x0fscope_target_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\rscopeTargetId\x88\x01\x01B\x12\n" +
+	"\x10_scope_target_id\"Q\n" +
 	"\x1eResetBudgetConsumptionResponse\x12/\n" +
-	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget\"C\n" +
+	"\x06budget\x18\x01 \x01(\v2\x17.orq.platform.v1.BudgetR\x06budget\"\x8d\x01\n" +
 	"\x1bGetBudgetConsumptionRequest\x12$\n" +
-	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\"\xed\x01\n" +
+	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\x124\n" +
+	"\x0fscope_target_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\rscopeTargetId\x88\x01\x01B\x12\n" +
+	"\x10_scope_target_id\"\xae\x02\n" +
 	"\x1cGetBudgetConsumptionResponse\x12\x1b\n" +
 	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x125\n" +
 	"\x06period\x18\x02 \x01(\x0e2\x1d.orq.platform.v1.BudgetPeriodR\x06period\x12\x1f\n" +
@@ -2504,7 +2841,15 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"periodDate\x12\x12\n" +
 	"\x04cost\x18\x04 \x01(\x01R\x04cost\x12\x16\n" +
 	"\x06tokens\x18\x05 \x01(\x01R\x06tokens\x12,\n" +
-	"\x12requests_in_window\x18\x06 \x01(\x05R\x10requestsInWindow\"\xf9\x02\n" +
+	"\x12requests_in_window\x18\x06 \x01(\x05R\x10requestsInWindow\x12+\n" +
+	"\x0fscope_target_id\x18\a \x01(\tH\x00R\rscopeTargetId\x88\x01\x01B\x12\n" +
+	"\x10_scope_target_id\"\x84\x01\n" +
+	" BatchGetBudgetConsumptionRequest\x12$\n" +
+	"\tbudget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bbudgetId\x12:\n" +
+	"\x10scope_target_ids\x18\x02 \x03(\tB\x10\xbaH\r\x92\x01\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\x0escopeTargetIds\"v\n" +
+	"!BatchGetBudgetConsumptionResponse\x12Q\n" +
+	"\fconsumptions\x18\x01 \x03(\v2-.orq.platform.v1.GetBudgetConsumptionResponseR\fconsumptions\"\x8f\x03\n" +
 	"\x13CheckBudgetsRequest\x12\x1c\n" +
 	"\n" +
 	"api_key_id\x18\x01 \x01(\tR\bapiKeyId\x12\x1d\n" +
@@ -2517,7 +2862,7 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\aheaders\x18\a \x03(\v21.orq.platform.v1.CheckBudgetsRequest.HeadersEntryR\aheaders\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x98\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\b\x10\tR\x0eapi_key_labels\"\x98\x02\n" +
 	"\x14CheckBudgetsResponse\x12\x18\n" +
 	"\aallowed\x18\x01 \x01(\bR\aallowed\x12>\n" +
 	"\trejection\x18\x02 \x01(\v2 .orq.platform.v1.BudgetRejectionR\trejection\x122\n" +
@@ -2545,7 +2890,7 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x14BUDGET_PERIOD_WEEKLY\x10\x02\x12\x19\n" +
 	"\x15BUDGET_PERIOD_MONTHLY\x10\x03\x12\x18\n" +
 	"\x14BUDGET_PERIOD_YEARLY\x10\x04\x12\x1a\n" +
-	"\x16BUDGET_PERIOD_ONE_TIME\x10\x05*\xf0\x01\n" +
+	"\x16BUDGET_PERIOD_ONE_TIME\x10\x05*\xfe\x02\n" +
 	"\x0fBudgetScopeKind\x12!\n" +
 	"\x1dBUDGET_SCOPE_KIND_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bBUDGET_SCOPE_KIND_WORKSPACE\x10\x01\x12\x1d\n" +
@@ -2553,64 +2898,194 @@ const file_orq_platform_v1_budgets_proto_rawDesc = "" +
 	"\x1aBUDGET_SCOPE_KIND_IDENTITY\x10\x03\x12\x1d\n" +
 	"\x19BUDGET_SCOPE_KIND_API_KEY\x10\x04\x12\x1e\n" +
 	"\x1aBUDGET_SCOPE_KIND_PROVIDER\x10\x05\x12\x1b\n" +
-	"\x17BUDGET_SCOPE_KIND_MODEL\x10\x06*\x9a\x01\n" +
+	"\x17BUDGET_SCOPE_KIND_MODEL\x10\x06\x12&\n" +
+	"\"BUDGET_SCOPE_KIND_AGENT_DEPLOYMENT\x10\b\x12#\n" +
+	"\x1fBUDGET_SCOPE_KIND_FACTORY_SCOPE\x10\t\x12\x1e\n" +
+	"\x1aBUDGET_SCOPE_KIND_CATEGORY\x10\n" +
+	"\"\x04\b\a\x10\a*\x19BUDGET_SCOPE_KIND_FACTORY*\x9a\x01\n" +
 	"\x0fBudgetSortField\x12!\n" +
 	"\x1dBUDGET_SORT_FIELD_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cBUDGET_SORT_FIELD_EXPIRES_AT\x10\x01\x12 \n" +
 	"\x1cBUDGET_SORT_FIELD_CREATED_AT\x10\x02\x12 \n" +
-	"\x1cBUDGET_SORT_FIELD_UPDATED_AT\x10\x032\xd5 \n" +
-	"\x0eBudgetsService\x12\xfe\x05\n" +
-	"\fCreateBudget\x12$.orq.platform.v1.CreateBudgetRequest\x1a%.orq.platform.v1.CreateBudgetResponse\"\xa0\x05\xbaG\xf1\x04\n" +
-	"\aBudgets\x12\x13Create a new budget\x1a\xc3\x02Creates a new budget in the workspace. Exactly one scope variant must be set (workspace / project / identity / api_key / provider / model). At least one of `limits.amount`, `limits.token_limit`, or `rate_limit.requests_per_minute` MUST be provided. Uniqueness is enforced across (workspace_id, scope_kind, scope_target_id).*\fBudgetCreatej\x1e\n" +
+	"\x1cBUDGET_SORT_FIELD_UPDATED_AT\x10\x032\xcbG\n" +
+	"\x0eBudgetsService\x12\x8e\r\n" +
+	"\fCreateBudget\x12$.orq.platform.v1.CreateBudgetRequest\x1a%.orq.platform.v1.CreateBudgetResponse\"\xb0\f\xbaG\x81\f\n" +
+	"\aBudgets\x12\x13Create a new budget\x1a\x90\x05Creates a new budget in the workspace. Exactly one scope variant must be set (workspace / project / identity / api_key / provider / model / factory_scope / category). A category default applies independently to every entity of that category, including future entities; active individual budgets override the default. Category defaults do not support the one-time period. At least one of `limits.amount`, `limits.token_limit`, or `rate_limit.requests_per_minute` MUST be provided. Uniqueness is enforced across (workspace_id, scope_kind, scope_target_id). Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\fBudgetCreatej\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06createj\xb5\x01\n" +
-	"\x0ex-code-samples\x12\xa2\x01\x12\x9f\x01- lang: typescript\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06createj\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06createj\"\n" +
+	"\x12x-cli-help-section\x12\f\x12\n" +
+	"AI Gatewayj\xa2\x05\n" +
+	"\x0ex-code-samples\x12\x8f\x05\x12\x8c\x05- lang: curl\n" +
+	"  label: \"cURL\"\n" +
+	"  source: |\n" +
+	"    curl -X POST 'https://my.orq.ai/v2/budgets' \\\n" +
+	"      --header \"Authorization: Bearer $ORQ_API_KEY\" \\\n" +
+	"      --header 'Content-Type: application/json' \\\n" +
+	"      --data '{\n" +
+	"        \"scope\": { \"workspace\": {} },\n" +
+	"        \"limits\": { \"period\": \"BUDGET_PERIOD_MONTHLY\", \"amount\": 1000 }\n" +
+	"      }'\n" +
+	"- lang: python\n" +
+	"  label: \"Python\"\n" +
+	"  source: |\n" +
+	"    orq.budgets.create(scope={\"workspace\": {}}, limits={\"period\": \"BUDGET_PERIOD_MONTHLY\", \"amount\": 1000})\n" +
+	"- lang: typescript\n" +
 	"  label: \"Node.js\"\n" +
 	"  source: |\n" +
-	"    await orq.budgets.create({ scope: { kind: \"workspace\" }, limits: { period: \"MONTHLY\", amount: 1000 } });\n" +
+	"    await orq.budgets.create({ scope: { workspace: {} }, limits: { period: \"BUDGET_PERIOD_MONTHLY\", amount: 1000 } });\n" +
 	"\x8a\xb5\x18\x11\n" +
-	"\rbudget.create\x10\x02\x82\xd3\xe4\x93\x02\x10:\x01*\"\v/v2/budgets\x12\x8d\x03\n" +
-	"\tGetBudget\x12!.orq.platform.v1.GetBudgetRequest\x1a\".orq.platform.v1.GetBudgetResponse\"\xb8\x02\xbaG\x82\x02\n" +
-	"\aBudgets\x12\x11Retrieve a budget\x1a\x94\x01Retrieves the metadata for an existing budget by its unique identifier. Returns `NotFound` when the budget does not exist in the caller's workspace.*\tBudgetGetj\x1e\n" +
+	"\rbudget.create\x10\x02\x82\xd3\xe4\x93\x02\x10:\x01*\"\v/v2/budgets\x12\xbc\a\n" +
+	"\tGetBudget\x12!.orq.platform.v1.GetBudgetRequest\x1a\".orq.platform.v1.GetBudgetResponse\"\xe7\x06\xbaG\xb1\x06\n" +
+	"\aBudgets\x12\x11Retrieve a budget\x1a\xfa\x01Retrieves the metadata for an existing budget by its unique identifier. Returns `NotFound` when the budget does not exist in the caller's workspace. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\tBudgetGetj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj\"\n" +
-	"\x19x-speakeasy-name-override\x12\x05\x12\x03get\x8a\xb5\x18\x0f\n" +
-	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02\x19\x12\x17/v2/budgets/{budget_id}\x12\xfd\x03\n" +
-	"\vListBudgets\x12#.orq.platform.v1.ListBudgetsRequest\x1a$.orq.platform.v1.ListBudgetsResponse\"\xa2\x03\xbaG\xf8\x02\n" +
-	"\aBudgets\x12\fList budgets\x1a\x8d\x02Returns budgets visible to the current workspace, ordered by creation time with the newest first. Supports filtering by scope kind, scope target id, period, and active state, plus an optional free-text query that searches across denormalized target names via Typesense.*\n" +
+	"\x19x-speakeasy-name-override\x12\x05\x12\x03getj\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x13\n" +
+	"\n" +
+	"x-cli-name\x12\x05\x12\x03getj\"\n" +
+	"\x12x-cli-help-section\x12\f\x12\n" +
+	"AI Gatewayj\xf3\x02\n" +
+	"\x0ex-code-samples\x12\xe0\x02\x12\xdd\x02- lang: curl\n" +
+	"  label: \"cURL\"\n" +
+	"  source: |\n" +
+	"    curl --get 'https://my.orq.ai/v2/budgets/<budget_id>' \\\n" +
+	"      --header \"Authorization: Bearer $ORQ_API_KEY\"\n" +
+	"- lang: python\n" +
+	"  label: \"Python\"\n" +
+	"  source: |\n" +
+	"    orq.budgets.get(budget_id=\"<budget_id>\")\n" +
+	"- lang: typescript\n" +
+	"  label: \"Node.js\"\n" +
+	"  source: |\n" +
+	"    await orq.budgets.get({ budgetId: \"<budget_id>\" });\n" +
+	"\x8a\xb5\x18\x0f\n" +
+	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02\x19\x12\x17/v2/budgets/{budget_id}\x12\xe4\a\n" +
+	"\vListBudgets\x12#.orq.platform.v1.ListBudgetsRequest\x1a$.orq.platform.v1.ListBudgetsResponse\"\x89\a\xbaG\xdf\x06\n" +
+	"\aBudgets\x12\fList budgets\x1a\xe6\x02Returns budgets visible to the current workspace, ordered by most recently updated with the newest first. Supports filtering by scope kind, scope target id, period, and active state, plus an optional free-text query that matches scope target names and ids. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\n" +
 	"BudgetListj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj#\n" +
-	"\x19x-speakeasy-name-override\x12\x06\x12\x04list\x8a\xb5\x18\x0f\n" +
-	"\vbudget.list\x10\x02\x82\xd3\xe4\x93\x02\r\x12\v/v2/budgets\x12\xd8\x03\n" +
-	"\fUpdateBudget\x12$.orq.platform.v1.UpdateBudgetRequest\x1a%.orq.platform.v1.UpdateBudgetResponse\"\xfa\x02\xbaG\xbf\x02\n" +
-	"\aBudgets\x12\x0fUpdate a budget\x1a\xcd\x01Updates mutable fields of a budget: limits, rate limit, activation, and expiration. The scope is immutable — to change a budget's target, delete and recreate it. Omitted fields keep their current values.*\fBudgetUpdatej\x1e\n" +
+	"\x19x-speakeasy-name-override\x12\x06\x12\x04listj\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x14\n" +
+	"\n" +
+	"x-cli-name\x12\x06\x12\x04listj\"\n" +
+	"\x12x-cli-help-section\x12\f\x12\n" +
+	"AI Gatewayj\xb7\x02\n" +
+	"\x0ex-code-samples\x12\xa4\x02\x12\xa1\x02- lang: curl\n" +
+	"  label: \"cURL\"\n" +
+	"  source: |\n" +
+	"    curl --get 'https://my.orq.ai/v2/budgets' \\\n" +
+	"      --header \"Authorization: Bearer $ORQ_API_KEY\"\n" +
+	"- lang: python\n" +
+	"  label: \"Python\"\n" +
+	"  source: |\n" +
+	"    orq.budgets.list()\n" +
+	"- lang: typescript\n" +
+	"  label: \"Node.js\"\n" +
+	"  source: |\n" +
+	"    await orq.budgets.list();\n" +
+	"\x8a\xb5\x18\x0f\n" +
+	"\vbudget.list\x10\x02\x82\xd3\xe4\x93\x02\r\x12\v/v2/budgets\x12\xa8\t\n" +
+	"\fUpdateBudget\x12$.orq.platform.v1.UpdateBudgetRequest\x1a%.orq.platform.v1.UpdateBudgetResponse\"\xca\b\xbaG\x8f\b\n" +
+	"\aBudgets\x12\x0fUpdate a budget\x1a\xb3\x02Updates mutable fields of a budget: limits, rate limit, activation, and expiration. The scope is immutable — to change a budget's target, delete and recreate it. Omitted fields keep their current values. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\fBudgetUpdatej\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06update\x8a\xb5\x18\x11\n" +
-	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02\x1c:\x01*2\x17/v2/budgets/{budget_id}\x12\x93\x03\n" +
-	"\fDeleteBudget\x12$.orq.platform.v1.DeleteBudgetRequest\x1a%.orq.platform.v1.DeleteBudgetResponse\"\xb5\x02\xbaG\xfd\x01\n" +
-	"\aBudgets\x12\x0fDelete a budget\x1a\x8b\x01Permanently deletes a budget. Consumption counters in Redis for this budget are cleared immediately. The response body is empty on success.*\fBudgetDeletej\x1e\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06updatej\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06updatej\"\n" +
+	"\x12x-cli-help-section\x12\f\x12\n" +
+	"AI Gatewayj\x91\x04\n" +
+	"\x0ex-code-samples\x12\xfe\x03\x12\xfb\x03- lang: curl\n" +
+	"  label: \"cURL\"\n" +
+	"  source: |\n" +
+	"    curl -X PATCH 'https://my.orq.ai/v2/budgets/<budget_id>' \\\n" +
+	"      --header \"Authorization: Bearer $ORQ_API_KEY\" \\\n" +
+	"      --header 'Content-Type: application/json' \\\n" +
+	"      --data '{ \"is_active\": false }'\n" +
+	"- lang: python\n" +
+	"  label: \"Python\"\n" +
+	"  source: |\n" +
+	"    orq.budgets.update(budget_id=\"<budget_id>\", is_active=False)\n" +
+	"- lang: typescript\n" +
+	"  label: \"Node.js\"\n" +
+	"  source: |\n" +
+	"    await orq.budgets.update({ budgetId: \"<budget_id>\", updateBudgetRequest: { isActive: false } });\n" +
+	"\x8a\xb5\x18\x11\n" +
+	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02\x1c:\x01*2\x17/v2/budgets/{budget_id}\x12\xba\a\n" +
+	"\fDeleteBudget\x12$.orq.platform.v1.DeleteBudgetRequest\x1a%.orq.platform.v1.DeleteBudgetResponse\"\xdc\x06\xbaG\xa4\x06\n" +
+	"\aBudgets\x12\x0fDelete a budget\x1a\xdc\x01Permanently deletes a budget. Its consumption counters are cleared immediately. The response body is empty on success. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\fBudgetDeletej\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06delete\x8a\xb5\x18\x11\n" +
-	"\rbudget.delete\x10\x02\x82\xd3\xe4\x93\x02\x19*\x17/v2/budgets/{budget_id}\x12\xed\x03\n" +
-	"\x16ResetBudgetConsumption\x12..orq.platform.v1.ResetBudgetConsumptionRequest\x1a/.orq.platform.v1.ResetBudgetConsumptionResponse\"\xf1\x02\xbaG\xa4\x02\n" +
-	"\aBudgets\x12\x18Reset budget consumption\x1a\x95\x01Clears the current-period cost, token, and request counters for the budget. The budget record itself is preserved; only the Redis counters are reset.*\x16BudgetResetConsumptionj\x1e\n" +
+	"\x19x-speakeasy-name-override\x12\b\x12\x06deletej\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj\x16\n" +
+	"\n" +
+	"x-cli-name\x12\b\x12\x06deletej\"\n" +
+	"\x12x-cli-help-section\x12\f\x12\n" +
+	"AI Gatewayj\xfd\x02\n" +
+	"\x0ex-code-samples\x12\xea\x02\x12\xe7\x02- lang: curl\n" +
+	"  label: \"cURL\"\n" +
+	"  source: |\n" +
+	"    curl -X DELETE 'https://my.orq.ai/v2/budgets/<budget_id>' \\\n" +
+	"      --header \"Authorization: Bearer $ORQ_API_KEY\"\n" +
+	"- lang: python\n" +
+	"  label: \"Python\"\n" +
+	"  source: |\n" +
+	"    orq.budgets.delete(budget_id=\"<budget_id>\")\n" +
+	"- lang: typescript\n" +
+	"  label: \"Node.js\"\n" +
+	"  source: |\n" +
+	"    await orq.budgets.delete({ budgetId: \"<budget_id>\" });\n" +
+	"\x8a\xb5\x18\x11\n" +
+	"\rbudget.delete\x10\x02\x82\xd3\xe4\x93\x02\x19*\x17/v2/budgets/{budget_id}\x12\xec\n" +
+	"\n" +
+	"\x16ResetBudgetConsumption\x12..orq.platform.v1.ResetBudgetConsumptionRequest\x1a/.orq.platform.v1.ResetBudgetConsumptionResponse\"\xf0\t\xbaG\xa3\t\n" +
+	"\aBudgets\x12\x18Reset budget consumption\x1a\xc4\x02Clears the current-period cost, token, and request counters for the budget. For a category default, omit scope_target_id to reset every entity, or supply it to reset only that entity. The budget configuration is preserved. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\x16BudgetResetConsumptionj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj/\n" +
-	"\x19x-speakeasy-name-override\x12\x12\x12\x10resetConsumption\x8a\xb5\x18\x11\n" +
-	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02.:\x01*\")/v2/budgets/{budget_id}/reset-consumption\x12\x89\x04\n" +
-	"\x14GetBudgetConsumption\x12,.orq.platform.v1.GetBudgetConsumptionRequest\x1a-.orq.platform.v1.GetBudgetConsumptionResponse\"\x93\x03\xbaG\xd1\x02\n" +
+	"\x19x-speakeasy-name-override\x12\x12\x12\x10resetConsumptionj\x18\n" +
+	"\vx-cli-group\x12\t\x12\abudgetsj \n" +
+	"\n" +
+	"x-cli-name\x12\x12\x12\x10resetConsumptionj\"\n" +
+	"\x12x-cli-help-section\x12\f\x12\n" +
+	"AI Gatewayj\xed\x04\n" +
+	"\x0ex-code-samples\x12\xda\x04\x12\xd7\x04- lang: curl\n" +
+	"  label: \"cURL\"\n" +
+	"  source: |\n" +
+	"    curl -X POST 'https://my.orq.ai/v2/budgets/<budget_id>/reset-consumption' \\\n" +
+	"      --header \"Authorization: Bearer $ORQ_API_KEY\" \\\n" +
+	"      --header 'Content-Type: application/json' \\\n" +
+	"      --data '{ \"scope_target_id\": \"<api_key_id>\" }'\n" +
+	"- lang: python\n" +
+	"  label: \"Python\"\n" +
+	"  source: |\n" +
+	"    orq.budgets.reset_consumption(budget_id=\"<budget_id>\", scope_target_id=\"<api_key_id>\")\n" +
+	"- lang: typescript\n" +
+	"  label: \"Node.js\"\n" +
+	"  source: |\n" +
+	"    await orq.budgets.resetConsumption({ budgetId: \"<budget_id>\", resetBudgetConsumptionRequest: { scopeTargetId: \"<api_key_id>\" } });\n" +
+	"\x8a\xb5\x18\x11\n" +
+	"\rbudget.update\x10\x02\x82\xd3\xe4\x93\x02.:\x01*\")/v2/budgets/{budget_id}/reset-consumption\x12\xeb\x05\n" +
+	"\x14GetBudgetConsumption\x12,.orq.platform.v1.GetBudgetConsumptionRequest\x1a-.orq.platform.v1.GetBudgetConsumptionResponse\"\xf5\x04\xbaG\xb3\x04\n" +
 	"\aBudgets\n" +
-	"\aprivate\x12\x1eGet current-period consumption\x1a\x99\x01Returns the current-period cost, token, and per-minute request counters for the budget. Values reflect the live Redis state for the active period bucket.*\x14BudgetGetConsumptionj\x1e\n" +
+	"\aprivate\x12\x1eGet current-period consumption\x1a\xfb\x02Returns the latest available current-period cost, token, and per-minute request consumption used for budget enforcement. For category defaults, scope_target_id is required and selects one entity; no aggregate allowance is returned. These values are not an exact billing ledger. Requires a Management Key with the Budgets permission; project-scoped API keys cannot manage budgets.*\x14BudgetGetConsumptionj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj-\n" +
 	"\x19x-speakeasy-name-override\x12\x10\x12\x0egetConsumptionj\x1c\n" +
 	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x0f\n" +
-	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02%\x12#/v2/budgets/{budget_id}/consumption\x12\xc4\x04\n" +
+	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02%\x12#/v2/budgets/{budget_id}/consumption\x12\xf5\x04\n" +
+	"\x19BatchGetBudgetConsumption\x121.orq.platform.v1.BatchGetBudgetConsumptionRequest\x1a2.orq.platform.v1.BatchGetBudgetConsumptionResponse\"\xf0\x03\xbaG\xa5\x03\n" +
+	"\aBudgets\n" +
+	"\aprivate\x12GGet current-period consumption for several entities of a budget profile\x1a\xba\x01Returns the current-period cost, token, and per-minute request consumption of each requested entity of a category default, in request order. These values are not an exact billing ledger.*\x19BudgetBatchGetConsumptionj\x1e\n" +
+	"\x11x-speakeasy-group\x12\t\x12\abudgetsj2\n" +
+	"\x19x-speakeasy-name-override\x12\x15\x12\x13batchGetConsumptionj\x1c\n" +
+	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x0f\n" +
+	"\vbudget.view\x10\x02\x82\xd3\xe4\x93\x02.:\x01*\")/v2/budgets/{budget_id}/consumption/batch\x12\xc4\x04\n" +
 	"\fCheckBudgets\x12$.orq.platform.v1.CheckBudgetsRequest\x1a%.orq.platform.v1.CheckBudgetsResponse\"\xe6\x03\xbaG\xc0\x03\n" +
 	"\aBudgets\n" +
 	"\aprivate\x12\x18Check budget enforcement\x1a\x88\x02Internal endpoint used by the gateway to resolve applicable budgets and check enforcement gates for a request. Authenticated with an internal service token; external API keys are rejected. Returns allowed/rejected status with dimension info for rate-limit headers.*\vBudgetCheckj\x1e\n" +
 	"\x11x-speakeasy-group\x12\t\x12\abudgetsj$\n" +
 	"\x19x-speakeasy-name-override\x12\a\x12\x05checkj\x16\n" +
 	"\fx-cli-hidden\x12\x06\x12\x04truej\x1c\n" +
-	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x02\x10\x03\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v2/budgets/checkB\x82\x04\xbaG\xab\x02:\xa8\x02\n" +
-	"\aBudgets\x12\x9c\x02Budgets govern spend, token usage, and request rate across six scopes: workspace, project, identity, api-key, provider, and model. A budget is hierarchical and defense-in-depth — every applicable budget is a hard gate, and the most restrictive one wins per dimension (see ADR 0007).\n" +
+	"\x12x-speakeasy-ignore\x12\x06\x12\x04true\x8a\xb5\x18\x02\x10\x03\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v2/budgets/checkB\xd4\x04\xbaG\xfd\x02:\xfa\x02\n" +
+	"\aBudgets\x12\xee\x02Budgets govern spend, token usage, and request rate across workspace, project, identity, API key, provider, model, factory, and category-default scopes. Category defaults provide a separate allowance for each entity; an active individual budget replaces its category default. Every applicable budget is enforced, and the most restrictive limit applies per dimension.\n" +
 	"\x13com.orq.platform.v1B\fBudgetsProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"
 
 var (
@@ -2626,112 +3101,124 @@ func file_orq_platform_v1_budgets_proto_rawDescGZIP() []byte {
 }
 
 var file_orq_platform_v1_budgets_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_orq_platform_v1_budgets_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_orq_platform_v1_budgets_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_orq_platform_v1_budgets_proto_goTypes = []any{
-	(BudgetAlertDimension)(0),              // 0: orq.platform.v1.BudgetAlertDimension
-	(BudgetPeriod)(0),                      // 1: orq.platform.v1.BudgetPeriod
-	(BudgetScopeKind)(0),                   // 2: orq.platform.v1.BudgetScopeKind
-	(BudgetSortField)(0),                   // 3: orq.platform.v1.BudgetSortField
-	(*Budget)(nil),                         // 4: orq.platform.v1.Budget
-	(*BudgetAlert)(nil),                    // 5: orq.platform.v1.BudgetAlert
-	(*BudgetUsage)(nil),                    // 6: orq.platform.v1.BudgetUsage
-	(*BudgetScope)(nil),                    // 7: orq.platform.v1.BudgetScope
-	(*BudgetMatch)(nil),                    // 8: orq.platform.v1.BudgetMatch
-	(*WorkspaceBudgetScope)(nil),           // 9: orq.platform.v1.WorkspaceBudgetScope
-	(*ProjectBudgetScope)(nil),             // 10: orq.platform.v1.ProjectBudgetScope
-	(*IdentityBudgetScope)(nil),            // 11: orq.platform.v1.IdentityBudgetScope
-	(*ApiKeyBudgetScope)(nil),              // 12: orq.platform.v1.ApiKeyBudgetScope
-	(*ProviderBudgetScope)(nil),            // 13: orq.platform.v1.ProviderBudgetScope
-	(*ModelBudgetScope)(nil),               // 14: orq.platform.v1.ModelBudgetScope
-	(*BudgetLimits)(nil),                   // 15: orq.platform.v1.BudgetLimits
-	(*RateLimit)(nil),                      // 16: orq.platform.v1.RateLimit
-	(*CreateBudgetRequest)(nil),            // 17: orq.platform.v1.CreateBudgetRequest
-	(*CreateBudgetResponse)(nil),           // 18: orq.platform.v1.CreateBudgetResponse
-	(*GetBudgetRequest)(nil),               // 19: orq.platform.v1.GetBudgetRequest
-	(*GetBudgetResponse)(nil),              // 20: orq.platform.v1.GetBudgetResponse
-	(*ListBudgetsRequest)(nil),             // 21: orq.platform.v1.ListBudgetsRequest
-	(*ListBudgetsResponse)(nil),            // 22: orq.platform.v1.ListBudgetsResponse
-	(*UpdateBudgetRequest)(nil),            // 23: orq.platform.v1.UpdateBudgetRequest
-	(*UpdateBudgetResponse)(nil),           // 24: orq.platform.v1.UpdateBudgetResponse
-	(*DeleteBudgetRequest)(nil),            // 25: orq.platform.v1.DeleteBudgetRequest
-	(*DeleteBudgetResponse)(nil),           // 26: orq.platform.v1.DeleteBudgetResponse
-	(*ResetBudgetConsumptionRequest)(nil),  // 27: orq.platform.v1.ResetBudgetConsumptionRequest
-	(*ResetBudgetConsumptionResponse)(nil), // 28: orq.platform.v1.ResetBudgetConsumptionResponse
-	(*GetBudgetConsumptionRequest)(nil),    // 29: orq.platform.v1.GetBudgetConsumptionRequest
-	(*GetBudgetConsumptionResponse)(nil),   // 30: orq.platform.v1.GetBudgetConsumptionResponse
-	(*CheckBudgetsRequest)(nil),            // 31: orq.platform.v1.CheckBudgetsRequest
-	(*CheckBudgetsResponse)(nil),           // 32: orq.platform.v1.CheckBudgetsResponse
-	(*BudgetRejection)(nil),                // 33: orq.platform.v1.BudgetRejection
-	(*DimensionInfo)(nil),                  // 34: orq.platform.v1.DimensionInfo
-	nil,                                    // 35: orq.platform.v1.CheckBudgetsRequest.HeadersEntry
-	(*timestamppb.Timestamp)(nil),          // 36: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),                // 37: google.protobuf.Struct
+	(BudgetAlertDimension)(0),                 // 0: orq.platform.v1.BudgetAlertDimension
+	(BudgetPeriod)(0),                         // 1: orq.platform.v1.BudgetPeriod
+	(BudgetScopeKind)(0),                      // 2: orq.platform.v1.BudgetScopeKind
+	(BudgetSortField)(0),                      // 3: orq.platform.v1.BudgetSortField
+	(*Budget)(nil),                            // 4: orq.platform.v1.Budget
+	(*BudgetAlert)(nil),                       // 5: orq.platform.v1.BudgetAlert
+	(*BudgetUsage)(nil),                       // 6: orq.platform.v1.BudgetUsage
+	(*BudgetScope)(nil),                       // 7: orq.platform.v1.BudgetScope
+	(*BudgetMatch)(nil),                       // 8: orq.platform.v1.BudgetMatch
+	(*WorkspaceBudgetScope)(nil),              // 9: orq.platform.v1.WorkspaceBudgetScope
+	(*CategoryBudgetScope)(nil),               // 10: orq.platform.v1.CategoryBudgetScope
+	(*ProjectBudgetScope)(nil),                // 11: orq.platform.v1.ProjectBudgetScope
+	(*IdentityBudgetScope)(nil),               // 12: orq.platform.v1.IdentityBudgetScope
+	(*ApiKeyBudgetScope)(nil),                 // 13: orq.platform.v1.ApiKeyBudgetScope
+	(*ProviderBudgetScope)(nil),               // 14: orq.platform.v1.ProviderBudgetScope
+	(*ModelBudgetScope)(nil),                  // 15: orq.platform.v1.ModelBudgetScope
+	(*AgentDeploymentBudgetScope)(nil),        // 16: orq.platform.v1.AgentDeploymentBudgetScope
+	(*FactoryBudgetScope)(nil),                // 17: orq.platform.v1.FactoryBudgetScope
+	(*BudgetLimits)(nil),                      // 18: orq.platform.v1.BudgetLimits
+	(*RateLimit)(nil),                         // 19: orq.platform.v1.RateLimit
+	(*CreateBudgetRequest)(nil),               // 20: orq.platform.v1.CreateBudgetRequest
+	(*CreateBudgetResponse)(nil),              // 21: orq.platform.v1.CreateBudgetResponse
+	(*GetBudgetRequest)(nil),                  // 22: orq.platform.v1.GetBudgetRequest
+	(*GetBudgetResponse)(nil),                 // 23: orq.platform.v1.GetBudgetResponse
+	(*ListBudgetsRequest)(nil),                // 24: orq.platform.v1.ListBudgetsRequest
+	(*ListBudgetsResponse)(nil),               // 25: orq.platform.v1.ListBudgetsResponse
+	(*UpdateBudgetRequest)(nil),               // 26: orq.platform.v1.UpdateBudgetRequest
+	(*UpdateBudgetResponse)(nil),              // 27: orq.platform.v1.UpdateBudgetResponse
+	(*DeleteBudgetRequest)(nil),               // 28: orq.platform.v1.DeleteBudgetRequest
+	(*DeleteBudgetResponse)(nil),              // 29: orq.platform.v1.DeleteBudgetResponse
+	(*ResetBudgetConsumptionRequest)(nil),     // 30: orq.platform.v1.ResetBudgetConsumptionRequest
+	(*ResetBudgetConsumptionResponse)(nil),    // 31: orq.platform.v1.ResetBudgetConsumptionResponse
+	(*GetBudgetConsumptionRequest)(nil),       // 32: orq.platform.v1.GetBudgetConsumptionRequest
+	(*GetBudgetConsumptionResponse)(nil),      // 33: orq.platform.v1.GetBudgetConsumptionResponse
+	(*BatchGetBudgetConsumptionRequest)(nil),  // 34: orq.platform.v1.BatchGetBudgetConsumptionRequest
+	(*BatchGetBudgetConsumptionResponse)(nil), // 35: orq.platform.v1.BatchGetBudgetConsumptionResponse
+	(*CheckBudgetsRequest)(nil),               // 36: orq.platform.v1.CheckBudgetsRequest
+	(*CheckBudgetsResponse)(nil),              // 37: orq.platform.v1.CheckBudgetsResponse
+	(*BudgetRejection)(nil),                   // 38: orq.platform.v1.BudgetRejection
+	(*DimensionInfo)(nil),                     // 39: orq.platform.v1.DimensionInfo
+	nil,                                       // 40: orq.platform.v1.CheckBudgetsRequest.HeadersEntry
+	(*timestamppb.Timestamp)(nil),             // 41: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                   // 42: google.protobuf.Struct
 }
 var file_orq_platform_v1_budgets_proto_depIdxs = []int32{
 	7,  // 0: orq.platform.v1.Budget.scope:type_name -> orq.platform.v1.BudgetScope
 	8,  // 1: orq.platform.v1.Budget.match:type_name -> orq.platform.v1.BudgetMatch
-	15, // 2: orq.platform.v1.Budget.limits:type_name -> orq.platform.v1.BudgetLimits
-	16, // 3: orq.platform.v1.Budget.rate_limit:type_name -> orq.platform.v1.RateLimit
-	36, // 4: orq.platform.v1.Budget.expires_at:type_name -> google.protobuf.Timestamp
-	36, // 5: orq.platform.v1.Budget.created_at:type_name -> google.protobuf.Timestamp
-	36, // 6: orq.platform.v1.Budget.updated_at:type_name -> google.protobuf.Timestamp
+	18, // 2: orq.platform.v1.Budget.limits:type_name -> orq.platform.v1.BudgetLimits
+	19, // 3: orq.platform.v1.Budget.rate_limit:type_name -> orq.platform.v1.RateLimit
+	41, // 4: orq.platform.v1.Budget.expires_at:type_name -> google.protobuf.Timestamp
+	41, // 5: orq.platform.v1.Budget.created_at:type_name -> google.protobuf.Timestamp
+	41, // 6: orq.platform.v1.Budget.updated_at:type_name -> google.protobuf.Timestamp
 	6,  // 7: orq.platform.v1.Budget.usage:type_name -> orq.platform.v1.BudgetUsage
 	5,  // 8: orq.platform.v1.Budget.alerts:type_name -> orq.platform.v1.BudgetAlert
 	0,  // 9: orq.platform.v1.BudgetAlert.dimension:type_name -> orq.platform.v1.BudgetAlertDimension
 	9,  // 10: orq.platform.v1.BudgetScope.workspace:type_name -> orq.platform.v1.WorkspaceBudgetScope
-	10, // 11: orq.platform.v1.BudgetScope.project:type_name -> orq.platform.v1.ProjectBudgetScope
-	11, // 12: orq.platform.v1.BudgetScope.identity:type_name -> orq.platform.v1.IdentityBudgetScope
-	12, // 13: orq.platform.v1.BudgetScope.api_key:type_name -> orq.platform.v1.ApiKeyBudgetScope
-	13, // 14: orq.platform.v1.BudgetScope.provider:type_name -> orq.platform.v1.ProviderBudgetScope
-	14, // 15: orq.platform.v1.BudgetScope.model:type_name -> orq.platform.v1.ModelBudgetScope
-	1,  // 16: orq.platform.v1.BudgetLimits.period:type_name -> orq.platform.v1.BudgetPeriod
-	7,  // 17: orq.platform.v1.CreateBudgetRequest.scope:type_name -> orq.platform.v1.BudgetScope
-	8,  // 18: orq.platform.v1.CreateBudgetRequest.match:type_name -> orq.platform.v1.BudgetMatch
-	15, // 19: orq.platform.v1.CreateBudgetRequest.limits:type_name -> orq.platform.v1.BudgetLimits
-	16, // 20: orq.platform.v1.CreateBudgetRequest.rate_limit:type_name -> orq.platform.v1.RateLimit
-	36, // 21: orq.platform.v1.CreateBudgetRequest.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 22: orq.platform.v1.CreateBudgetRequest.alerts:type_name -> orq.platform.v1.BudgetAlert
-	4,  // 23: orq.platform.v1.CreateBudgetResponse.budget:type_name -> orq.platform.v1.Budget
-	4,  // 24: orq.platform.v1.GetBudgetResponse.budget:type_name -> orq.platform.v1.Budget
-	2,  // 25: orq.platform.v1.ListBudgetsRequest.scope_kind:type_name -> orq.platform.v1.BudgetScopeKind
-	1,  // 26: orq.platform.v1.ListBudgetsRequest.period:type_name -> orq.platform.v1.BudgetPeriod
-	3,  // 27: orq.platform.v1.ListBudgetsRequest.sort_by:type_name -> orq.platform.v1.BudgetSortField
-	4,  // 28: orq.platform.v1.ListBudgetsResponse.data:type_name -> orq.platform.v1.Budget
-	15, // 29: orq.platform.v1.UpdateBudgetRequest.limits:type_name -> orq.platform.v1.BudgetLimits
-	16, // 30: orq.platform.v1.UpdateBudgetRequest.rate_limit:type_name -> orq.platform.v1.RateLimit
-	36, // 31: orq.platform.v1.UpdateBudgetRequest.expires_at:type_name -> google.protobuf.Timestamp
-	8,  // 32: orq.platform.v1.UpdateBudgetRequest.match:type_name -> orq.platform.v1.BudgetMatch
-	5,  // 33: orq.platform.v1.UpdateBudgetRequest.alerts:type_name -> orq.platform.v1.BudgetAlert
-	4,  // 34: orq.platform.v1.UpdateBudgetResponse.budget:type_name -> orq.platform.v1.Budget
-	4,  // 35: orq.platform.v1.ResetBudgetConsumptionResponse.budget:type_name -> orq.platform.v1.Budget
-	1,  // 36: orq.platform.v1.GetBudgetConsumptionResponse.period:type_name -> orq.platform.v1.BudgetPeriod
-	37, // 37: orq.platform.v1.CheckBudgetsRequest.metadata:type_name -> google.protobuf.Struct
-	35, // 38: orq.platform.v1.CheckBudgetsRequest.headers:type_name -> orq.platform.v1.CheckBudgetsRequest.HeadersEntry
-	33, // 39: orq.platform.v1.CheckBudgetsResponse.rejection:type_name -> orq.platform.v1.BudgetRejection
-	34, // 40: orq.platform.v1.CheckBudgetsResponse.cost:type_name -> orq.platform.v1.DimensionInfo
-	34, // 41: orq.platform.v1.CheckBudgetsResponse.tokens:type_name -> orq.platform.v1.DimensionInfo
-	34, // 42: orq.platform.v1.CheckBudgetsResponse.requests:type_name -> orq.platform.v1.DimensionInfo
-	17, // 43: orq.platform.v1.BudgetsService.CreateBudget:input_type -> orq.platform.v1.CreateBudgetRequest
-	19, // 44: orq.platform.v1.BudgetsService.GetBudget:input_type -> orq.platform.v1.GetBudgetRequest
-	21, // 45: orq.platform.v1.BudgetsService.ListBudgets:input_type -> orq.platform.v1.ListBudgetsRequest
-	23, // 46: orq.platform.v1.BudgetsService.UpdateBudget:input_type -> orq.platform.v1.UpdateBudgetRequest
-	25, // 47: orq.platform.v1.BudgetsService.DeleteBudget:input_type -> orq.platform.v1.DeleteBudgetRequest
-	27, // 48: orq.platform.v1.BudgetsService.ResetBudgetConsumption:input_type -> orq.platform.v1.ResetBudgetConsumptionRequest
-	29, // 49: orq.platform.v1.BudgetsService.GetBudgetConsumption:input_type -> orq.platform.v1.GetBudgetConsumptionRequest
-	31, // 50: orq.platform.v1.BudgetsService.CheckBudgets:input_type -> orq.platform.v1.CheckBudgetsRequest
-	18, // 51: orq.platform.v1.BudgetsService.CreateBudget:output_type -> orq.platform.v1.CreateBudgetResponse
-	20, // 52: orq.platform.v1.BudgetsService.GetBudget:output_type -> orq.platform.v1.GetBudgetResponse
-	22, // 53: orq.platform.v1.BudgetsService.ListBudgets:output_type -> orq.platform.v1.ListBudgetsResponse
-	24, // 54: orq.platform.v1.BudgetsService.UpdateBudget:output_type -> orq.platform.v1.UpdateBudgetResponse
-	26, // 55: orq.platform.v1.BudgetsService.DeleteBudget:output_type -> orq.platform.v1.DeleteBudgetResponse
-	28, // 56: orq.platform.v1.BudgetsService.ResetBudgetConsumption:output_type -> orq.platform.v1.ResetBudgetConsumptionResponse
-	30, // 57: orq.platform.v1.BudgetsService.GetBudgetConsumption:output_type -> orq.platform.v1.GetBudgetConsumptionResponse
-	32, // 58: orq.platform.v1.BudgetsService.CheckBudgets:output_type -> orq.platform.v1.CheckBudgetsResponse
-	51, // [51:59] is the sub-list for method output_type
-	43, // [43:51] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	11, // 11: orq.platform.v1.BudgetScope.project:type_name -> orq.platform.v1.ProjectBudgetScope
+	12, // 12: orq.platform.v1.BudgetScope.identity:type_name -> orq.platform.v1.IdentityBudgetScope
+	13, // 13: orq.platform.v1.BudgetScope.api_key:type_name -> orq.platform.v1.ApiKeyBudgetScope
+	14, // 14: orq.platform.v1.BudgetScope.provider:type_name -> orq.platform.v1.ProviderBudgetScope
+	15, // 15: orq.platform.v1.BudgetScope.model:type_name -> orq.platform.v1.ModelBudgetScope
+	16, // 16: orq.platform.v1.BudgetScope.agent_deployment:type_name -> orq.platform.v1.AgentDeploymentBudgetScope
+	17, // 17: orq.platform.v1.BudgetScope.factory_scope:type_name -> orq.platform.v1.FactoryBudgetScope
+	10, // 18: orq.platform.v1.BudgetScope.category:type_name -> orq.platform.v1.CategoryBudgetScope
+	2,  // 19: orq.platform.v1.CategoryBudgetScope.category:type_name -> orq.platform.v1.BudgetScopeKind
+	1,  // 20: orq.platform.v1.BudgetLimits.period:type_name -> orq.platform.v1.BudgetPeriod
+	7,  // 21: orq.platform.v1.CreateBudgetRequest.scope:type_name -> orq.platform.v1.BudgetScope
+	8,  // 22: orq.platform.v1.CreateBudgetRequest.match:type_name -> orq.platform.v1.BudgetMatch
+	18, // 23: orq.platform.v1.CreateBudgetRequest.limits:type_name -> orq.platform.v1.BudgetLimits
+	19, // 24: orq.platform.v1.CreateBudgetRequest.rate_limit:type_name -> orq.platform.v1.RateLimit
+	41, // 25: orq.platform.v1.CreateBudgetRequest.expires_at:type_name -> google.protobuf.Timestamp
+	5,  // 26: orq.platform.v1.CreateBudgetRequest.alerts:type_name -> orq.platform.v1.BudgetAlert
+	4,  // 27: orq.platform.v1.CreateBudgetResponse.budget:type_name -> orq.platform.v1.Budget
+	4,  // 28: orq.platform.v1.GetBudgetResponse.budget:type_name -> orq.platform.v1.Budget
+	2,  // 29: orq.platform.v1.ListBudgetsRequest.scope_kind:type_name -> orq.platform.v1.BudgetScopeKind
+	1,  // 30: orq.platform.v1.ListBudgetsRequest.period:type_name -> orq.platform.v1.BudgetPeriod
+	3,  // 31: orq.platform.v1.ListBudgetsRequest.sort_by:type_name -> orq.platform.v1.BudgetSortField
+	4,  // 32: orq.platform.v1.ListBudgetsResponse.data:type_name -> orq.platform.v1.Budget
+	18, // 33: orq.platform.v1.UpdateBudgetRequest.limits:type_name -> orq.platform.v1.BudgetLimits
+	19, // 34: orq.platform.v1.UpdateBudgetRequest.rate_limit:type_name -> orq.platform.v1.RateLimit
+	41, // 35: orq.platform.v1.UpdateBudgetRequest.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 36: orq.platform.v1.UpdateBudgetRequest.match:type_name -> orq.platform.v1.BudgetMatch
+	5,  // 37: orq.platform.v1.UpdateBudgetRequest.alerts:type_name -> orq.platform.v1.BudgetAlert
+	4,  // 38: orq.platform.v1.UpdateBudgetResponse.budget:type_name -> orq.platform.v1.Budget
+	4,  // 39: orq.platform.v1.ResetBudgetConsumptionResponse.budget:type_name -> orq.platform.v1.Budget
+	1,  // 40: orq.platform.v1.GetBudgetConsumptionResponse.period:type_name -> orq.platform.v1.BudgetPeriod
+	33, // 41: orq.platform.v1.BatchGetBudgetConsumptionResponse.consumptions:type_name -> orq.platform.v1.GetBudgetConsumptionResponse
+	42, // 42: orq.platform.v1.CheckBudgetsRequest.metadata:type_name -> google.protobuf.Struct
+	40, // 43: orq.platform.v1.CheckBudgetsRequest.headers:type_name -> orq.platform.v1.CheckBudgetsRequest.HeadersEntry
+	38, // 44: orq.platform.v1.CheckBudgetsResponse.rejection:type_name -> orq.platform.v1.BudgetRejection
+	39, // 45: orq.platform.v1.CheckBudgetsResponse.cost:type_name -> orq.platform.v1.DimensionInfo
+	39, // 46: orq.platform.v1.CheckBudgetsResponse.tokens:type_name -> orq.platform.v1.DimensionInfo
+	39, // 47: orq.platform.v1.CheckBudgetsResponse.requests:type_name -> orq.platform.v1.DimensionInfo
+	20, // 48: orq.platform.v1.BudgetsService.CreateBudget:input_type -> orq.platform.v1.CreateBudgetRequest
+	22, // 49: orq.platform.v1.BudgetsService.GetBudget:input_type -> orq.platform.v1.GetBudgetRequest
+	24, // 50: orq.platform.v1.BudgetsService.ListBudgets:input_type -> orq.platform.v1.ListBudgetsRequest
+	26, // 51: orq.platform.v1.BudgetsService.UpdateBudget:input_type -> orq.platform.v1.UpdateBudgetRequest
+	28, // 52: orq.platform.v1.BudgetsService.DeleteBudget:input_type -> orq.platform.v1.DeleteBudgetRequest
+	30, // 53: orq.platform.v1.BudgetsService.ResetBudgetConsumption:input_type -> orq.platform.v1.ResetBudgetConsumptionRequest
+	32, // 54: orq.platform.v1.BudgetsService.GetBudgetConsumption:input_type -> orq.platform.v1.GetBudgetConsumptionRequest
+	34, // 55: orq.platform.v1.BudgetsService.BatchGetBudgetConsumption:input_type -> orq.platform.v1.BatchGetBudgetConsumptionRequest
+	36, // 56: orq.platform.v1.BudgetsService.CheckBudgets:input_type -> orq.platform.v1.CheckBudgetsRequest
+	21, // 57: orq.platform.v1.BudgetsService.CreateBudget:output_type -> orq.platform.v1.CreateBudgetResponse
+	23, // 58: orq.platform.v1.BudgetsService.GetBudget:output_type -> orq.platform.v1.GetBudgetResponse
+	25, // 59: orq.platform.v1.BudgetsService.ListBudgets:output_type -> orq.platform.v1.ListBudgetsResponse
+	27, // 60: orq.platform.v1.BudgetsService.UpdateBudget:output_type -> orq.platform.v1.UpdateBudgetResponse
+	29, // 61: orq.platform.v1.BudgetsService.DeleteBudget:output_type -> orq.platform.v1.DeleteBudgetResponse
+	31, // 62: orq.platform.v1.BudgetsService.ResetBudgetConsumption:output_type -> orq.platform.v1.ResetBudgetConsumptionResponse
+	33, // 63: orq.platform.v1.BudgetsService.GetBudgetConsumption:output_type -> orq.platform.v1.GetBudgetConsumptionResponse
+	35, // 64: orq.platform.v1.BudgetsService.BatchGetBudgetConsumption:output_type -> orq.platform.v1.BatchGetBudgetConsumptionResponse
+	37, // 65: orq.platform.v1.BudgetsService.CheckBudgets:output_type -> orq.platform.v1.CheckBudgetsResponse
+	57, // [57:66] is the sub-list for method output_type
+	48, // [48:57] is the sub-list for method input_type
+	48, // [48:48] is the sub-list for extension type_name
+	48, // [48:48] is the sub-list for extension extendee
+	0,  // [0:48] is the sub-list for field type_name
 }
 
 func init() { file_orq_platform_v1_budgets_proto_init() }
@@ -2748,19 +3235,25 @@ func file_orq_platform_v1_budgets_proto_init() {
 		(*BudgetScope_ApiKey)(nil),
 		(*BudgetScope_Provider)(nil),
 		(*BudgetScope_Model)(nil),
+		(*BudgetScope_AgentDeployment)(nil),
+		(*BudgetScope_FactoryScope)(nil),
+		(*BudgetScope_Category)(nil),
 	}
-	file_orq_platform_v1_budgets_proto_msgTypes[11].OneofWrappers = []any{}
-	file_orq_platform_v1_budgets_proto_msgTypes[12].OneofWrappers = []any{}
-	file_orq_platform_v1_budgets_proto_msgTypes[13].OneofWrappers = []any{}
-	file_orq_platform_v1_budgets_proto_msgTypes[17].OneofWrappers = []any{}
-	file_orq_platform_v1_budgets_proto_msgTypes[19].OneofWrappers = []any{}
+	file_orq_platform_v1_budgets_proto_msgTypes[14].OneofWrappers = []any{}
+	file_orq_platform_v1_budgets_proto_msgTypes[15].OneofWrappers = []any{}
+	file_orq_platform_v1_budgets_proto_msgTypes[16].OneofWrappers = []any{}
+	file_orq_platform_v1_budgets_proto_msgTypes[20].OneofWrappers = []any{}
+	file_orq_platform_v1_budgets_proto_msgTypes[22].OneofWrappers = []any{}
+	file_orq_platform_v1_budgets_proto_msgTypes[26].OneofWrappers = []any{}
+	file_orq_platform_v1_budgets_proto_msgTypes[28].OneofWrappers = []any{}
+	file_orq_platform_v1_budgets_proto_msgTypes[29].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orq_platform_v1_budgets_proto_rawDesc), len(file_orq_platform_v1_budgets_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   32,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

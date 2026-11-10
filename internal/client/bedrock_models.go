@@ -261,7 +261,7 @@ func (r *restBedrockModels) Create(ctx context.Context, in BedrockModelCreateInp
 		ModelId:        in.ModelID,
 		Region:         in.Region,
 		ModelDeveloper: in.ModelDeveloper,
-		AuthMode:       in.AuthMode,
+		AuthMode:       restgen.ModelCreateAwsBedrockJSONBodyAuthMode(in.AuthMode),
 
 		ModelType:     in.ModelType,
 		ModelFamily:   in.ModelFamily,

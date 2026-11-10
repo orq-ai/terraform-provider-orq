@@ -8,7 +8,6 @@ package platformv1
 
 import (
 	_ "github.com/orq-ai/terraform-provider-orq/internal/gen/buf/validate"
-	_ "github.com/orq-ai/terraform-provider-orq/internal/gen/google/api"
 	_ "github.com/orq-ai/terraform-provider-orq/internal/gen/openapiv3"
 	v1 "github.com/orq-ai/terraform-provider-orq/internal/gen/orq/apikeys/v1"
 	_ "github.com/orq-ai/terraform-provider-orq/internal/gen/orq/authz/v1"
@@ -239,6 +238,110 @@ func (PrincipalType) EnumDescriptor() ([]byte, []int) {
 	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{3}
 }
 
+// Keys without a value for the field sort last.
+type ApiKeySortField int32
+
+const (
+	ApiKeySortField_API_KEY_SORT_FIELD_UNSPECIFIED  ApiKeySortField = 0
+	ApiKeySortField_API_KEY_SORT_FIELD_CREATED_AT   ApiKeySortField = 1
+	ApiKeySortField_API_KEY_SORT_FIELD_LAST_USED_AT ApiKeySortField = 2
+)
+
+// Enum value maps for ApiKeySortField.
+var (
+	ApiKeySortField_name = map[int32]string{
+		0: "API_KEY_SORT_FIELD_UNSPECIFIED",
+		1: "API_KEY_SORT_FIELD_CREATED_AT",
+		2: "API_KEY_SORT_FIELD_LAST_USED_AT",
+	}
+	ApiKeySortField_value = map[string]int32{
+		"API_KEY_SORT_FIELD_UNSPECIFIED":  0,
+		"API_KEY_SORT_FIELD_CREATED_AT":   1,
+		"API_KEY_SORT_FIELD_LAST_USED_AT": 2,
+	}
+)
+
+func (x ApiKeySortField) Enum() *ApiKeySortField {
+	p := new(ApiKeySortField)
+	*p = x
+	return p
+}
+
+func (x ApiKeySortField) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ApiKeySortField) Descriptor() protoreflect.EnumDescriptor {
+	return file_orq_platform_v1_api_keys_proto_enumTypes[4].Descriptor()
+}
+
+func (ApiKeySortField) Type() protoreflect.EnumType {
+	return &file_orq_platform_v1_api_keys_proto_enumTypes[4]
+}
+
+func (x ApiKeySortField) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ApiKeySortField.Descriptor instead.
+func (ApiKeySortField) EnumDescriptor() ([]byte, []int) {
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{4}
+}
+
+// ApiKeyExpirationState buckets `expires_at` relative to now. Expiring soon
+// means the key expires within the next 7 days.
+type ApiKeyExpirationState int32
+
+const (
+	ApiKeyExpirationState_API_KEY_EXPIRATION_STATE_UNSPECIFIED   ApiKeyExpirationState = 0
+	ApiKeyExpirationState_API_KEY_EXPIRATION_STATE_NONE          ApiKeyExpirationState = 1
+	ApiKeyExpirationState_API_KEY_EXPIRATION_STATE_EXPIRING_SOON ApiKeyExpirationState = 2
+	ApiKeyExpirationState_API_KEY_EXPIRATION_STATE_EXPIRED       ApiKeyExpirationState = 3
+)
+
+// Enum value maps for ApiKeyExpirationState.
+var (
+	ApiKeyExpirationState_name = map[int32]string{
+		0: "API_KEY_EXPIRATION_STATE_UNSPECIFIED",
+		1: "API_KEY_EXPIRATION_STATE_NONE",
+		2: "API_KEY_EXPIRATION_STATE_EXPIRING_SOON",
+		3: "API_KEY_EXPIRATION_STATE_EXPIRED",
+	}
+	ApiKeyExpirationState_value = map[string]int32{
+		"API_KEY_EXPIRATION_STATE_UNSPECIFIED":   0,
+		"API_KEY_EXPIRATION_STATE_NONE":          1,
+		"API_KEY_EXPIRATION_STATE_EXPIRING_SOON": 2,
+		"API_KEY_EXPIRATION_STATE_EXPIRED":       3,
+	}
+)
+
+func (x ApiKeyExpirationState) Enum() *ApiKeyExpirationState {
+	p := new(ApiKeyExpirationState)
+	*p = x
+	return p
+}
+
+func (x ApiKeyExpirationState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ApiKeyExpirationState) Descriptor() protoreflect.EnumDescriptor {
+	return file_orq_platform_v1_api_keys_proto_enumTypes[5].Descriptor()
+}
+
+func (ApiKeyExpirationState) Type() protoreflect.EnumType {
+	return &file_orq_platform_v1_api_keys_proto_enumTypes[5]
+}
+
+func (x ApiKeyExpirationState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ApiKeyExpirationState.Descriptor instead.
+func (ApiKeyExpirationState) EnumDescriptor() ([]byte, []int) {
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{5}
+}
+
 // OwnerType is the filter-side discriminator for ApiKeyOwner. The
 // stored shape stays the `kind` oneof; this enum exists so the list
 // filter can travel as a single field.
@@ -275,11 +378,11 @@ func (x OwnerType) String() string {
 }
 
 func (OwnerType) Descriptor() protoreflect.EnumDescriptor {
-	return file_orq_platform_v1_api_keys_proto_enumTypes[4].Descriptor()
+	return file_orq_platform_v1_api_keys_proto_enumTypes[6].Descriptor()
 }
 
 func (OwnerType) Type() protoreflect.EnumType {
-	return &file_orq_platform_v1_api_keys_proto_enumTypes[4]
+	return &file_orq_platform_v1_api_keys_proto_enumTypes[6]
 }
 
 func (x OwnerType) Number() protoreflect.EnumNumber {
@@ -288,12 +391,11 @@ func (x OwnerType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OwnerType.Descriptor instead.
 func (OwnerType) EnumDescriptor() ([]byte, []int) {
-	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{4}
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{6}
 }
 
-// ApiKey is the canonical record stored in MongoDB `auth.apiKeys`.
-// It is the source of truth for scope, permissions, owner, budget,
-// expiration, and revocation (see ADR 0001).
+// ApiKey defines an API key's scope, permissions, owner, budget,
+// expiration, and revocation.
 type ApiKey struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Canonical key identifier (ULID). Embedded in opaque tokens as
@@ -311,14 +413,10 @@ type ApiKey struct {
 	PermissionMode PermissionMode `protobuf:"varint,6,opt,name=permission_mode,json=permissionMode,proto3,enum=orq.platform.v1.PermissionMode" json:"permission_mode,omitempty"`
 	// Per-domain access map. Only populated when `permission_mode` is
 	// `PERMISSION_MODE_RESTRICTED`. The authoritative list of valid
-	// keys and the per-domain read / write semantics are exposed at
-	// runtime via the capability catalog endpoint.
-	//
-	// Valid keys are the Domain.id values in the capability catalog —
-	// see libs/catalog/orq/apikeys/v1/catalog.textpb for the canonical
-	// list. The ids are intentionally not duplicated here to avoid drift.
-	//
-	// Values are AccessLevel enum names on the JSON wire:
+	// keys (Domain.id values) and the per-domain read / write semantics
+	// are returned by the List capability catalog endpoint
+	// (GET /v2/api-keys/capabilities). Values are AccessLevel enum names
+	// on the JSON wire:
 	//
 	//	"ACCESS_LEVEL_NONE"  — capability not granted
 	//	"ACCESS_LEVEL_READ"  — list / view verbs
@@ -341,18 +439,19 @@ type ApiKey struct {
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Time the key was last updated.
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	// Last authenticated use. Updated via NATS debounce + 1% sampler.
+	// Approximate time of the last authenticated use. Updates are sampled
+	// and may be delayed.
 	LastUsedAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
-	// Optional expiration. The authenticate hot-path rejects keys whose
-	// `expires_at` is in the past. Unset means the key never expires.
+	// Optional expiration. Keys whose `expires_at` is in the past are
+	// rejected when used. Unset means the key never expires.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
 	// Legacy JWT for pre-migration keys. Empty for newly issued opaque
 	// keys. Never returned by the public API.
 	ApiKey string `protobuf:"bytes,17,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
-	// Token family marker used by the legacy adapter to route validation.
+	// Token family for keys issued before the current opaque token format.
 	LegacyTokenFamily LegacyTokenFamily `protobuf:"varint,18,opt,name=legacy_token_family,json=legacyTokenFamily,proto3,enum=orq.platform.v1.LegacyTokenFamily" json:"legacy_token_family,omitempty"`
-	// Legacy MongoDB `_id` from before the canonical ULID was assigned.
-	// Used by the adapter to resolve a JWT back to this canonical record.
+	// Legacy key identifier from before the canonical ULID was assigned.
+	// Used to associate existing tokens with this key.
 	LegacyKeyId string `protobuf:"bytes,19,opt,name=legacy_key_id,json=legacyKeyId,proto3" json:"legacy_key_id,omitempty"`
 	// The budget scoped to this api-key, if one exists. Read-only here:
 	// budgets are created and managed through the Budgets API
@@ -363,9 +462,12 @@ type ApiKey struct {
 	// Optional MCP-gateway access restriction. Unset means the key can
 	// reach every MCP gateway allowed by its project scope. See
 	// McpAccess for the deny_all / allow-list semantics.
-	McpAccess     *McpAccess `protobuf:"bytes,22,opt,name=mcp_access,json=mcpAccess,proto3" json:"mcp_access,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	McpAccess *McpAccess `protobuf:"bytes,22,opt,name=mcp_access,json=mcpAccess,proto3" json:"mcp_access,omitempty"`
+	// Set when the key is the principal of an OAuth client. Such a key is
+	// managed through that client and cannot be used, edited or rotated here.
+	OriginOauthClientId string `protobuf:"bytes,24,opt,name=origin_oauth_client_id,json=originOauthClientId,proto3" json:"origin_oauth_client_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ApiKey) Reset() {
@@ -538,6 +640,13 @@ func (x *ApiKey) GetMcpAccess() *McpAccess {
 	return nil
 }
 
+func (x *ApiKey) GetOriginOauthClientId() string {
+	if x != nil {
+		return x.OriginOauthClientId
+	}
+	return ""
+}
+
 // McpAccess optionally restricts which MCP gateways an API key may
 // reach at the data plane. It is orthogonal to permission_mode /
 // access: the key must still hold the `mcp_gateway.execute` verb and
@@ -562,13 +671,14 @@ type McpAccess struct {
 	// reach. Ignored when deny_all is true. Empty (with deny_all=false)
 	// means no restriction.
 	AllowedMcpGatewayIds []string `protobuf:"bytes,2,rep,name=allowed_mcp_gateway_ids,json=allowedMcpGatewayIds,proto3" json:"allowed_mcp_gateway_ids,omitempty"`
-	// Allow-list of MCP toolset ids (`mcp_toolset_<ULID>`) the key is
-	// bound to. When non-empty, the key sees and may call only the tools
-	// that are both exposed by the target gateway and members of the
-	// union of these toolsets. Empty means no toolset restriction.
-	ToolsetIds    []string `protobuf:"bytes,3,rep,name=toolset_ids,json=toolsetIds,proto3" json:"toolset_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Allow-list of file system ids (`fsys_<ULID>`) the key may reach over
+	// the file system MCP endpoint. Ignored when deny_all is true. Empty
+	// (with deny_all=false) means no restriction. The access mode a key
+	// gets on a reachable file system is the file system's own
+	// external_access, never something the key carries.
+	AllowedFilesystemIds []string `protobuf:"bytes,4,rep,name=allowed_filesystem_ids,json=allowedFilesystemIds,proto3" json:"allowed_filesystem_ids,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *McpAccess) Reset() {
@@ -615,9 +725,9 @@ func (x *McpAccess) GetAllowedMcpGatewayIds() []string {
 	return nil
 }
 
-func (x *McpAccess) GetToolsetIds() []string {
+func (x *McpAccess) GetAllowedFilesystemIds() []string {
 	if x != nil {
-		return x.ToolsetIds
+		return x.AllowedFilesystemIds
 	}
 	return nil
 }
@@ -627,7 +737,7 @@ func (x *McpAccess) GetToolsetIds() []string {
 // `service_account` keys are workspace-owned and outlive any individual
 // user. `user` keys are bound to `user_id`: when the user is removed,
 // disabled, or loses project access, the key is revoked / its scope
-// shrinks per the cascade rules in ADR 0001.
+// shrinks accordingly.
 type ApiKeyOwner struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Kind:
@@ -1058,16 +1168,16 @@ type CreateApiKeyRequest struct {
 	Owner *ApiKeyOwner `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
 	// Project authorization scope. Defaults to all-projects when omitted.
 	ProjectScope *ProjectScope `protobuf:"bytes,3,opt,name=project_scope,json=projectScope,proto3" json:"project_scope,omitempty"`
-	// Permission preset. Defaults to PERMISSION_MODE_ALL when omitted.
+	// Permission preset. Required; an omitted or unspecified value is
+	// rejected with INVALID_ARGUMENT rather than defaulted to full access.
 	PermissionMode PermissionMode `protobuf:"varint,4,opt,name=permission_mode,json=permissionMode,proto3,enum=orq.platform.v1.PermissionMode" json:"permission_mode,omitempty"`
 	// Per-domain access map. Required when `permission_mode` =
 	// `PERMISSION_MODE_RESTRICTED`. See `ApiKey.access` for the full
 	// catalog of valid keys (Domain.id) and AccessLevel string values,
 	// or fetch the live catalog via the capability catalog endpoint.
 	Access map[string]v1.AccessLevel `protobuf:"bytes,5,rep,name=access,proto3" json:"access,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=orq.apikeys.v1.AccessLevel"`
-	// Optional expiration. When set, the authenticate hot-path rejects
-	// the key once `expires_at` is in the past. Unset means the key
-	// never expires.
+	// Optional expiration. The key is rejected once `expires_at` is in the
+	// past. Unset means the key never expires.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
 	// Optional MCP-gateway access restriction. Unset means no
 	// restriction. See McpAccess for the deny_all / allow-list semantics.
@@ -1215,11 +1325,9 @@ type ListApiKeysRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page size, 1–200. Unset uses the server default (25).
 	Limit *int32 `protobuf:"varint,1,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	// Cursor for forward pagination. Set to the `api_key_id` of the last
-	// item from the previous page.
+	// Cursor for forward pagination. Set to the previous response's `next_cursor`.
 	StartingAfter string `protobuf:"bytes,2,opt,name=starting_after,json=startingAfter,proto3" json:"starting_after,omitempty"`
-	// Cursor for backward pagination. Set to the `api_key_id` of the
-	// first item from the previous page.
+	// Cursor for backward pagination. Set to the previous response's `previous_cursor`.
 	EndingBefore string `protobuf:"bytes,3,opt,name=ending_before,json=endingBefore,proto3" json:"ending_before,omitempty"`
 	// Optional filter: only return keys belonging to this project. When
 	// omitted, returns workspace-scoped and any single-project keys.
@@ -1242,6 +1350,14 @@ type ListApiKeysRequest struct {
 	// only, no live usage) on the returned records. Adds one budget lookup
 	// for the page; omit to skip it.
 	IncludeBudget bool `protobuf:"varint,9,opt,name=include_budget,json=includeBudget,proto3" json:"include_budget,omitempty"`
+	// Orders the list newest first by this field. Unset orders by `api_key_id`.
+	SortBy ApiKeySortField `protobuf:"varint,10,opt,name=sort_by,json=sortBy,proto3,enum=orq.platform.v1.ApiKeySortField" json:"sort_by,omitempty"`
+	// Optional filter: only return keys whose expiration state is one of the
+	// listed states. Empty means no expiration filter.
+	ExpirationState []ApiKeyExpirationState `protobuf:"varint,11,rep,packed,name=expiration_state,json=expirationState,proto3,enum=orq.platform.v1.ApiKeyExpirationState" json:"expiration_state,omitempty"`
+	// Optional filter: true returns only keys that were never used, false only
+	// keys used at least once. Unset means no usage filter.
+	NeverUsed     *bool `protobuf:"varint,12,opt,name=never_used,json=neverUsed,proto3,oneof" json:"never_used,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1339,18 +1455,43 @@ func (x *ListApiKeysRequest) GetIncludeBudget() bool {
 	return false
 }
 
+func (x *ListApiKeysRequest) GetSortBy() ApiKeySortField {
+	if x != nil {
+		return x.SortBy
+	}
+	return ApiKeySortField_API_KEY_SORT_FIELD_UNSPECIFIED
+}
+
+func (x *ListApiKeysRequest) GetExpirationState() []ApiKeyExpirationState {
+	if x != nil {
+		return x.ExpirationState
+	}
+	return nil
+}
+
+func (x *ListApiKeysRequest) GetNeverUsed() bool {
+	if x != nil && x.NeverUsed != nil {
+		return *x.NeverUsed
+	}
+	return false
+}
+
 type ListApiKeysResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Object discriminator for list responses; always `list`.
 	Object string `protobuf:"bytes,1,opt,name=object,proto3" json:"object,omitempty"`
-	// Page of api-keys, ordered newest first. `token_hash` and
+	// Page of api-keys in the requested `sort_by` order. `token_hash` and
 	// `api_key` are always elided in list responses.
 	Data []*ApiKey `protobuf:"bytes,2,rep,name=data,proto3" json:"data,omitempty"`
 	// Whether more api-keys are available in the selected pagination
 	// direction.
-	HasMore       bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	HasMore bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	// Pass as `starting_after` for the next page. Empty when `data` is empty.
+	NextCursor string `protobuf:"bytes,4,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	// Pass as `ending_before` for the previous page. Empty when `data` is empty.
+	PreviousCursor string `protobuf:"bytes,5,opt,name=previous_cursor,json=previousCursor,proto3" json:"previous_cursor,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListApiKeysResponse) Reset() {
@@ -1402,6 +1543,20 @@ func (x *ListApiKeysResponse) GetHasMore() bool {
 		return x.HasMore
 	}
 	return false
+}
+
+func (x *ListApiKeysResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+func (x *ListApiKeysResponse) GetPreviousCursor() string {
+	if x != nil {
+		return x.PreviousCursor
+	}
+	return ""
 }
 
 type GetApiKeyRequest struct {
@@ -1504,13 +1659,113 @@ func (x *GetApiKeyResponse) GetApiKey() *ApiKey {
 	return nil
 }
 
+type GetDefaultApiKeyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Prefer an active key of this project.
+	ProjectId *string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3,oneof" json:"project_id,omitempty"`
+	// `router` falls back to an active key of the workspace's default project.
+	Context       *string `protobuf:"bytes,2,opt,name=context,proto3,oneof" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDefaultApiKeyRequest) Reset() {
+	*x = GetDefaultApiKeyRequest{}
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDefaultApiKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDefaultApiKeyRequest) ProtoMessage() {}
+
+func (x *GetDefaultApiKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDefaultApiKeyRequest.ProtoReflect.Descriptor instead.
+func (*GetDefaultApiKeyRequest) Descriptor() ([]byte, []int) {
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetDefaultApiKeyRequest) GetProjectId() string {
+	if x != nil && x.ProjectId != nil {
+		return *x.ProjectId
+	}
+	return ""
+}
+
+func (x *GetDefaultApiKeyRequest) GetContext() string {
+	if x != nil && x.Context != nil {
+		return *x.Context
+	}
+	return ""
+}
+
+type GetDefaultApiKeyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Id of an active key the caller may attribute requests to; empty when none is available.
+	ApiKeyId      string `protobuf:"bytes,1,opt,name=api_key_id,json=apiKeyId,proto3" json:"api_key_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDefaultApiKeyResponse) Reset() {
+	*x = GetDefaultApiKeyResponse{}
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDefaultApiKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDefaultApiKeyResponse) ProtoMessage() {}
+
+func (x *GetDefaultApiKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDefaultApiKeyResponse.ProtoReflect.Descriptor instead.
+func (*GetDefaultApiKeyResponse) Descriptor() ([]byte, []int) {
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetDefaultApiKeyResponse) GetApiKeyId() string {
+	if x != nil {
+		return x.ApiKeyId
+	}
+	return ""
+}
+
 type UpdateApiKeyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// API key id to update.
 	ApiKeyId string `protobuf:"bytes,1,opt,name=api_key_id,json=apiKeyId,proto3" json:"api_key_id,omitempty"`
 	// New name. Omit to keep current.
 	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	// New lifecycle status. Omit to keep current.
+	// New lifecycle status. Omit to keep current. A revoked key cannot
+	// change status; the call fails with FAILED_PRECONDITION.
 	Status *ApiKeyStatus `protobuf:"varint,3,opt,name=status,proto3,enum=orq.platform.v1.ApiKeyStatus,oneof" json:"status,omitempty"`
 	// New permission preset. Omit to keep current.
 	PermissionMode *PermissionMode `protobuf:"varint,4,opt,name=permission_mode,json=permissionMode,proto3,enum=orq.platform.v1.PermissionMode,oneof" json:"permission_mode,omitempty"`
@@ -1539,7 +1794,7 @@ type UpdateApiKeyRequest struct {
 
 func (x *UpdateApiKeyRequest) Reset() {
 	*x = UpdateApiKeyRequest{}
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[15]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1551,7 +1806,7 @@ func (x *UpdateApiKeyRequest) String() string {
 func (*UpdateApiKeyRequest) ProtoMessage() {}
 
 func (x *UpdateApiKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[15]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1564,7 +1819,7 @@ func (x *UpdateApiKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateApiKeyRequest.ProtoReflect.Descriptor instead.
 func (*UpdateApiKeyRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{15}
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UpdateApiKeyRequest) GetApiKeyId() string {
@@ -1640,7 +1895,7 @@ type UpdateApiKeyResponse struct {
 
 func (x *UpdateApiKeyResponse) Reset() {
 	*x = UpdateApiKeyResponse{}
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[16]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1652,7 +1907,7 @@ func (x *UpdateApiKeyResponse) String() string {
 func (*UpdateApiKeyResponse) ProtoMessage() {}
 
 func (x *UpdateApiKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[16]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1665,7 +1920,7 @@ func (x *UpdateApiKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateApiKeyResponse.ProtoReflect.Descriptor instead.
 func (*UpdateApiKeyResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{16}
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateApiKeyResponse) GetApiKey() *ApiKey {
@@ -1685,7 +1940,7 @@ type DeleteApiKeyRequest struct {
 
 func (x *DeleteApiKeyRequest) Reset() {
 	*x = DeleteApiKeyRequest{}
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[17]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1697,7 +1952,7 @@ func (x *DeleteApiKeyRequest) String() string {
 func (*DeleteApiKeyRequest) ProtoMessage() {}
 
 func (x *DeleteApiKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[17]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1710,7 +1965,7 @@ func (x *DeleteApiKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteApiKeyRequest.ProtoReflect.Descriptor instead.
 func (*DeleteApiKeyRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{17}
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DeleteApiKeyRequest) GetApiKeyId() string {
@@ -1728,7 +1983,7 @@ type DeleteApiKeyResponse struct {
 
 func (x *DeleteApiKeyResponse) Reset() {
 	*x = DeleteApiKeyResponse{}
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[18]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1740,7 +1995,7 @@ func (x *DeleteApiKeyResponse) String() string {
 func (*DeleteApiKeyResponse) ProtoMessage() {}
 
 func (x *DeleteApiKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[18]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1753,7 +2008,7 @@ func (x *DeleteApiKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteApiKeyResponse.ProtoReflect.Descriptor instead.
 func (*DeleteApiKeyResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{18}
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{20}
 }
 
 type ListCapabilitiesRequest struct {
@@ -1764,7 +2019,7 @@ type ListCapabilitiesRequest struct {
 
 func (x *ListCapabilitiesRequest) Reset() {
 	*x = ListCapabilitiesRequest{}
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[19]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1776,7 +2031,7 @@ func (x *ListCapabilitiesRequest) String() string {
 func (*ListCapabilitiesRequest) ProtoMessage() {}
 
 func (x *ListCapabilitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[19]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1789,7 +2044,7 @@ func (x *ListCapabilitiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCapabilitiesRequest.ProtoReflect.Descriptor instead.
 func (*ListCapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{19}
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{21}
 }
 
 type ListCapabilitiesResponse struct {
@@ -1803,7 +2058,7 @@ type ListCapabilitiesResponse struct {
 
 func (x *ListCapabilitiesResponse) Reset() {
 	*x = ListCapabilitiesResponse{}
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[20]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1815,7 +2070,7 @@ func (x *ListCapabilitiesResponse) String() string {
 func (*ListCapabilitiesResponse) ProtoMessage() {}
 
 func (x *ListCapabilitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[20]
+	mi := &file_orq_platform_v1_api_keys_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1828,7 +2083,7 @@ func (x *ListCapabilitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCapabilitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListCapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{20}
+	return file_orq_platform_v1_api_keys_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListCapabilitiesResponse) GetDomains() []*v1.Domain {
@@ -1842,7 +2097,7 @@ var File_orq_platform_v1_api_keys_proto protoreflect.FileDescriptor
 
 const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
-	"\x1eorq/platform/v1/api_keys.proto\x12\x0forq.platform.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bopenapiv3/annotations.proto\x1a\x1corq/apikeys/v1/catalog.proto\x1a\x18orq/authz/v1/authz.proto\x1a\x1dorq/platform/v1/budgets.proto\"\x8b\v\n" +
+	"\x1eorq/platform/v1/api_keys.proto\x12\x0forq.platform.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bopenapiv3/annotations.proto\x1a\x1corq/apikeys/v1/catalog.proto\x1a\x18orq/authz/v1/authz.proto\x1a\x1dorq/platform/v1/budgets.proto\"\xd5\v\n" +
 	"\x06ApiKey\x12\x1c\n" +
 	"\n" +
 	"api_key_id\x18\x01 \x01(\tR\bapiKeyId\x12E\n" +
@@ -1875,7 +2130,8 @@ const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"\rlegacy_key_id\x18\x13 \x01(\tR\vlegacyKeyId\x12;\n" +
 	"\x06budget\x18\x15 \x01(\v2\x17.orq.platform.v1.BudgetB\x05\xbaG\x02\x18\x01H\x01R\x06budget\x88\x01\x01\x129\n" +
 	"\n" +
-	"mcp_access\x18\x16 \x01(\v2\x1a.orq.platform.v1.McpAccessR\tmcpAccess\x1aV\n" +
+	"mcp_access\x18\x16 \x01(\v2\x1a.orq.platform.v1.McpAccessR\tmcpAccess\x12:\n" +
+	"\x16origin_oauth_client_id\x18\x18 \x01(\tB\x05\xbaG\x02\x18\x01R\x13originOauthClientId\x1aV\n" +
 	"\vAccessEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
 	"\x05value\x18\x02 \x01(\x0e2\x1b.orq.apikeys.v1.AccessLevelR\x05value:\x028\x01:s\xbaGp\xba\x01\n" +
@@ -1883,12 +2139,11 @@ const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"created_at\xba\x01\n" +
 	"updated_atB\r\n" +
 	"\v_expires_atB\t\n" +
-	"\a_budget\"~\n" +
+	"\a_budgetJ\x04\b\x17\x10\x18R\x06labels\"\xa6\x01\n" +
 	"\tMcpAccess\x12\x19\n" +
 	"\bdeny_all\x18\x01 \x01(\bR\adenyAll\x125\n" +
-	"\x17allowed_mcp_gateway_ids\x18\x02 \x03(\tR\x14allowedMcpGatewayIds\x12\x1f\n" +
-	"\vtoolset_ids\x18\x03 \x03(\tR\n" +
-	"toolsetIds\"\x98\x01\n" +
+	"\x17allowed_mcp_gateway_ids\x18\x02 \x03(\tR\x14allowedMcpGatewayIds\x124\n" +
+	"\x16allowed_filesystem_ids\x18\x04 \x03(\tR\x14allowedFilesystemIdsJ\x04\b\x03\x10\x04R\vtoolset_ids\"\x98\x01\n" +
 	"\vApiKeyOwner\x120\n" +
 	"\x04user\x18\x01 \x01(\v2\x1a.orq.platform.v1.UserOwnerH\x00R\x04user\x12O\n" +
 	"\x0fservice_account\x18\x02 \x01(\v2$.orq.platform.v1.ServiceAccountOwnerH\x00R\x0eserviceAccountB\x06\n" +
@@ -1912,7 +2167,7 @@ const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x03 \x01(\tR\vworkspaceId\x12B\n" +
 	"\rproject_scope\x18\x04 \x01(\v2\x1d.orq.platform.v1.ProjectScopeR\fprojectScope\x12 \n" +
 	"\vpermissions\x18\x05 \x03(\tR\vpermissions\x122\n" +
-	"\x05owner\x18\a \x01(\v2\x1c.orq.platform.v1.ApiKeyOwnerR\x05owner\"\xaf\x04\n" +
+	"\x05owner\x18\a \x01(\v2\x1c.orq.platform.v1.ApiKeyOwnerR\x05owner\"\xe8\x04\n" +
 	"\x13CreateApiKeyRequest\x12\x1e\n" +
 	"\x04name\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x04name\x122\n" +
@@ -1926,12 +2181,12 @@ const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"mcp_access\x18\a \x01(\v2\x1a.orq.platform.v1.McpAccessR\tmcpAccess\x1aV\n" +
 	"\vAccessEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
-	"\x05value\x18\x02 \x01(\x0e2\x1b.orq.apikeys.v1.AccessLevelR\x05value:\x028\x01:\n" +
-	"\xbaG\a\xba\x01\x04nameB\r\n" +
-	"\v_expires_at\"u\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1b.orq.apikeys.v1.AccessLevelR\x05value:\x028\x01:5\xbaG2\xba\x01\x04name\xba\x01\x0fpermission_mode\xa2\x02\x16\n" +
+	"\fx-orq-hidden\x12\x06\x12\x04trueB\r\n" +
+	"\v_expires_atJ\x04\b\b\x10\tR\x06labels\"u\n" +
 	"\x14CreateApiKeyResponse\x120\n" +
 	"\aapi_key\x18\x01 \x01(\v2\x17.orq.platform.v1.ApiKeyR\x06apiKey\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token:\x15\xbaG\x12\xba\x01\aapi_key\xba\x01\x05token\"\xdf\x03\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token:\x15\xbaG\x12\xba\x01\aapi_key\xba\x01\x05token\"\xaa\x05\n" +
 	"\x12ListApiKeysRequest\x12%\n" +
 	"\x05limit\x18\x01 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x01H\x00R\x05limit\x88\x01\x01\x12%\n" +
@@ -1944,15 +2199,24 @@ const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
 	"owner_type\x18\a \x03(\x0e2\x1a.orq.platform.v1.OwnerTypeR\townerType\x12H\n" +
 	"\x0fpermission_mode\x18\b \x03(\x0e2\x1f.orq.platform.v1.PermissionModeR\x0epermissionMode\x12%\n" +
-	"\x0einclude_budget\x18\t \x01(\bR\rincludeBudgetB\b\n" +
+	"\x0einclude_budget\x18\t \x01(\bR\rincludeBudget\x12C\n" +
+	"\asort_by\x18\n" +
+	" \x01(\x0e2 .orq.platform.v1.ApiKeySortFieldB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06sortBy\x12Q\n" +
+	"\x10expiration_state\x18\v \x03(\x0e2&.orq.platform.v1.ApiKeyExpirationStateR\x0fexpirationState\x12\"\n" +
+	"\n" +
+	"never_used\x18\f \x01(\bH\x04R\tneverUsed\x88\x01\x01B\b\n" +
 	"\x06_limitB\r\n" +
 	"\v_project_idB\t\n" +
 	"\a_statusB\t\n" +
-	"\a_search\"\x95\x01\n" +
+	"\a_searchB\r\n" +
+	"\v_never_used\"\xdf\x01\n" +
 	"\x13ListApiKeysResponse\x12\x16\n" +
 	"\x06object\x18\x01 \x01(\tR\x06object\x12+\n" +
 	"\x04data\x18\x02 \x03(\v2\x17.orq.platform.v1.ApiKeyR\x04data\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore:\x1e\xbaG\x1b\xba\x01\x06object\xba\x01\x04data\xba\x01\bhas_more\"r\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\x12\x1f\n" +
+	"\vnext_cursor\x18\x04 \x01(\tR\n" +
+	"nextCursor\x12'\n" +
+	"\x0fprevious_cursor\x18\x05 \x01(\tR\x0epreviousCursor:\x1e\xbaG\x1b\xba\x01\x06object\xba\x01\x04data\xba\x01\bhas_more\"r\n" +
 	"\x10GetApiKeyRequest\x12%\n" +
 	"\n" +
 	"api_key_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bapiKeyId\x12%\n" +
@@ -1960,7 +2224,18 @@ const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"api_key_id\"T\n" +
 	"\x11GetApiKeyResponse\x120\n" +
 	"\aapi_key\x18\x01 \x01(\v2\x17.orq.platform.v1.ApiKeyR\x06apiKey:\r\xbaG\n" +
-	"\xba\x01\aapi_key\"\xc0\x05\n" +
+	"\xba\x01\aapi_key\"\x86\x01\n" +
+	"\x17GetDefaultApiKeyRequest\x12\"\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tH\x00R\tprojectId\x88\x01\x01\x12,\n" +
+	"\acontext\x18\x02 \x01(\tB\r\xbaH\n" +
+	"r\bR\x06routerH\x01R\acontext\x88\x01\x01B\r\n" +
+	"\v_project_idB\n" +
+	"\n" +
+	"\b_context\"8\n" +
+	"\x18GetDefaultApiKeyResponse\x12\x1c\n" +
+	"\n" +
+	"api_key_id\x18\x01 \x01(\tR\bapiKeyId\"\xd9\x05\n" +
 	"\x13UpdateApiKeyRequest\x12%\n" +
 	"\n" +
 	"api_key_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bapiKeyId\x12#\n" +
@@ -1977,8 +2252,9 @@ const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"mcp_access\x18\t \x01(\v2\x1a.orq.platform.v1.McpAccessR\tmcpAccess\x1aV\n" +
 	"\vAccessEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
-	"\x05value\x18\x02 \x01(\x0e2\x1b.orq.apikeys.v1.AccessLevelR\x05value:\x028\x01:\x10\xbaG\r\xba\x01\n" +
-	"api_key_idB\a\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1b.orq.apikeys.v1.AccessLevelR\x05value:\x028\x01:)\xbaG&\xba\x01\n" +
+	"api_key_id\xa2\x02\x16\n" +
+	"\fx-orq-hidden\x12\x06\x12\x04trueB\a\n" +
 	"\x05_nameB\t\n" +
 	"\a_statusB\x12\n" +
 	"\x10_permission_modeB\r\n" +
@@ -2013,43 +2289,35 @@ const file_orq_platform_v1_api_keys_proto_rawDesc = "" +
 	"\rPrincipalType\x12\x1e\n" +
 	"\x1aPRINCIPAL_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13PRINCIPAL_TYPE_USER\x10\x01\x12\x1a\n" +
-	"\x16PRINCIPAL_TYPE_API_KEY\x10\x02*\\\n" +
+	"\x16PRINCIPAL_TYPE_API_KEY\x10\x02*}\n" +
+	"\x0fApiKeySortField\x12\"\n" +
+	"\x1eAPI_KEY_SORT_FIELD_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dAPI_KEY_SORT_FIELD_CREATED_AT\x10\x01\x12#\n" +
+	"\x1fAPI_KEY_SORT_FIELD_LAST_USED_AT\x10\x02*\xb6\x01\n" +
+	"\x15ApiKeyExpirationState\x12(\n" +
+	"$API_KEY_EXPIRATION_STATE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dAPI_KEY_EXPIRATION_STATE_NONE\x10\x01\x12*\n" +
+	"&API_KEY_EXPIRATION_STATE_EXPIRING_SOON\x10\x02\x12$\n" +
+	" API_KEY_EXPIRATION_STATE_EXPIRED\x10\x03*\\\n" +
 	"\tOwnerType\x12\x1a\n" +
 	"\x16OWNER_TYPE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fOWNER_TYPE_USER\x10\x01\x12\x1e\n" +
-	"\x1aOWNER_TYPE_SERVICE_ACCOUNT\x10\x022\xc2\x16\n" +
-	"\x0eApiKeysService\x12\xef\x03\n" +
-	"\fCreateApiKey\x12$.orq.platform.v1.CreateApiKeyRequest\x1a%.orq.platform.v1.CreateApiKeyResponse\"\x91\x03\xbaG\xe0\x02\n" +
-	"\bAPI keys\x12\x14Create a new API key\x1a\xe8\x01Mints a new opaque API key (`sk-orq-<key_id>-<secret>`) in the workspace. The raw secret is returned ONCE in the response and is never retrievable afterwards. The stored record retains only `token_prefix` and a SHA-256 `token_hash`.*\fApiKeyCreatej\x1e\n" +
-	"\x11x-speakeasy-group\x12\t\x12\aapiKeysj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06create\x8a\xb5\x18\x12\n" +
-	"\x0eapi-key.create\x10\x03\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v2/api-keys\x12\x88\x03\n" +
-	"\vListApiKeys\x12#.orq.platform.v1.ListApiKeysRequest\x1a$.orq.platform.v1.ListApiKeysResponse\"\xad\x02\xbaG\x81\x02\n" +
-	"\bAPI keys\x12\rList API keys\x1a\x94\x01Returns API keys visible to the current workspace as a JSON array. Raw tokens are never included; the `token` field contains a masked display value.*\n" +
-	"ApiKeyListj\x1e\n" +
-	"\x11x-speakeasy-group\x12\t\x12\aapiKeysj#\n" +
-	"\x19x-speakeasy-name-override\x12\x06\x12\x04list\x8a\xb5\x18\x10\n" +
-	"\fapi-key.list\x10\x03\x82\xd3\xe4\x93\x02\x0e\x12\f/v2/api-keys\x12\xbb\x03\n" +
-	"\tGetApiKey\x12!.orq.platform.v1.GetApiKeyRequest\x1a\".orq.platform.v1.GetApiKeyResponse\"\xe6\x02\xbaG\xad\x02\n" +
-	"\bAPI keys\x12\x13Retrieve an API key\x1a\xbc\x01Retrieves the metadata for an existing API key by its unique identifier. The raw secret is never returned — only `token_prefix`, `permission_mode`, `project_scope`, and lifecycle fields.*\tApiKeyGetj\x1e\n" +
-	"\x11x-speakeasy-group\x12\t\x12\aapiKeysj\"\n" +
-	"\x19x-speakeasy-name-override\x12\x05\x12\x03get\x8a\xb5\x18\x10\n" +
-	"\fapi-key.view\x10\x03\x82\xd3\xe4\x93\x02\x1b\x12\x19/v2/api-keys/{api_key_id}\x12\xf3\x03\n" +
-	"\fUpdateApiKey\x12$.orq.platform.v1.UpdateApiKeyRequest\x1a%.orq.platform.v1.UpdateApiKeyResponse\"\x95\x03\xbaG\xd7\x02\n" +
-	"\bAPI keys\x12\x11Update an API key\x1a\xe2\x01Updates mutable fields of an API key: display name, status (active / disabled / revoked), permission mode and access map, project scope, and constraints (budget / rate limit / expiry). Omitted fields keep their current values.*\fApiKeyUpdatej\x1e\n" +
-	"\x11x-speakeasy-group\x12\t\x12\aapiKeysj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06update\x8a\xb5\x18\x12\n" +
-	"\x0eapi-key.update\x10\x03\x82\xd3\xe4\x93\x02\x1e:\x01*2\x19/v2/api-keys/{api_key_id}\x12\xbe\x03\n" +
-	"\fDeleteApiKey\x12$.orq.platform.v1.DeleteApiKeyRequest\x1a%.orq.platform.v1.DeleteApiKeyResponse\"\xe0\x02\xbaG\xa5\x02\n" +
-	"\bAPI keys\x12\x11Delete an API key\x1a\xb0\x01Permanently deletes an API key. Cache entries in `API_KEYS_KV` are invalidated immediately so an in-flight token cannot ride out the TTL. The response body is empty on success.*\fApiKeyDeletej\x1e\n" +
-	"\x11x-speakeasy-group\x12\t\x12\aapiKeysj%\n" +
-	"\x19x-speakeasy-name-override\x12\b\x12\x06delete\x8a\xb5\x18\x12\n" +
-	"\x0eapi-key.delete\x10\x03\x82\xd3\xe4\x93\x02\x1b*\x19/v2/api-keys/{api_key_id}\x12\xbd\x04\n" +
-	"\x10ListCapabilities\x12(.orq.platform.v1.ListCapabilitiesRequest\x1a).orq.platform.v1.ListCapabilitiesResponse\"\xd3\x03\xbaG\xa8\x03\n" +
-	"\bAPI keys\x12\x17List capability catalog\x1a\x99\x02Returns the capability catalog: the set of permission domains that can be granted to an API key. Each entry includes the domain id, display name, group, allowed project scopes, and the read / write verb sets resolved at authorize() time. Drives the permissions UI in the dashboard.*\x16ApiKeyListCapabilitiesj\x1e\n" +
-	"\x11x-speakeasy-group\x12\t\x12\aapiKeysj/\n" +
-	"\x19x-speakeasy-name-override\x12\x12\x12\x10listCapabilities\x8a\xb5\x18\x02\x10\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v2/api-keys/capabilitiesB\xaa\x03\xbaG\xd3\x01:\xd0\x01\n" +
-	"\bAPI keys\x12\xc3\x01API keys authenticate programmatic access to the workspace. The unified key model exposes opaque tokens, per-domain access grants, and budget / rate-limit constraints (see ADR 0001 and ADR 0002).\n" +
+	"\x1aOWNER_TYPE_SERVICE_ACCOUNT\x10\x022\xb9\x06\n" +
+	"\x0eApiKeysService\x12s\n" +
+	"\fCreateApiKey\x12$.orq.platform.v1.CreateApiKeyRequest\x1a%.orq.platform.v1.CreateApiKeyResponse\"\x16\x8a\xb5\x18\x12\n" +
+	"\x0eapi-key.create\x10\x03\x12n\n" +
+	"\vListApiKeys\x12#.orq.platform.v1.ListApiKeysRequest\x1a$.orq.platform.v1.ListApiKeysResponse\"\x14\x8a\xb5\x18\x10\n" +
+	"\fapi-key.list\x10\x03\x12h\n" +
+	"\tGetApiKey\x12!.orq.platform.v1.GetApiKeyRequest\x1a\".orq.platform.v1.GetApiKeyResponse\"\x14\x8a\xb5\x18\x10\n" +
+	"\fapi-key.view\x10\x03\x12}\n" +
+	"\x10GetDefaultApiKey\x12(.orq.platform.v1.GetDefaultApiKeyRequest\x1a).orq.platform.v1.GetDefaultApiKeyResponse\"\x14\x8a\xb5\x18\x10\n" +
+	"\fapi-key.view\x10\x03\x12s\n" +
+	"\fUpdateApiKey\x12$.orq.platform.v1.UpdateApiKeyRequest\x1a%.orq.platform.v1.UpdateApiKeyResponse\"\x16\x8a\xb5\x18\x12\n" +
+	"\x0eapi-key.update\x10\x03\x12s\n" +
+	"\fDeleteApiKey\x12$.orq.platform.v1.DeleteApiKeyRequest\x1a%.orq.platform.v1.DeleteApiKeyResponse\"\x16\x8a\xb5\x18\x12\n" +
+	"\x0eapi-key.delete\x10\x03\x12o\n" +
+	"\x10ListCapabilities\x12(.orq.platform.v1.ListCapabilitiesRequest\x1a).orq.platform.v1.ListCapabilitiesResponse\"\x06\x8a\xb5\x18\x02\x10\x01B\xfe\x02\xbaG\xa7\x01:\xa4\x01\n" +
+	"\bAPI keys\x12\x97\x01API keys authenticate programmatic access to the workspace. They expose opaque tokens, per-domain access grants, and budget and rate-limit constraints.\n" +
 	"\x13com.orq.platform.v1B\fApiKeysProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"
 
 var (
@@ -2064,103 +2332,111 @@ func file_orq_platform_v1_api_keys_proto_rawDescGZIP() []byte {
 	return file_orq_platform_v1_api_keys_proto_rawDescData
 }
 
-var file_orq_platform_v1_api_keys_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_orq_platform_v1_api_keys_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_orq_platform_v1_api_keys_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_orq_platform_v1_api_keys_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_orq_platform_v1_api_keys_proto_goTypes = []any{
 	(PermissionMode)(0),              // 0: orq.platform.v1.PermissionMode
 	(ApiKeyStatus)(0),                // 1: orq.platform.v1.ApiKeyStatus
 	(LegacyTokenFamily)(0),           // 2: orq.platform.v1.LegacyTokenFamily
 	(PrincipalType)(0),               // 3: orq.platform.v1.PrincipalType
-	(OwnerType)(0),                   // 4: orq.platform.v1.OwnerType
-	(*ApiKey)(nil),                   // 5: orq.platform.v1.ApiKey
-	(*McpAccess)(nil),                // 6: orq.platform.v1.McpAccess
-	(*ApiKeyOwner)(nil),              // 7: orq.platform.v1.ApiKeyOwner
-	(*UserOwner)(nil),                // 8: orq.platform.v1.UserOwner
-	(*ServiceAccountOwner)(nil),      // 9: orq.platform.v1.ServiceAccountOwner
-	(*ProjectScope)(nil),             // 10: orq.platform.v1.ProjectScope
-	(*AllProjects)(nil),              // 11: orq.platform.v1.AllProjects
-	(*SingleProject)(nil),            // 12: orq.platform.v1.SingleProject
-	(*Principal)(nil),                // 13: orq.platform.v1.Principal
-	(*CreateApiKeyRequest)(nil),      // 14: orq.platform.v1.CreateApiKeyRequest
-	(*CreateApiKeyResponse)(nil),     // 15: orq.platform.v1.CreateApiKeyResponse
-	(*ListApiKeysRequest)(nil),       // 16: orq.platform.v1.ListApiKeysRequest
-	(*ListApiKeysResponse)(nil),      // 17: orq.platform.v1.ListApiKeysResponse
-	(*GetApiKeyRequest)(nil),         // 18: orq.platform.v1.GetApiKeyRequest
-	(*GetApiKeyResponse)(nil),        // 19: orq.platform.v1.GetApiKeyResponse
-	(*UpdateApiKeyRequest)(nil),      // 20: orq.platform.v1.UpdateApiKeyRequest
-	(*UpdateApiKeyResponse)(nil),     // 21: orq.platform.v1.UpdateApiKeyResponse
-	(*DeleteApiKeyRequest)(nil),      // 22: orq.platform.v1.DeleteApiKeyRequest
-	(*DeleteApiKeyResponse)(nil),     // 23: orq.platform.v1.DeleteApiKeyResponse
-	(*ListCapabilitiesRequest)(nil),  // 24: orq.platform.v1.ListCapabilitiesRequest
-	(*ListCapabilitiesResponse)(nil), // 25: orq.platform.v1.ListCapabilitiesResponse
-	nil,                              // 26: orq.platform.v1.ApiKey.AccessEntry
-	nil,                              // 27: orq.platform.v1.CreateApiKeyRequest.AccessEntry
-	nil,                              // 28: orq.platform.v1.UpdateApiKeyRequest.AccessEntry
-	(*timestamppb.Timestamp)(nil),    // 29: google.protobuf.Timestamp
-	(*Budget)(nil),                   // 30: orq.platform.v1.Budget
-	(*v1.Domain)(nil),                // 31: orq.apikeys.v1.Domain
-	(v1.AccessLevel)(0),              // 32: orq.apikeys.v1.AccessLevel
+	(ApiKeySortField)(0),             // 4: orq.platform.v1.ApiKeySortField
+	(ApiKeyExpirationState)(0),       // 5: orq.platform.v1.ApiKeyExpirationState
+	(OwnerType)(0),                   // 6: orq.platform.v1.OwnerType
+	(*ApiKey)(nil),                   // 7: orq.platform.v1.ApiKey
+	(*McpAccess)(nil),                // 8: orq.platform.v1.McpAccess
+	(*ApiKeyOwner)(nil),              // 9: orq.platform.v1.ApiKeyOwner
+	(*UserOwner)(nil),                // 10: orq.platform.v1.UserOwner
+	(*ServiceAccountOwner)(nil),      // 11: orq.platform.v1.ServiceAccountOwner
+	(*ProjectScope)(nil),             // 12: orq.platform.v1.ProjectScope
+	(*AllProjects)(nil),              // 13: orq.platform.v1.AllProjects
+	(*SingleProject)(nil),            // 14: orq.platform.v1.SingleProject
+	(*Principal)(nil),                // 15: orq.platform.v1.Principal
+	(*CreateApiKeyRequest)(nil),      // 16: orq.platform.v1.CreateApiKeyRequest
+	(*CreateApiKeyResponse)(nil),     // 17: orq.platform.v1.CreateApiKeyResponse
+	(*ListApiKeysRequest)(nil),       // 18: orq.platform.v1.ListApiKeysRequest
+	(*ListApiKeysResponse)(nil),      // 19: orq.platform.v1.ListApiKeysResponse
+	(*GetApiKeyRequest)(nil),         // 20: orq.platform.v1.GetApiKeyRequest
+	(*GetApiKeyResponse)(nil),        // 21: orq.platform.v1.GetApiKeyResponse
+	(*GetDefaultApiKeyRequest)(nil),  // 22: orq.platform.v1.GetDefaultApiKeyRequest
+	(*GetDefaultApiKeyResponse)(nil), // 23: orq.platform.v1.GetDefaultApiKeyResponse
+	(*UpdateApiKeyRequest)(nil),      // 24: orq.platform.v1.UpdateApiKeyRequest
+	(*UpdateApiKeyResponse)(nil),     // 25: orq.platform.v1.UpdateApiKeyResponse
+	(*DeleteApiKeyRequest)(nil),      // 26: orq.platform.v1.DeleteApiKeyRequest
+	(*DeleteApiKeyResponse)(nil),     // 27: orq.platform.v1.DeleteApiKeyResponse
+	(*ListCapabilitiesRequest)(nil),  // 28: orq.platform.v1.ListCapabilitiesRequest
+	(*ListCapabilitiesResponse)(nil), // 29: orq.platform.v1.ListCapabilitiesResponse
+	nil,                              // 30: orq.platform.v1.ApiKey.AccessEntry
+	nil,                              // 31: orq.platform.v1.CreateApiKeyRequest.AccessEntry
+	nil,                              // 32: orq.platform.v1.UpdateApiKeyRequest.AccessEntry
+	(*timestamppb.Timestamp)(nil),    // 33: google.protobuf.Timestamp
+	(*Budget)(nil),                   // 34: orq.platform.v1.Budget
+	(*v1.Domain)(nil),                // 35: orq.apikeys.v1.Domain
+	(v1.AccessLevel)(0),              // 36: orq.apikeys.v1.AccessLevel
 }
 var file_orq_platform_v1_api_keys_proto_depIdxs = []int32{
-	7,  // 0: orq.platform.v1.ApiKey.owner:type_name -> orq.platform.v1.ApiKeyOwner
-	10, // 1: orq.platform.v1.ApiKey.project_scope:type_name -> orq.platform.v1.ProjectScope
+	9,  // 0: orq.platform.v1.ApiKey.owner:type_name -> orq.platform.v1.ApiKeyOwner
+	12, // 1: orq.platform.v1.ApiKey.project_scope:type_name -> orq.platform.v1.ProjectScope
 	0,  // 2: orq.platform.v1.ApiKey.permission_mode:type_name -> orq.platform.v1.PermissionMode
-	26, // 3: orq.platform.v1.ApiKey.access:type_name -> orq.platform.v1.ApiKey.AccessEntry
+	30, // 3: orq.platform.v1.ApiKey.access:type_name -> orq.platform.v1.ApiKey.AccessEntry
 	1,  // 4: orq.platform.v1.ApiKey.status:type_name -> orq.platform.v1.ApiKeyStatus
-	29, // 5: orq.platform.v1.ApiKey.created_at:type_name -> google.protobuf.Timestamp
-	29, // 6: orq.platform.v1.ApiKey.updated_at:type_name -> google.protobuf.Timestamp
-	29, // 7: orq.platform.v1.ApiKey.last_used_at:type_name -> google.protobuf.Timestamp
-	29, // 8: orq.platform.v1.ApiKey.expires_at:type_name -> google.protobuf.Timestamp
+	33, // 5: orq.platform.v1.ApiKey.created_at:type_name -> google.protobuf.Timestamp
+	33, // 6: orq.platform.v1.ApiKey.updated_at:type_name -> google.protobuf.Timestamp
+	33, // 7: orq.platform.v1.ApiKey.last_used_at:type_name -> google.protobuf.Timestamp
+	33, // 8: orq.platform.v1.ApiKey.expires_at:type_name -> google.protobuf.Timestamp
 	2,  // 9: orq.platform.v1.ApiKey.legacy_token_family:type_name -> orq.platform.v1.LegacyTokenFamily
-	30, // 10: orq.platform.v1.ApiKey.budget:type_name -> orq.platform.v1.Budget
-	6,  // 11: orq.platform.v1.ApiKey.mcp_access:type_name -> orq.platform.v1.McpAccess
-	8,  // 12: orq.platform.v1.ApiKeyOwner.user:type_name -> orq.platform.v1.UserOwner
-	9,  // 13: orq.platform.v1.ApiKeyOwner.service_account:type_name -> orq.platform.v1.ServiceAccountOwner
-	11, // 14: orq.platform.v1.ProjectScope.all:type_name -> orq.platform.v1.AllProjects
-	12, // 15: orq.platform.v1.ProjectScope.single:type_name -> orq.platform.v1.SingleProject
+	34, // 10: orq.platform.v1.ApiKey.budget:type_name -> orq.platform.v1.Budget
+	8,  // 11: orq.platform.v1.ApiKey.mcp_access:type_name -> orq.platform.v1.McpAccess
+	10, // 12: orq.platform.v1.ApiKeyOwner.user:type_name -> orq.platform.v1.UserOwner
+	11, // 13: orq.platform.v1.ApiKeyOwner.service_account:type_name -> orq.platform.v1.ServiceAccountOwner
+	13, // 14: orq.platform.v1.ProjectScope.all:type_name -> orq.platform.v1.AllProjects
+	14, // 15: orq.platform.v1.ProjectScope.single:type_name -> orq.platform.v1.SingleProject
 	3,  // 16: orq.platform.v1.Principal.type:type_name -> orq.platform.v1.PrincipalType
-	10, // 17: orq.platform.v1.Principal.project_scope:type_name -> orq.platform.v1.ProjectScope
-	7,  // 18: orq.platform.v1.Principal.owner:type_name -> orq.platform.v1.ApiKeyOwner
-	7,  // 19: orq.platform.v1.CreateApiKeyRequest.owner:type_name -> orq.platform.v1.ApiKeyOwner
-	10, // 20: orq.platform.v1.CreateApiKeyRequest.project_scope:type_name -> orq.platform.v1.ProjectScope
+	12, // 17: orq.platform.v1.Principal.project_scope:type_name -> orq.platform.v1.ProjectScope
+	9,  // 18: orq.platform.v1.Principal.owner:type_name -> orq.platform.v1.ApiKeyOwner
+	9,  // 19: orq.platform.v1.CreateApiKeyRequest.owner:type_name -> orq.platform.v1.ApiKeyOwner
+	12, // 20: orq.platform.v1.CreateApiKeyRequest.project_scope:type_name -> orq.platform.v1.ProjectScope
 	0,  // 21: orq.platform.v1.CreateApiKeyRequest.permission_mode:type_name -> orq.platform.v1.PermissionMode
-	27, // 22: orq.platform.v1.CreateApiKeyRequest.access:type_name -> orq.platform.v1.CreateApiKeyRequest.AccessEntry
-	29, // 23: orq.platform.v1.CreateApiKeyRequest.expires_at:type_name -> google.protobuf.Timestamp
-	6,  // 24: orq.platform.v1.CreateApiKeyRequest.mcp_access:type_name -> orq.platform.v1.McpAccess
-	5,  // 25: orq.platform.v1.CreateApiKeyResponse.api_key:type_name -> orq.platform.v1.ApiKey
+	31, // 22: orq.platform.v1.CreateApiKeyRequest.access:type_name -> orq.platform.v1.CreateApiKeyRequest.AccessEntry
+	33, // 23: orq.platform.v1.CreateApiKeyRequest.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 24: orq.platform.v1.CreateApiKeyRequest.mcp_access:type_name -> orq.platform.v1.McpAccess
+	7,  // 25: orq.platform.v1.CreateApiKeyResponse.api_key:type_name -> orq.platform.v1.ApiKey
 	1,  // 26: orq.platform.v1.ListApiKeysRequest.status:type_name -> orq.platform.v1.ApiKeyStatus
-	4,  // 27: orq.platform.v1.ListApiKeysRequest.owner_type:type_name -> orq.platform.v1.OwnerType
+	6,  // 27: orq.platform.v1.ListApiKeysRequest.owner_type:type_name -> orq.platform.v1.OwnerType
 	0,  // 28: orq.platform.v1.ListApiKeysRequest.permission_mode:type_name -> orq.platform.v1.PermissionMode
-	5,  // 29: orq.platform.v1.ListApiKeysResponse.data:type_name -> orq.platform.v1.ApiKey
-	5,  // 30: orq.platform.v1.GetApiKeyResponse.api_key:type_name -> orq.platform.v1.ApiKey
-	1,  // 31: orq.platform.v1.UpdateApiKeyRequest.status:type_name -> orq.platform.v1.ApiKeyStatus
-	0,  // 32: orq.platform.v1.UpdateApiKeyRequest.permission_mode:type_name -> orq.platform.v1.PermissionMode
-	28, // 33: orq.platform.v1.UpdateApiKeyRequest.access:type_name -> orq.platform.v1.UpdateApiKeyRequest.AccessEntry
-	10, // 34: orq.platform.v1.UpdateApiKeyRequest.project_scope:type_name -> orq.platform.v1.ProjectScope
-	29, // 35: orq.platform.v1.UpdateApiKeyRequest.expires_at:type_name -> google.protobuf.Timestamp
-	6,  // 36: orq.platform.v1.UpdateApiKeyRequest.mcp_access:type_name -> orq.platform.v1.McpAccess
-	5,  // 37: orq.platform.v1.UpdateApiKeyResponse.api_key:type_name -> orq.platform.v1.ApiKey
-	31, // 38: orq.platform.v1.ListCapabilitiesResponse.domains:type_name -> orq.apikeys.v1.Domain
-	32, // 39: orq.platform.v1.ApiKey.AccessEntry.value:type_name -> orq.apikeys.v1.AccessLevel
-	32, // 40: orq.platform.v1.CreateApiKeyRequest.AccessEntry.value:type_name -> orq.apikeys.v1.AccessLevel
-	32, // 41: orq.platform.v1.UpdateApiKeyRequest.AccessEntry.value:type_name -> orq.apikeys.v1.AccessLevel
-	14, // 42: orq.platform.v1.ApiKeysService.CreateApiKey:input_type -> orq.platform.v1.CreateApiKeyRequest
-	16, // 43: orq.platform.v1.ApiKeysService.ListApiKeys:input_type -> orq.platform.v1.ListApiKeysRequest
-	18, // 44: orq.platform.v1.ApiKeysService.GetApiKey:input_type -> orq.platform.v1.GetApiKeyRequest
-	20, // 45: orq.platform.v1.ApiKeysService.UpdateApiKey:input_type -> orq.platform.v1.UpdateApiKeyRequest
-	22, // 46: orq.platform.v1.ApiKeysService.DeleteApiKey:input_type -> orq.platform.v1.DeleteApiKeyRequest
-	24, // 47: orq.platform.v1.ApiKeysService.ListCapabilities:input_type -> orq.platform.v1.ListCapabilitiesRequest
-	15, // 48: orq.platform.v1.ApiKeysService.CreateApiKey:output_type -> orq.platform.v1.CreateApiKeyResponse
-	17, // 49: orq.platform.v1.ApiKeysService.ListApiKeys:output_type -> orq.platform.v1.ListApiKeysResponse
-	19, // 50: orq.platform.v1.ApiKeysService.GetApiKey:output_type -> orq.platform.v1.GetApiKeyResponse
-	21, // 51: orq.platform.v1.ApiKeysService.UpdateApiKey:output_type -> orq.platform.v1.UpdateApiKeyResponse
-	23, // 52: orq.platform.v1.ApiKeysService.DeleteApiKey:output_type -> orq.platform.v1.DeleteApiKeyResponse
-	25, // 53: orq.platform.v1.ApiKeysService.ListCapabilities:output_type -> orq.platform.v1.ListCapabilitiesResponse
-	48, // [48:54] is the sub-list for method output_type
-	42, // [42:48] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	4,  // 29: orq.platform.v1.ListApiKeysRequest.sort_by:type_name -> orq.platform.v1.ApiKeySortField
+	5,  // 30: orq.platform.v1.ListApiKeysRequest.expiration_state:type_name -> orq.platform.v1.ApiKeyExpirationState
+	7,  // 31: orq.platform.v1.ListApiKeysResponse.data:type_name -> orq.platform.v1.ApiKey
+	7,  // 32: orq.platform.v1.GetApiKeyResponse.api_key:type_name -> orq.platform.v1.ApiKey
+	1,  // 33: orq.platform.v1.UpdateApiKeyRequest.status:type_name -> orq.platform.v1.ApiKeyStatus
+	0,  // 34: orq.platform.v1.UpdateApiKeyRequest.permission_mode:type_name -> orq.platform.v1.PermissionMode
+	32, // 35: orq.platform.v1.UpdateApiKeyRequest.access:type_name -> orq.platform.v1.UpdateApiKeyRequest.AccessEntry
+	12, // 36: orq.platform.v1.UpdateApiKeyRequest.project_scope:type_name -> orq.platform.v1.ProjectScope
+	33, // 37: orq.platform.v1.UpdateApiKeyRequest.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 38: orq.platform.v1.UpdateApiKeyRequest.mcp_access:type_name -> orq.platform.v1.McpAccess
+	7,  // 39: orq.platform.v1.UpdateApiKeyResponse.api_key:type_name -> orq.platform.v1.ApiKey
+	35, // 40: orq.platform.v1.ListCapabilitiesResponse.domains:type_name -> orq.apikeys.v1.Domain
+	36, // 41: orq.platform.v1.ApiKey.AccessEntry.value:type_name -> orq.apikeys.v1.AccessLevel
+	36, // 42: orq.platform.v1.CreateApiKeyRequest.AccessEntry.value:type_name -> orq.apikeys.v1.AccessLevel
+	36, // 43: orq.platform.v1.UpdateApiKeyRequest.AccessEntry.value:type_name -> orq.apikeys.v1.AccessLevel
+	16, // 44: orq.platform.v1.ApiKeysService.CreateApiKey:input_type -> orq.platform.v1.CreateApiKeyRequest
+	18, // 45: orq.platform.v1.ApiKeysService.ListApiKeys:input_type -> orq.platform.v1.ListApiKeysRequest
+	20, // 46: orq.platform.v1.ApiKeysService.GetApiKey:input_type -> orq.platform.v1.GetApiKeyRequest
+	22, // 47: orq.platform.v1.ApiKeysService.GetDefaultApiKey:input_type -> orq.platform.v1.GetDefaultApiKeyRequest
+	24, // 48: orq.platform.v1.ApiKeysService.UpdateApiKey:input_type -> orq.platform.v1.UpdateApiKeyRequest
+	26, // 49: orq.platform.v1.ApiKeysService.DeleteApiKey:input_type -> orq.platform.v1.DeleteApiKeyRequest
+	28, // 50: orq.platform.v1.ApiKeysService.ListCapabilities:input_type -> orq.platform.v1.ListCapabilitiesRequest
+	17, // 51: orq.platform.v1.ApiKeysService.CreateApiKey:output_type -> orq.platform.v1.CreateApiKeyResponse
+	19, // 52: orq.platform.v1.ApiKeysService.ListApiKeys:output_type -> orq.platform.v1.ListApiKeysResponse
+	21, // 53: orq.platform.v1.ApiKeysService.GetApiKey:output_type -> orq.platform.v1.GetApiKeyResponse
+	23, // 54: orq.platform.v1.ApiKeysService.GetDefaultApiKey:output_type -> orq.platform.v1.GetDefaultApiKeyResponse
+	25, // 55: orq.platform.v1.ApiKeysService.UpdateApiKey:output_type -> orq.platform.v1.UpdateApiKeyResponse
+	27, // 56: orq.platform.v1.ApiKeysService.DeleteApiKey:output_type -> orq.platform.v1.DeleteApiKeyResponse
+	29, // 57: orq.platform.v1.ApiKeysService.ListCapabilities:output_type -> orq.platform.v1.ListCapabilitiesResponse
+	51, // [51:58] is the sub-list for method output_type
+	44, // [44:51] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_orq_platform_v1_api_keys_proto_init() }
@@ -2181,13 +2457,14 @@ func file_orq_platform_v1_api_keys_proto_init() {
 	file_orq_platform_v1_api_keys_proto_msgTypes[9].OneofWrappers = []any{}
 	file_orq_platform_v1_api_keys_proto_msgTypes[11].OneofWrappers = []any{}
 	file_orq_platform_v1_api_keys_proto_msgTypes[15].OneofWrappers = []any{}
+	file_orq_platform_v1_api_keys_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orq_platform_v1_api_keys_proto_rawDesc), len(file_orq_platform_v1_api_keys_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   24,
+			NumEnums:      7,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

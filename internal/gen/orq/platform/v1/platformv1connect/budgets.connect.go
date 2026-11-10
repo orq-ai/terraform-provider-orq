@@ -54,6 +54,9 @@ const (
 	// BudgetsServiceGetBudgetConsumptionProcedure is the fully-qualified name of the BudgetsService's
 	// GetBudgetConsumption RPC.
 	BudgetsServiceGetBudgetConsumptionProcedure = "/orq.platform.v1.BudgetsService/GetBudgetConsumption"
+	// BudgetsServiceBatchGetBudgetConsumptionProcedure is the fully-qualified name of the
+	// BudgetsService's BatchGetBudgetConsumption RPC.
+	BudgetsServiceBatchGetBudgetConsumptionProcedure = "/orq.platform.v1.BudgetsService/BatchGetBudgetConsumption"
 	// BudgetsServiceCheckBudgetsProcedure is the fully-qualified name of the BudgetsService's
 	// CheckBudgets RPC.
 	BudgetsServiceCheckBudgetsProcedure = "/orq.platform.v1.BudgetsService/CheckBudgets"
@@ -68,9 +71,10 @@ type BudgetsServiceClient interface {
 	DeleteBudget(context.Context, *v1.DeleteBudgetRequest) (*v1.DeleteBudgetResponse, error)
 	ResetBudgetConsumption(context.Context, *v1.ResetBudgetConsumptionRequest) (*v1.ResetBudgetConsumptionResponse, error)
 	GetBudgetConsumption(context.Context, *v1.GetBudgetConsumptionRequest) (*v1.GetBudgetConsumptionResponse, error)
+	BatchGetBudgetConsumption(context.Context, *v1.BatchGetBudgetConsumptionRequest) (*v1.BatchGetBudgetConsumptionResponse, error)
 	// Internal enforcement endpoint. The gate increments RPM counters, so the
 	// handler rejects external API-key principals; only the gateway may call
-	// it, using service-internal authentication.
+	// it, authenticated with an internal `orq.internal` token.
 	CheckBudgets(context.Context, *v1.CheckBudgetsRequest) (*v1.CheckBudgetsResponse, error)
 }
 
@@ -127,6 +131,12 @@ func NewBudgetsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(budgetsServiceMethods.ByName("GetBudgetConsumption")),
 			connect.WithClientOptions(opts...),
 		),
+		batchGetBudgetConsumption: connect.NewClient[v1.BatchGetBudgetConsumptionRequest, v1.BatchGetBudgetConsumptionResponse](
+			httpClient,
+			baseURL+BudgetsServiceBatchGetBudgetConsumptionProcedure,
+			connect.WithSchema(budgetsServiceMethods.ByName("BatchGetBudgetConsumption")),
+			connect.WithClientOptions(opts...),
+		),
 		checkBudgets: connect.NewClient[v1.CheckBudgetsRequest, v1.CheckBudgetsResponse](
 			httpClient,
 			baseURL+BudgetsServiceCheckBudgetsProcedure,
@@ -138,14 +148,15 @@ func NewBudgetsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // budgetsServiceClient implements BudgetsServiceClient.
 type budgetsServiceClient struct {
-	createBudget           *connect.Client[v1.CreateBudgetRequest, v1.CreateBudgetResponse]
-	getBudget              *connect.Client[v1.GetBudgetRequest, v1.GetBudgetResponse]
-	listBudgets            *connect.Client[v1.ListBudgetsRequest, v1.ListBudgetsResponse]
-	updateBudget           *connect.Client[v1.UpdateBudgetRequest, v1.UpdateBudgetResponse]
-	deleteBudget           *connect.Client[v1.DeleteBudgetRequest, v1.DeleteBudgetResponse]
-	resetBudgetConsumption *connect.Client[v1.ResetBudgetConsumptionRequest, v1.ResetBudgetConsumptionResponse]
-	getBudgetConsumption   *connect.Client[v1.GetBudgetConsumptionRequest, v1.GetBudgetConsumptionResponse]
-	checkBudgets           *connect.Client[v1.CheckBudgetsRequest, v1.CheckBudgetsResponse]
+	createBudget              *connect.Client[v1.CreateBudgetRequest, v1.CreateBudgetResponse]
+	getBudget                 *connect.Client[v1.GetBudgetRequest, v1.GetBudgetResponse]
+	listBudgets               *connect.Client[v1.ListBudgetsRequest, v1.ListBudgetsResponse]
+	updateBudget              *connect.Client[v1.UpdateBudgetRequest, v1.UpdateBudgetResponse]
+	deleteBudget              *connect.Client[v1.DeleteBudgetRequest, v1.DeleteBudgetResponse]
+	resetBudgetConsumption    *connect.Client[v1.ResetBudgetConsumptionRequest, v1.ResetBudgetConsumptionResponse]
+	getBudgetConsumption      *connect.Client[v1.GetBudgetConsumptionRequest, v1.GetBudgetConsumptionResponse]
+	batchGetBudgetConsumption *connect.Client[v1.BatchGetBudgetConsumptionRequest, v1.BatchGetBudgetConsumptionResponse]
+	checkBudgets              *connect.Client[v1.CheckBudgetsRequest, v1.CheckBudgetsResponse]
 }
 
 // CreateBudget calls orq.platform.v1.BudgetsService.CreateBudget.
@@ -211,6 +222,15 @@ func (c *budgetsServiceClient) GetBudgetConsumption(ctx context.Context, req *v1
 	return nil, err
 }
 
+// BatchGetBudgetConsumption calls orq.platform.v1.BudgetsService.BatchGetBudgetConsumption.
+func (c *budgetsServiceClient) BatchGetBudgetConsumption(ctx context.Context, req *v1.BatchGetBudgetConsumptionRequest) (*v1.BatchGetBudgetConsumptionResponse, error) {
+	response, err := c.batchGetBudgetConsumption.CallUnary(ctx, connect.NewRequest(req))
+	if response != nil {
+		return response.Msg, err
+	}
+	return nil, err
+}
+
 // CheckBudgets calls orq.platform.v1.BudgetsService.CheckBudgets.
 func (c *budgetsServiceClient) CheckBudgets(ctx context.Context, req *v1.CheckBudgetsRequest) (*v1.CheckBudgetsResponse, error) {
 	response, err := c.checkBudgets.CallUnary(ctx, connect.NewRequest(req))
@@ -229,9 +249,10 @@ type BudgetsServiceHandler interface {
 	DeleteBudget(context.Context, *v1.DeleteBudgetRequest) (*v1.DeleteBudgetResponse, error)
 	ResetBudgetConsumption(context.Context, *v1.ResetBudgetConsumptionRequest) (*v1.ResetBudgetConsumptionResponse, error)
 	GetBudgetConsumption(context.Context, *v1.GetBudgetConsumptionRequest) (*v1.GetBudgetConsumptionResponse, error)
+	BatchGetBudgetConsumption(context.Context, *v1.BatchGetBudgetConsumptionRequest) (*v1.BatchGetBudgetConsumptionResponse, error)
 	// Internal enforcement endpoint. The gate increments RPM counters, so the
 	// handler rejects external API-key principals; only the gateway may call
-	// it, using service-internal authentication.
+	// it, authenticated with an internal `orq.internal` token.
 	CheckBudgets(context.Context, *v1.CheckBudgetsRequest) (*v1.CheckBudgetsResponse, error)
 }
 
@@ -284,6 +305,12 @@ func NewBudgetsServiceHandler(svc BudgetsServiceHandler, opts ...connect.Handler
 		connect.WithSchema(budgetsServiceMethods.ByName("GetBudgetConsumption")),
 		connect.WithHandlerOptions(opts...),
 	)
+	budgetsServiceBatchGetBudgetConsumptionHandler := connect.NewUnaryHandlerSimple(
+		BudgetsServiceBatchGetBudgetConsumptionProcedure,
+		svc.BatchGetBudgetConsumption,
+		connect.WithSchema(budgetsServiceMethods.ByName("BatchGetBudgetConsumption")),
+		connect.WithHandlerOptions(opts...),
+	)
 	budgetsServiceCheckBudgetsHandler := connect.NewUnaryHandlerSimple(
 		BudgetsServiceCheckBudgetsProcedure,
 		svc.CheckBudgets,
@@ -306,6 +333,8 @@ func NewBudgetsServiceHandler(svc BudgetsServiceHandler, opts ...connect.Handler
 			budgetsServiceResetBudgetConsumptionHandler.ServeHTTP(w, r)
 		case BudgetsServiceGetBudgetConsumptionProcedure:
 			budgetsServiceGetBudgetConsumptionHandler.ServeHTTP(w, r)
+		case BudgetsServiceBatchGetBudgetConsumptionProcedure:
+			budgetsServiceBatchGetBudgetConsumptionHandler.ServeHTTP(w, r)
 		case BudgetsServiceCheckBudgetsProcedure:
 			budgetsServiceCheckBudgetsHandler.ServeHTTP(w, r)
 		default:
@@ -343,6 +372,10 @@ func (UnimplementedBudgetsServiceHandler) ResetBudgetConsumption(context.Context
 
 func (UnimplementedBudgetsServiceHandler) GetBudgetConsumption(context.Context, *v1.GetBudgetConsumptionRequest) (*v1.GetBudgetConsumptionResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orq.platform.v1.BudgetsService.GetBudgetConsumption is not implemented"))
+}
+
+func (UnimplementedBudgetsServiceHandler) BatchGetBudgetConsumption(context.Context, *v1.BatchGetBudgetConsumptionRequest) (*v1.BatchGetBudgetConsumptionResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orq.platform.v1.BudgetsService.BatchGetBudgetConsumption is not implemented"))
 }
 
 func (UnimplementedBudgetsServiceHandler) CheckBudgets(context.Context, *v1.CheckBudgetsRequest) (*v1.CheckBudgetsResponse, error) {

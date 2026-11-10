@@ -37,8 +37,8 @@ dispatches each domain to its native transport:
 
 | Transport | Generator | Source | Output | Domains |
 |-----------|-----------|--------|--------|---------|
-| Connect (connect-go) | `buf` (`buf.gen.yaml`) | `proto/` (committed copy) | `internal/gen` | projects, budgets, notifiers, management-keys, model-sharing, api-keys, identities |
-| REST | `oapi-codegen` (`openapi/oapi-codegen.yaml`) | `openapi/openapi.json` (committed copy) | `internal/restgen` | guardrail-rules, routing-rules, models, workspace-models |
+| Connect (connect-go) | `buf` (`buf.gen.yaml`) | `proto/` (committed copy) | `internal/gen` | projects, budgets, notifiers, management-keys, model-sharing, api-keys, identities, workspace-settings, guardrail-rules, routing-rules |
+| REST | `oapi-codegen` (`openapi/oapi-codegen.yaml`) | `openapi/openapi.json` (committed copy) | `internal/restgen` | models, workspace-models, evaluators |
 
 Connect calls go to `${ORQ_API_BASE_URL}/v3/rpc/platform` (the gateway strips that prefix
 to the bare `/orq.platform.v1.<Service>/...` path). REST calls go to
