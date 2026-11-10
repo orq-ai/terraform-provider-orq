@@ -1,0 +1,121 @@
+# Keeps the committed proto/OpenAPI snapshot in step with orquesta-web.
+#
+# Re-syncs the codegen inputs, regenerates both clients and opens (or updates)
+# one pull request when anything other than the SOURCE_COMMIT stamp changed.
+# A sync that no longer compiles still opens the pull request, as a draft, so
+# the API change that broke the provider is visible the day it lands.
+name: sync
+
+on:
+  schedule:
+    - cron: "17 5 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: orquesta-web branch, tag or commit to sync from
+        default: main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync
+  cancel-in-progress: true
+
+env:
+  SYNC_BRANCH: sync/orquesta-web
+  SOURCE_BRANCH: ${{ inputs.source_branch || 'main' }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A blobless clone: the sync reads single files from git objects, which
+      # are fetched on demand.
+      - uses: actions/checkout@v4
+        with:
+          repository: orq-ai/orquesta-web
+          token: ${{ secrets.ORQUESTA_WEB_READ_TOKEN }}
+          ref: ${{ env.SOURCE_BRANCH }}
+          path: .monorepo
+          filter: blob:none
+          sparse-checkout: |
+            apps/platform-api/proto
+          fetch-depth: 1
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.69.0"
+
+      - name: Sync and regenerate
+        run: |
+          make proto-sync openapi-sync MONOREPO=.monorepo SOURCE_BRANCH="$SOURCE_BRANCH"
+          make generate
+
+      - name: Detect changes
+        id: changes
+        run: |
+          git add -A -- proto openapi internal SOURCE_COMMIT
+          if git diff --cached --quiet -- proto openapi internal; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        id: build
+        if: steps.changes.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          { go build ./... && go vet ./...; } 2>&1 | tee build.log
+
+      - name: Regenerate docs
+        if: steps.changes.outputs.changed == 'true' && steps.build.outcome == 'success'
+        run: |
+          make docs
+          git add -A -- docs
+
+      - name: Open or update the pull request
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        run: |
+          source_commit=$(awk '/^orquesta-web /{print $2}' SOURCE_COMMIT)
+          {
+            echo "Resyncs the proto and OpenAPI snapshot from orquesta-web@${source_commit} (\`$SOURCE_BRANCH\`) and regenerates both clients."
+            echo
+            if [ "$BUILD_OUTCOME" = success ]; then
+              echo "The provider builds against the new snapshot. Review the generated diff for new fields worth exposing."
+            else
+              echo "**The provider no longer builds against this snapshot.** Fix the client or resource code on this branch before merging."
+              echo
+              echo '```'
+              tail -n 40 build.log
+              echo '```'
+            fi
+          } > pr-body.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$SYNC_BRANCH"
+          git commit -m "chore: resync codegen sources from orquesta-web"
+          git push --force origin "$SYNC_BRANCH"
+
+          if gh pr view "$SYNC_BRANCH" --json state --jq .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$SYNC_BRANCH" --body-file pr-body.md
+          else
+            draft=""
+            [ "$BUILD_OUTCOME" = success ] || draft="--draft"
+            gh pr create --base main --head "$SYNC_BRANCH" $draft \
+              --title "chore: resync codegen sources from orquesta-web" \
+              --body-file pr-body.md
+          fi

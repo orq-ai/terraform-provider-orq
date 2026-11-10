@@ -80,6 +80,20 @@ orphaned `*.pb.go`. The REST client is scoped by an exact operation-ID allowlist
 in `openapi/oapi-codegen.yaml` (not a tag include) so the OpenAI-compatible
 `/v3/router/models` garden endpoint is not pulled into the provider surface.
 
+### Scheduled sync
+
+[`.github/workflows/sync.yml`](.github/workflows/sync.yml) runs every weekday
+(and on demand, against any orquesta-web branch): it re-syncs both inputs,
+regenerates the clients and opens or updates one pull request on
+`sync/orquesta-web` when the snapshot changed. If the provider no longer builds
+against the new snapshot the pull request is opened as a draft with the compiler
+output, so an API change that breaks a resource surfaces the day it lands.
+
+It needs one repo secret, `ORQUESTA_WEB_READ_TOKEN` (read access to
+`orq-ai/orquesta-web` contents), and the repository setting that lets GitHub
+Actions create pull requests. Pull requests opened with the default token do not
+trigger `ci`; close and reopen the pull request, or push to its branch, to run it.
+
 ## Make targets
 
 | Target | Purpose |
