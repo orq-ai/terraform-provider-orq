@@ -147,7 +147,7 @@ func sharingFromREST(c *restgen.ModelSharingConfig) *SharingConfig {
 	return out
 }
 
-func (w *workspaceModels) SetSharing(ctx context.Context, modelID string, in SharingInput) error {
+func sharingToProto(in SharingInput) *platformv1.Sharing {
 	sh := &platformv1.Sharing{
 		AllowVersionPin:      in.AllowVersionPin,
 		AllowFork:            in.AllowFork,
@@ -158,6 +158,10 @@ func (w *workspaceModels) SetSharing(ctx context.Context, modelID string, in Sha
 	} else {
 		sh.Mode = &platformv1.Sharing_Selected{Selected: &platformv1.SharingSelectedProjects{ProjectIds: in.ProjectIDs}}
 	}
-	_, err := w.sharing.SetModelSharing(ctx, &platformv1.SetModelSharingRequest{ModelId: modelID, Sharing: sh})
+	return sh
+}
+
+func (w *workspaceModels) SetSharing(ctx context.Context, modelID string, in SharingInput) error {
+	_, err := w.sharing.SetModelSharing(ctx, &platformv1.SetModelSharingRequest{ModelId: modelID, Sharing: sharingToProto(in)})
 	return mapConnectError("model sharing", err)
 }
