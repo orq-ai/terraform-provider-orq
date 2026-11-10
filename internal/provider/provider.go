@@ -157,5 +157,7 @@ func (p *orqProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewEvaluatorResource,
 		NewVaultResource,
 		NewSecretResource,
+		NewAuditLogDestinationResource,
+		NewTelemetryDestinationResource,
 	}
 }

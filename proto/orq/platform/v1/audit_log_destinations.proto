@@ -1,0 +1,553 @@
+syntax = "proto3";
+
+package orq.platform.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "openapiv3/annotations.proto";
+import "orq/authz/v1/authz.proto";
+
+option (openapi.v3.document) = {
+  tags: [
+    {
+      name: "Audit Log Destinations"
+      description: "Signed webhook destinations that receive workspace audit log events, for SIEM and compliance pipelines."
+    }
+  ]
+};
+
+service AuditLogDestinationsService {
+  rpc CreateAuditLogDestination(CreateAuditLogDestinationRequest) returns (CreateAuditLogDestinationResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "audit-log-destination.create"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v3/audit-log-destinations"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Create an audit log destination"
+      description: "Creates a signed webhook destination that receives every audit log event recorded in the workspace from this point on. The signing secret is returned once in this response and never again."
+      operation_id: "AuditLogDestinationCreate"
+      tags: ["Audit Log Destinations"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "auditLogDestinations"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "create"}
+        }
+      ]
+    };
+  }
+
+  rpc ListAuditLogDestinations(ListAuditLogDestinationsRequest) returns (ListAuditLogDestinationsResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "audit-log-destination.list"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/audit-log-destinations"};
+    option (openapi.v3.operation) = {
+      summary: "List audit log destinations"
+      description: "Returns the audit log destinations of the workspace, newest first, with cursor pagination."
+      operation_id: "AuditLogDestinationList"
+      tags: ["Audit Log Destinations"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "auditLogDestinations"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "list"}
+        }
+      ]
+    };
+  }
+
+  rpc GetAuditLogDestination(GetAuditLogDestinationRequest) returns (GetAuditLogDestinationResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "audit-log-destination.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/audit-log-destinations/{destination_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Retrieve an audit log destination"
+      description: "Retrieves an audit log destination by ID. The signing secret is never returned."
+      operation_id: "AuditLogDestinationGet"
+      tags: ["Audit Log Destinations"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "auditLogDestinations"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "get"}
+        }
+      ]
+    };
+  }
+
+  rpc UpdateAuditLogDestination(UpdateAuditLogDestinationRequest) returns (UpdateAuditLogDestinationResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "audit-log-destination.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      patch: "/v3/audit-log-destinations/{destination_id}"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Update an audit log destination"
+      description: "Partially updates a destination. Set `status` to `AUDIT_LOG_DESTINATION_STATUS_PAUSED` to stop deliveries while retaining the backlog, and back to `AUDIT_LOG_DESTINATION_STATUS_ACTIVE` to drain it. The URL can only change while the destination is paused."
+      operation_id: "AuditLogDestinationUpdate"
+      tags: ["Audit Log Destinations"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "auditLogDestinations"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "update"}
+        }
+      ]
+    };
+  }
+
+  rpc DeleteAuditLogDestination(DeleteAuditLogDestinationRequest) returns (DeleteAuditLogDestinationResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "audit-log-destination.delete"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {delete: "/v3/audit-log-destinations/{destination_id}"};
+    option (openapi.v3.operation) = {
+      summary: "Delete an audit log destination"
+      description: "Deletes a destination and cancels its pending deliveries."
+      operation_id: "AuditLogDestinationDelete"
+      tags: ["Audit Log Destinations"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "auditLogDestinations"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "delete"}
+        }
+      ]
+    };
+  }
+
+  rpc RotateAuditLogDestinationSecret(RotateAuditLogDestinationSecretRequest) returns (RotateAuditLogDestinationSecretResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "audit-log-destination.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {post: "/v3/audit-log-destinations/{destination_id}/rotate-secret"};
+    option (openapi.v3.operation) = {
+      summary: "Rotate the signing secret"
+      description: "Generates a new signing secret for the destination. Deliveries attempted after the rotation are signed with the new secret. The new secret is returned once in this response and never again."
+      operation_id: "AuditLogDestinationRotateSecret"
+      tags: ["Audit Log Destinations"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "auditLogDestinations"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "rotateSecret"}
+        }
+      ]
+    };
+  }
+
+  rpc TestAuditLogDestination(TestAuditLogDestinationRequest) returns (TestAuditLogDestinationResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "audit-log-destination.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {post: "/v3/audit-log-destinations/{destination_id}/test"};
+    option (openapi.v3.operation) = {
+      summary: "Send a test event"
+      description: "Sends a signed synthetic `audit_log.test` event to the destination synchronously and returns the receiver outcome. Test deliveries appear in the delivery history."
+      operation_id: "AuditLogDestinationTest"
+      tags: ["Audit Log Destinations"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "auditLogDestinations"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "test"}
+        }
+      ]
+    };
+  }
+
+  rpc ListAuditLogDeliveries(ListAuditLogDeliveriesRequest) returns (ListAuditLogDeliveriesResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "audit-log-destination.view"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {get: "/v3/audit-log-destinations/{destination_id}/deliveries"};
+    option (openapi.v3.operation) = {
+      summary: "List deliveries"
+      description: "Returns the delivery history of a destination, newest first, optionally filtered by status."
+      operation_id: "AuditLogDestinationListDeliveries"
+      tags: ["Audit Log Destinations"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "auditLogDestinations"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "listDeliveries"}
+        }
+      ]
+    };
+  }
+
+  rpc ReplayAuditLogDeliveries(ReplayAuditLogDeliveriesRequest) returns (ReplayAuditLogDeliveriesResponse) {
+    option (orq.authz.v1.authz) = {
+      verb: "audit-log-destination.update"
+      scope: AUTHZ_SCOPE_WORKSPACE
+    };
+    option (google.api.http) = {
+      post: "/v3/audit-log-destinations/{destination_id}/replay"
+      body: "*"
+    };
+    option (openapi.v3.operation) = {
+      summary: "Replay audit events"
+      description: "Queues a new delivery for every retained audit event recorded in the time window, up to 10,000 events per request. Replays keep the original event IDs and never extend event retention."
+      operation_id: "AuditLogDestinationReplay"
+      tags: ["Audit Log Destinations"]
+      specification_extension: [
+        {
+          name: "x-speakeasy-group"
+          value: {yaml: "auditLogDestinations"}
+        },
+        {
+          name: "x-speakeasy-name-override"
+          value: {yaml: "replay"}
+        }
+      ]
+    };
+  }
+}
+
+enum AuditLogDestinationStatus {
+  AUDIT_LOG_DESTINATION_STATUS_UNSPECIFIED = 0;
+  AUDIT_LOG_DESTINATION_STATUS_ACTIVE = 1;
+  AUDIT_LOG_DESTINATION_STATUS_PAUSED = 2;
+}
+
+message AuditLogDestination {
+  option (openapi.v3.schema) = {
+    required: [
+      "id",
+      "display_name",
+      "url",
+      "status",
+      "created_at",
+      "updated_at"
+    ]
+  };
+
+  string id = 1 [json_name = "_id"];
+  string display_name = 2 [(openapi.v3.property) = {description: "Human-readable destination name, unique within the workspace."}];
+  string description = 3 [(openapi.v3.property) = {description: "Optional description of the receiving system."}];
+  string url = 4 [(openapi.v3.property) = {description: "HTTPS endpoint that receives signed audit log events."}];
+  AuditLogDestinationStatus status = 5 [(openapi.v3.property) = {description: "`AUDIT_LOG_DESTINATION_STATUS_ACTIVE` delivers events; `AUDIT_LOG_DESTINATION_STATUS_PAUSED` retains them for later delivery."}];
+  string signing_secret_hint = 6 [(openapi.v3.property) = {description: "Last four characters of the current signing secret, to tell rotations apart."}];
+  google.protobuf.Timestamp secret_rotated_at = 7 [(openapi.v3.property) = {description: "Time the current signing secret was issued."}];
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  string created_by_id = 10;
+  string updated_by_id = 11;
+  string workspace_id = 12 [(openapi.v3.property) = {
+    specification_extension: [
+      {
+        name: "x-orq-hidden"
+        value: {yaml: "true"}
+      },
+      {
+        name: "x-speakeasy-ignore"
+        value: {yaml: "true"}
+      }
+    ]
+  }];
+}
+
+message CreateAuditLogDestinationRequest {
+  option (openapi.v3.schema) = {
+    required: [
+      "display_name",
+      "url"
+    ]
+  };
+
+  string display_name = 1 [
+    (openapi.v3.property) = {description: "Required. Human-readable destination name, unique within the workspace."},
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 255
+  ];
+  string description = 2 [
+    (openapi.v3.property) = {description: "Optional. Description of the receiving system."},
+    (buf.validate.field).string.max_len = 1000
+  ];
+  string url = 3 [
+    (openapi.v3.property) = {description: "Required. Absolute HTTPS URL. Private and loopback addresses are rejected."},
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 2048
+  ];
+}
+
+message CreateAuditLogDestinationResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "destination",
+      "signing_secret"
+    ]
+  };
+
+  AuditLogDestination destination = 1;
+  string signing_secret = 2 [(openapi.v3.property) = {description: "Signing secret for verifying deliveries. Shown only in this response; store it securely."}];
+}
+
+message ListAuditLogDestinationsRequest {
+  optional int32 limit = 1 [
+    (openapi.v3.property) = {description: "Optional. Number of destinations to return. Defaults to 25 and must be between 1 and 200."},
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+  string starting_after = 2 [(openapi.v3.property) = {description: "Cursor for forward pagination. Set to the `_id` of the last item from the previous page."}];
+  string ending_before = 3 [(openapi.v3.property) = {description: "Cursor for backward pagination. Set to the `_id` of the first item from the previous page."}];
+}
+
+message ListAuditLogDestinationsResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+
+  string object = 1;
+  repeated AuditLogDestination data = 2;
+  bool has_more = 3;
+}
+
+message GetAuditLogDestinationRequest {
+  option (openapi.v3.schema) = {
+    required: ["destination_id"]
+  };
+
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetAuditLogDestinationResponse {
+  option (openapi.v3.schema) = {
+    required: ["destination"]
+  };
+
+  AuditLogDestination destination = 1;
+}
+
+message UpdateAuditLogDestinationRequest {
+  option (openapi.v3.schema) = {
+    required: ["destination_id"]
+  };
+
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional string display_name = 2 [
+    (openapi.v3.property) = {description: "Optional. New destination name."},
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 255
+  ];
+  optional string description = 3 [
+    (openapi.v3.property) = {description: "Optional. New description. An empty string clears it."},
+    (buf.validate.field).string.max_len = 1000
+  ];
+  optional string url = 4 [
+    (openapi.v3.property) = {description: "Optional. New HTTPS endpoint. Accepted only while the destination is paused."},
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 2048
+  ];
+  optional AuditLogDestinationStatus status = 5 [(openapi.v3.property) = {description: "Optional. Pause or resume deliveries."}];
+}
+
+message UpdateAuditLogDestinationResponse {
+  option (openapi.v3.schema) = {
+    required: ["destination"]
+  };
+
+  AuditLogDestination destination = 1;
+}
+
+message DeleteAuditLogDestinationRequest {
+  option (openapi.v3.schema) = {
+    required: ["destination_id"]
+  };
+
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteAuditLogDestinationResponse {}
+
+message RotateAuditLogDestinationSecretRequest {
+  option (openapi.v3.schema) = {
+    required: ["destination_id"]
+  };
+
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message RotateAuditLogDestinationSecretResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "destination",
+      "signing_secret"
+    ]
+  };
+
+  AuditLogDestination destination = 1;
+  string signing_secret = 2 [(openapi.v3.property) = {description: "New signing secret. Shown only in this response; store it securely."}];
+}
+
+enum AuditLogDeliveryStatus {
+  AUDIT_LOG_DELIVERY_STATUS_UNSPECIFIED = 0;
+  AUDIT_LOG_DELIVERY_STATUS_PENDING = 1;
+  AUDIT_LOG_DELIVERY_STATUS_DELIVERING = 2;
+  AUDIT_LOG_DELIVERY_STATUS_SUCCEEDED = 3;
+  AUDIT_LOG_DELIVERY_STATUS_FAILED = 4;
+  AUDIT_LOG_DELIVERY_STATUS_CANCELLED = 5;
+}
+
+enum AuditLogDeliveryKind {
+  AUDIT_LOG_DELIVERY_KIND_UNSPECIFIED = 0;
+  AUDIT_LOG_DELIVERY_KIND_EVENT = 1;
+  AUDIT_LOG_DELIVERY_KIND_REPLAY = 2;
+  AUDIT_LOG_DELIVERY_KIND_TEST = 3;
+}
+
+message AuditLogDelivery {
+  option (openapi.v3.schema) = {
+    required: [
+      "id",
+      "destination_id",
+      "event_id",
+      "kind",
+      "status",
+      "attempts",
+      "created_at"
+    ]
+  };
+
+  string id = 1 [json_name = "_id"];
+  string destination_id = 2;
+  string event_id = 3 [(openapi.v3.property) = {description: "Audit log entry ID carried in the payload. Replays reuse the original event ID."}];
+  AuditLogDeliveryKind kind = 4;
+  AuditLogDeliveryStatus status = 5;
+  int32 attempts = 6 [(openapi.v3.property) = {description: "Number of HTTP attempts made so far."}];
+  google.protobuf.Timestamp next_attempt_at = 7 [(openapi.v3.property) = {description: "When the next attempt is due, while pending."}];
+  google.protobuf.Timestamp last_attempt_at = 8;
+  int32 last_status_code = 9 [(openapi.v3.property) = {description: "HTTP status of the last attempt, 0 when the request never completed."}];
+  string last_error = 10 [(openapi.v3.property) = {description: "Short description of the last failure."}];
+  google.protobuf.Timestamp delivered_at = 11;
+  google.protobuf.Timestamp created_at = 12;
+  string replay_id = 13 [(openapi.v3.property) = {description: "Replay request that queued this delivery, empty for live deliveries."}];
+  string workspace_id = 14 [(openapi.v3.property) = {
+    specification_extension: [
+      {
+        name: "x-orq-hidden"
+        value: {yaml: "true"}
+      },
+      {
+        name: "x-speakeasy-ignore"
+        value: {yaml: "true"}
+      }
+    ]
+  }];
+}
+
+message TestAuditLogDestinationRequest {
+  option (openapi.v3.schema) = {
+    required: ["destination_id"]
+  };
+
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message TestAuditLogDestinationResponse {
+  option (openapi.v3.schema) = {
+    required: ["delivery"]
+  };
+
+  AuditLogDelivery delivery = 1;
+}
+
+message ListAuditLogDeliveriesRequest {
+  option (openapi.v3.schema) = {
+    required: ["destination_id"]
+  };
+
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional int32 limit = 2 [
+    (openapi.v3.property) = {description: "Optional. Number of deliveries to return. Defaults to 25 and must be between 1 and 200."},
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 200
+  ];
+  string starting_after = 3;
+  string ending_before = 4;
+  repeated AuditLogDeliveryStatus status = 5 [(openapi.v3.property) = {description: "Optional. Restrict results to these statuses."}];
+}
+
+message ListAuditLogDeliveriesResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "object",
+      "data",
+      "has_more"
+    ]
+  };
+
+  string object = 1;
+  repeated AuditLogDelivery data = 2;
+  bool has_more = 3;
+}
+
+message ReplayAuditLogDeliveriesRequest {
+  option (openapi.v3.schema) = {
+    required: [
+      "destination_id",
+      "from",
+      "to"
+    ]
+  };
+
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp from = 2 [(openapi.v3.property) = {description: "Required. Start of the window (inclusive)."}];
+  google.protobuf.Timestamp to = 3 [(openapi.v3.property) = {description: "Required. End of the window (exclusive). The window may span at most 31 days."}];
+}
+
+message ReplayAuditLogDeliveriesResponse {
+  option (openapi.v3.schema) = {
+    required: [
+      "replay_id",
+      "queued"
+    ]
+  };
+
+  string replay_id = 1;
+  int32 queued = 2 [(openapi.v3.property) = {description: "Number of deliveries queued by this replay."}];
+}
