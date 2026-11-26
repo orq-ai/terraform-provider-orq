@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -85,13 +86,13 @@ func TestWorkspaceSettingsSchemaDecisions(t *testing.T) {
 		t.Error("pii_redaction.enabled must be Required")
 	}
 
-	for _, name := range []string{"language", "entities", "on_failure", "threshold"} {
+	for _, name := range []string{"language", "entities", "on_failure", "threshold", "regions", "entity_thresholds"} {
 		if _, ok := cfgAttrs[name]; !ok {
 			t.Errorf("pii_redaction.config.%s is missing", name)
 		}
 	}
 	if lang := cfgAttrs["language"].(schema.StringAttribute); !lang.Optional || len(lang.Validators) == 0 {
-		t.Error("language must be Optional with a OneOf validator")
+		t.Error("language must be Optional with a non-empty validator")
 	}
 	if onFailure := cfgAttrs["on_failure"].(schema.StringAttribute); !onFailure.Optional || len(onFailure.Validators) == 0 {
 		t.Error("on_failure must be Optional with a OneOf validator")
@@ -126,7 +127,8 @@ func TestWorkspaceSettingsEnumValidators(t *testing.T) {
 	}
 	checkString("language", "en", false)
 	checkString("language", "nl", false)
-	checkString("language", "de", true)
+	checkString("language", "auto", false)
+	checkString("language", "", true)
 	checkString("on_failure", "block", false)
 	checkString("on_failure", "passthrough", false)
 	checkString("on_failure", "ignore", true)
@@ -822,5 +824,75 @@ func TestWorkspaceSettingsImportSeedsKey(t *testing.T) {
 	}
 	if got.Key.ValueString() != "workspace" {
 		t.Errorf("import must seed key with the import id, got %v", got.Key)
+	}
+}
+
+func TestWorkspaceSettingsValidateConfigPiiRegionsAndThresholds(t *testing.T) {
+	ctx := context.Background()
+	r := &workspaceSettingsResource{}
+	validate := func(cfg workspaceSettingsResourceModel) diag.Diagnostics {
+		_, c, _ := wsData(t, cfg)
+		var resp resource.ValidateConfigResponse
+		r.ValidateConfig(ctx, resource.ValidateConfigRequest{Config: c}, &resp)
+		return resp.Diagnostics
+	}
+
+	// Mixing "all" with specific regions is rejected.
+	diags := validate(workspaceSettingsResourceModel{
+		PiiRedaction: &workspaceSettingsPiiModel{
+			Enabled: types.BoolValue(true),
+			Config: &workspaceSettingsPiiConfigModel{
+				Regions:          stringList("all", "nl"),
+				Entities:         types.ListNull(types.StringType),
+				EntityThresholds: types.MapNull(types.Float64Type),
+			},
+		},
+	})
+	if !diags.HasError() {
+		t.Error("expected error when regions combines \"all\" with another region")
+	}
+
+	// entity_thresholds key absent from entities is rejected.
+	diags = validate(workspaceSettingsResourceModel{
+		PiiRedaction: &workspaceSettingsPiiModel{
+			Enabled: types.BoolValue(true),
+			Config: &workspaceSettingsPiiConfigModel{
+				Entities:         stringList("EMAIL_ADDRESS"),
+				Regions:          types.ListNull(types.StringType),
+				EntityThresholds: float64MapValue(map[string]float64{"PERSON": 0.9}),
+			},
+		},
+	})
+	if !diags.HasError() {
+		t.Error("expected error when entity_thresholds key is not in entities")
+	}
+
+	// Valid regions + matching entity_thresholds accepted.
+	diags = validate(workspaceSettingsResourceModel{
+		PiiRedaction: &workspaceSettingsPiiModel{
+			Enabled: types.BoolValue(true),
+			Config: &workspaceSettingsPiiConfigModel{
+				Entities:         stringList("EMAIL_ADDRESS"),
+				Regions:          stringList("nl", "us"),
+				EntityThresholds: float64MapValue(map[string]float64{"email_address": 0.8}),
+			},
+		},
+	})
+	if diags.HasError() {
+		t.Errorf("expected valid config to pass, got %v", diags)
+	}
+}
+
+func TestPreservePlannedEntityThresholdsWithUnknownElement(t *testing.T) {
+	planned := types.MapValueMust(types.Float64Type, map[string]attr.Value{
+		"EMAIL_ADDRESS": types.Float64Unknown(),
+	})
+	got := preservePlannedEntityThresholds(planned, map[string]float64{"EMAIL_ADDRESS": 0.75})
+	if !mapFullyKnown(got) {
+		t.Fatalf("expected server map with concrete values, got %v", got)
+	}
+	v, ok := got.Elements()["EMAIL_ADDRESS"].(types.Float64)
+	if !ok || v.ValueFloat64() != 0.75 {
+		t.Errorf("got %v, want 0.75", got)
 	}
 }

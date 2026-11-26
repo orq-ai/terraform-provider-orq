@@ -30,7 +30,7 @@ resource "orq_workspace_settings" "this" {
   # pii_redaction = {
   #   enabled = true
   #   config = {
-  #     language = "en" # en | nl
+  #     language = "en" # "auto" or a server-supported language code
   #
   #     # The entity catalog is per-language and validated SERVER-side (an unknown
   #     # value fails at apply, not at plan). An empty list [] means "redact every
@@ -39,6 +39,14 @@ resource "orq_workspace_settings" "this" {
   #     # case-insensitively but stores and returns exactly what you wrote, in
   #     # order -- so no canonical spelling is imposed on your config.
   #     entities = ["EMAIL_ADDRESS", "PERSON"]
+  #
+  #     # Regions by lowercase ISO 3166-1 alpha-2 code, or ["all"].
+  #     regions = ["nl", "us"]
+  #
+  #     # Per-entity confidence cutoffs; every key must appear in `entities`.
+  #     entity_thresholds = {
+  #       EMAIL_ADDRESS = 0.8
+  #     }
   #
   #     on_failure = "block" # block (fail closed) | passthrough (fail open)
   #     threshold  = 0.5     # [0, 1]
