@@ -253,13 +253,16 @@ func (s *workspaceModelSharingModel) sharingInput(ctx context.Context) (client.S
 // resolving the empty-vs-null quirk (selected + no ids => []) and keeping the
 // caller's project_ids order when the server returns the same ids sorted.
 func applySharing(cfg *client.SharingConfig, m *workspaceModelResourceModel) {
+	m.Sharing = sharingModel(m.Sharing, cfg)
+}
+
+func sharingModel(prior *workspaceModelSharingModel, cfg *client.SharingConfig) *workspaceModelSharingModel {
 	if cfg == nil {
-		m.Sharing = nil
-		return
+		return nil
 	}
 	priorIDs := types.ListNull(types.StringType)
-	if m.Sharing != nil {
-		priorIDs = m.Sharing.ProjectIDs
+	if prior != nil {
+		priorIDs = prior.ProjectIDs
 	}
 	out := &workspaceModelSharingModel{
 		AllowVersionPin:      types.BoolValue(cfg.AllowVersionPin),
@@ -274,7 +277,7 @@ func applySharing(cfg *client.SharingConfig, m *workspaceModelResourceModel) {
 		out.AllProjects = types.BoolNull()
 		out.ProjectIDs = preserveListOrder(priorIDs, cfg.ProjectIDs) // non-nil => [] when empty
 	}
-	m.Sharing = out
+	return out
 }
 
 // canonicalModelID picks the model_id to store for a freshly imported resource.
