@@ -207,9 +207,12 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 	m.CreatedAt = types.StringValue(g.CreatedAt)
 	m.UpdatedAt = types.StringValue(g.UpdatedAt)
 
-	if len(g.Guardrails) == 0 {
-		m.Guardrails = nil
-		return
+	m.Guardrails = guardrailRefModels(m.Guardrails, g.Guardrails)
+}
+
+func guardrailRefModels(planned []guardrailRefModel, guardrails []client.GuardrailRef) []guardrailRefModel {
+	if len(guardrails) == 0 {
+		return nil
 	}
 	// The server normalizes an empty options object to absent, so a planned
 	// "{}" must survive the read-back or apply reports an inconsistent result.
@@ -218,10 +221,10 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 	// two references to the same guardrail collide, restoring "{}" onto the one
 	// that never asked for it.
 	plannedEmptyOptions := func(i int, ref client.GuardrailRef) bool {
-		if i >= len(m.Guardrails) {
+		if i >= len(planned) {
 			return false
 		}
-		prior := m.Guardrails[i]
+		prior := planned[i]
 		if prior.ID.ValueString() != ref.ID || prior.ExecuteOn.ValueString() != ref.ExecuteOn {
 			return false
 		}
@@ -231,8 +234,8 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 		var opts map[string]any
 		return json.Unmarshal([]byte(prior.Options.ValueString()), &opts) == nil && len(opts) == 0
 	}
-	refs := make([]guardrailRefModel, 0, len(g.Guardrails))
-	for i, ref := range g.Guardrails {
+	refs := make([]guardrailRefModel, 0, len(guardrails))
+	for i, ref := range guardrails {
 		rm := guardrailRefModel{
 			ID:        types.StringValue(ref.ID),
 			ExecuteOn: types.StringValue(ref.ExecuteOn),
@@ -264,7 +267,7 @@ func (r *guardrailRuleResource) apply(g *client.GuardrailRule, m *guardrailRuleR
 		}
 		refs = append(refs, rm)
 	}
-	m.Guardrails = refs
+	return refs
 }
 
 func (r *guardrailRuleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
