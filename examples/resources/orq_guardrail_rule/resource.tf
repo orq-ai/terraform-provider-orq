@@ -2,7 +2,6 @@ resource "orq_guardrail_rule" "pii" {
   display_name = "PII protection"
   description  = "Redact PII on both input and output"
   enabled      = true
-  timeout      = 5000 # milliseconds
 
   # Each `guardrails` block references a guardrail evaluator by id. `options` is a
   # free-form JSON object string (compared semantically) carrying that

@@ -39,6 +39,12 @@ const (
 	// the request carries a project id — that project must fall inside
 	// the caller's project scope.
 	AuthzScope_AUTHZ_SCOPE_PROJECT AuthzScope = 3
+	// Account-scoped surface. The caller must be an authenticated user
+	// session (workspace on the token is optional) or a workspace-scoped
+	// credential. Project-pinned api keys are rejected. Used for RPCs that
+	// exist before a tenant is selected (workspace create, key check, get)
+	// or that list every workspace the account can access.
+	AuthzScope_AUTHZ_SCOPE_ACCOUNT AuthzScope = 4
 )
 
 // Enum value maps for AuthzScope.
@@ -48,12 +54,14 @@ var (
 		1: "AUTHZ_SCOPE_PUBLIC",
 		2: "AUTHZ_SCOPE_WORKSPACE",
 		3: "AUTHZ_SCOPE_PROJECT",
+		4: "AUTHZ_SCOPE_ACCOUNT",
 	}
 	AuthzScope_value = map[string]int32{
 		"AUTHZ_SCOPE_UNSPECIFIED": 0,
 		"AUTHZ_SCOPE_PUBLIC":      1,
 		"AUTHZ_SCOPE_WORKSPACE":   2,
 		"AUTHZ_SCOPE_PROJECT":     3,
+		"AUTHZ_SCOPE_ACCOUNT":     4,
 	}
 )
 
@@ -185,13 +193,14 @@ const file_orq_authz_v1_authz_proto_rawDesc = "" +
 	"\tAuthzRule\x12\x12\n" +
 	"\x04verb\x18\x01 \x01(\tR\x04verb\x12.\n" +
 	"\x05scope\x18\x02 \x01(\x0e2\x18.orq.authz.v1.AuthzScopeR\x05scope\x12(\n" +
-	"\x10project_id_field\x18\x03 \x01(\tR\x0eprojectIdField*u\n" +
+	"\x10project_id_field\x18\x03 \x01(\tR\x0eprojectIdField*\x8e\x01\n" +
 	"\n" +
 	"AuthzScope\x12\x1b\n" +
 	"\x17AUTHZ_SCOPE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12AUTHZ_SCOPE_PUBLIC\x10\x01\x12\x19\n" +
 	"\x15AUTHZ_SCOPE_WORKSPACE\x10\x02\x12\x17\n" +
-	"\x13AUTHZ_SCOPE_PROJECT\x10\x03:O\n" +
+	"\x13AUTHZ_SCOPE_PROJECT\x10\x03\x12\x17\n" +
+	"\x13AUTHZ_SCOPE_ACCOUNT\x10\x04:O\n" +
 	"\x05authz\x12\x1e.google.protobuf.MethodOptions\x18ц\x03 \x01(\v2\x17.orq.authz.v1.AuthzRuleR\x05authzB\xbc\x01\n" +
 	"\x10com.orq.authz.v1B\n" +
 	"AuthzProtoP\x01ZJgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/authz/v1;authzv1\xa2\x02\x03OAX\xaa\x02\fOrq.Authz.V1\xca\x02\fOrq\\Authz\\V1\xe2\x02\x18Orq\\Authz\\V1\\GPBMetadata\xea\x02\x0eOrq::Authz::V1b\x06proto3"

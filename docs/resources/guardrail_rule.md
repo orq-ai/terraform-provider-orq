@@ -17,7 +17,6 @@ resource "orq_guardrail_rule" "pii" {
   display_name = "PII protection"
   description  = "Redact PII on both input and output"
   enabled      = true
-  timeout      = 5000 # milliseconds
 
   # Each `guardrails` block references a guardrail evaluator by id. `options` is a
   # free-form JSON object string (compared semantically) carrying that
@@ -50,7 +49,6 @@ resource "orq_guardrail_rule" "pii" {
 - `enabled` (Boolean) Whether the rule is enabled. Defaults server-side when omitted. An enabled rule with no `project_id` applies to EVERY inference request in the workspace, and a failing guardrail blocks the request (HTTP 400 `guardrail_error`), so enable deliberately.
 - `guardrails` (Block List) Referenced guardrail evaluators. (see [below for nested schema](#nestedblock--guardrails))
 - `project_id` (String) Owning project. Omit for a workspace-global rule. Changing this forces replacement (the update API does not accept `project_id`).
-- `timeout` (Number) Evaluation timeout in milliseconds. Stored and returned, but NOT currently enforced at execution time — the effective limits come from the grader transport and sandbox instead.
 
 ### Read-Only
 

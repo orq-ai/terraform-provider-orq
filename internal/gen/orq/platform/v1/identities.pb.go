@@ -26,6 +26,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type IdentitySource int32
+
+const (
+	IdentitySource_IDENTITY_SOURCE_UNSPECIFIED IdentitySource = 0
+	IdentitySource_IDENTITY_SOURCE_ORQ         IdentitySource = 1
+	IdentitySource_IDENTITY_SOURCE_EXTERNAL    IdentitySource = 2
+)
+
+// Enum value maps for IdentitySource.
+var (
+	IdentitySource_name = map[int32]string{
+		0: "IDENTITY_SOURCE_UNSPECIFIED",
+		1: "IDENTITY_SOURCE_ORQ",
+		2: "IDENTITY_SOURCE_EXTERNAL",
+	}
+	IdentitySource_value = map[string]int32{
+		"IDENTITY_SOURCE_UNSPECIFIED": 0,
+		"IDENTITY_SOURCE_ORQ":         1,
+		"IDENTITY_SOURCE_EXTERNAL":    2,
+	}
+)
+
+func (x IdentitySource) Enum() *IdentitySource {
+	p := new(IdentitySource)
+	*p = x
+	return p
+}
+
+func (x IdentitySource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (IdentitySource) Descriptor() protoreflect.EnumDescriptor {
+	return file_orq_platform_v1_identities_proto_enumTypes[0].Descriptor()
+}
+
+func (IdentitySource) Type() protoreflect.EnumType {
+	return &file_orq_platform_v1_identities_proto_enumTypes[0]
+}
+
+func (x IdentitySource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use IdentitySource.Descriptor instead.
+func (IdentitySource) EnumDescriptor() ([]byte, []int) {
+	return file_orq_platform_v1_identities_proto_rawDescGZIP(), []int{0}
+}
+
 type IdentitySortField int32
 
 const (
@@ -59,11 +108,11 @@ func (x IdentitySortField) String() string {
 }
 
 func (IdentitySortField) Descriptor() protoreflect.EnumDescriptor {
-	return file_orq_platform_v1_identities_proto_enumTypes[0].Descriptor()
+	return file_orq_platform_v1_identities_proto_enumTypes[1].Descriptor()
 }
 
 func (IdentitySortField) Type() protoreflect.EnumType {
-	return &file_orq_platform_v1_identities_proto_enumTypes[0]
+	return &file_orq_platform_v1_identities_proto_enumTypes[1]
 }
 
 func (x IdentitySortField) Number() protoreflect.EnumNumber {
@@ -72,7 +121,7 @@ func (x IdentitySortField) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use IdentitySortField.Descriptor instead.
 func (IdentitySortField) EnumDescriptor() ([]byte, []int) {
-	return file_orq_platform_v1_identities_proto_rawDescGZIP(), []int{0}
+	return file_orq_platform_v1_identities_proto_rawDescGZIP(), []int{1}
 }
 
 type Identity struct {
@@ -300,8 +349,9 @@ func (x *IdentityMetrics) GetErrorRate() float64 {
 
 type IdentityFilter struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Return only identities that have at least one of these tags.
-	Tags          []string `protobuf:"bytes,1,rep,name=tags,proto3" json:"tags,omitempty"`
+	// Return only identities that have all of these tags.
+	Tags          []string       `protobuf:"bytes,1,rep,name=tags,proto3" json:"tags,omitempty"`
+	Source        IdentitySource `protobuf:"varint,2,opt,name=source,proto3,enum=orq.platform.v1.IdentitySource" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -341,6 +391,13 @@ func (x *IdentityFilter) GetTags() []string {
 		return x.Tags
 	}
 	return nil
+}
+
+func (x *IdentityFilter) GetSource() IdentitySource {
+	if x != nil {
+		return x.Source
+	}
+	return IdentitySource_IDENTITY_SOURCE_UNSPECIFIED
 }
 
 type CreateIdentityRequest struct {
@@ -769,7 +826,7 @@ type UpdateIdentityRequest struct {
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// New display name. Omit to keep the current display name.
 	DisplayName *string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
-	// New email address. Omit to keep the current email.
+	// New email address. Omit to keep the current email, or send an empty string to clear it.
 	Email *string `protobuf:"bytes,3,opt,name=email,proto3,oneof" json:"email,omitempty"`
 	// New avatar image URL. Omit to keep the current avatar URL.
 	AvatarUrl *string `protobuf:"bytes,4,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
@@ -1014,9 +1071,10 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\n" +
 	"error_rate\x18\x04 \x01(\x01R\terrorRate:=\xbaG:\xba\x01\ftotal_tokens\xba\x01\n" +
 	"total_cost\xba\x01\x0etotal_requests\xba\x01\n" +
-	"error_rate\"$\n" +
+	"error_rate\"\xff\x01\n" +
 	"\x0eIdentityFilter\x12\x12\n" +
-	"\x04tags\x18\x01 \x03(\tR\x04tags\"\xcd\x02\n" +
+	"\x04tags\x18\x01 \x03(\tR\x04tags\x12\xd8\x01\n" +
+	"\x06source\x18\x02 \x01(\x0e2\x1f.orq.platform.v1.IdentitySourceB\x9e\x01\xbaG\x92\x01\x92\x02\x8e\x01Filter by identity source. ORQ matches the ORQ source marker, and External includes identities with another source or without a source marker.\xbaH\x05\x82\x01\x02\x10\x01R\x06source\"\xcd\x02\n" +
 	"\x15CreateIdentityRequest\x12*\n" +
 	"\vexternal_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18xR\n" +
 	"externalId\x12&\n" +
@@ -1051,11 +1109,12 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\x0finclude_metrics\x18\x02 \x01(\bR\x0eincludeMetrics\x12%\n" +
 	"\x0einclude_budget\x18\x03 \x01(\bR\rincludeBudget:\b\xbaG\x05\xba\x01\x02id\"a\n" +
 	"\x18RetrieveIdentityResponse\x125\n" +
-	"\bidentity\x18\x01 \x01(\v2\x19.orq.platform.v1.IdentityR\bidentity:\x0e\xbaG\v\xba\x01\bidentity\"\xb1\x02\n" +
+	"\bidentity\x18\x01 \x01(\v2\x19.orq.platform.v1.IdentityR\bidentity:\x0e\xbaG\v\xba\x01\bidentity\"\x8d\x03\n" +
 	"\x15UpdateIdentityRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12&\n" +
-	"\fdisplay_name\x18\x02 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12\"\n" +
-	"\x05email\x18\x03 \x01(\tB\a\xbaH\x04r\x02`\x01H\x01R\x05email\x88\x01\x01\x12,\n" +
+	"\fdisplay_name\x18\x02 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12~\n" +
+	"\x05email\x18\x03 \x01(\tBc\xbaH`\xba\x01]\n" +
+	"\x15identity.update.email\x12&must be empty or a valid email address\x1a\x1cthis == '' || this.isEmail()H\x01R\x05email\x88\x01\x01\x12,\n" +
 	"\n" +
 	"avatar_url\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01H\x02R\tavatarUrl\x88\x01\x01\x12\x12\n" +
 	"\x04tags\x18\x05 \x03(\tR\x04tags\x12=\n" +
@@ -1067,18 +1126,27 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\bidentity\x18\x01 \x01(\v2\x19.orq.platform.v1.IdentityR\bidentity:\x0e\xbaG\v\xba\x01\bidentity\":\n" +
 	"\x15DeleteIdentityRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id:\b\xbaG\x05\xba\x01\x02id\"\x18\n" +
-	"\x16DeleteIdentityResponse*\x7f\n" +
+	"\x16DeleteIdentityResponse*h\n" +
+	"\x0eIdentitySource\x12\x1f\n" +
+	"\x1bIDENTITY_SOURCE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13IDENTITY_SOURCE_ORQ\x10\x01\x12\x1c\n" +
+	"\x18IDENTITY_SOURCE_EXTERNAL\x10\x02*\x7f\n" +
 	"\x11IdentitySortField\x12#\n" +
 	"\x1fIDENTITY_SORT_FIELD_UNSPECIFIED\x10\x00\x12$\n" +
 	" IDENTITY_SORT_FIELD_DISPLAY_NAME\x10\x01\x12\x1f\n" +
-	"\x1bIDENTITY_SORT_FIELD_UPDATED\x10\x022\xe0\x12\n" +
-	"\x11IdentitiesService\x12\xc3\x04\n" +
-	"\x0eCreateIdentity\x12&.orq.platform.v1.CreateIdentityRequest\x1a'.orq.platform.v1.CreateIdentityResponse\"\xdf\x03\xbaG\xab\x03\n" +
+	"\x1bIDENTITY_SORT_FIELD_UPDATED\x10\x022\xed\x14\n" +
+	"\x11IdentitiesService\x12\xb4\x05\n" +
+	"\x0eCreateIdentity\x12&.orq.platform.v1.CreateIdentityRequest\x1a'.orq.platform.v1.CreateIdentityResponse\"\xd0\x04\xbaG\x9c\x04\n" +
 	"\n" +
-	"Identities\x12\x12Create an identity\x1a\x83\x01Creates a new identity with a unique external_id. If an identity with the same external_id already exists, the operation will fail.*\x0eCreateIdentityBt\x12r\n" +
-	"\x03201\x12k\n" +
-	"i\n" +
-	"\x1eIdentity created successfully.\x1aG\n" +
+	"Identities\x12\x12Create an identity\x1a\x83\x01Creates a new identity with a unique external_id. If an identity with the same external_id already exists, the operation will fail.*\x0eCreateIdentityB\xbd\x01\x12\xba\x01\n" +
+	"\x03201\x12\xb2\x01\n" +
+	"\xaf\x01\n" +
+	"\x1eIdentity created successfully.\x12D\n" +
+	"B\n" +
+	"\bLocation\x126\n" +
+	"4\n" +
+	"%Relative URI of the created identity.B\v\n" +
+	"\t\xca\x01\x06string\x1aG\n" +
 	"E\n" +
 	"\x10application/json\x121\n" +
 	"/\x12-\n" +
@@ -1089,9 +1157,10 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\vx-cli-group\x12\f\x12\n" +
 	"identitiesj\x16\n" +
 	"\n" +
-	"x-cli-name\x12\b\x12\x06create\x8a\xb5\x18\x13\n" +
-	"\x0fidentity.create\x10\x02\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v2/identities\x12\xc9\x03\n" +
-	"\x0eListIdentities\x12&.orq.platform.v1.ListIdentitiesRequest\x1a'.orq.platform.v1.ListIdentitiesResponse\"\xe5\x02\xbaG\xb6\x02\n" +
+	"x-cli-name\x12\b\x12\x06createj%\n" +
+	"\x12x-cli-help-section\x12\x0f\x12\rObservability\x8a\xb5\x18\x13\n" +
+	"\x0fidentity.create\x10\x03\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v2/identities\x12\xf0\x03\n" +
+	"\x0eListIdentities\x12&.orq.platform.v1.ListIdentitiesRequest\x1a'.orq.platform.v1.ListIdentitiesResponse\"\x8c\x03\xbaG\xdd\x02\n" +
 	"\n" +
 	"Identities\x12\x0fList identities\x1a\x8b\x01Retrieves a paginated list of identities in your workspace. Use pagination parameters to navigate through large identity lists efficiently.*\x0eListIdentitiesj!\n" +
 	"\x11x-speakeasy-group\x12\f\x12\n" +
@@ -1100,9 +1169,10 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\vx-cli-group\x12\f\x12\n" +
 	"identitiesj\x14\n" +
 	"\n" +
-	"x-cli-name\x12\x06\x12\x04list\x8a\xb5\x18\x11\n" +
-	"\ridentity.list\x10\x02\x82\xd3\xe4\x93\x02\x10\x12\x0e/v2/identities\x12\xc8\x03\n" +
-	"\x10RetrieveIdentity\x12(.orq.platform.v1.RetrieveIdentityRequest\x1a).orq.platform.v1.RetrieveIdentityResponse\"\xde\x02\xbaG\xaa\x02\n" +
+	"x-cli-name\x12\x06\x12\x04listj%\n" +
+	"\x12x-cli-help-section\x12\x0f\x12\rObservability\x8a\xb5\x18\x11\n" +
+	"\ridentity.list\x10\x03\x82\xd3\xe4\x93\x02\x10\x12\x0e/v2/identities\x12\xef\x03\n" +
+	"\x10RetrieveIdentity\x12(.orq.platform.v1.RetrieveIdentityRequest\x1a).orq.platform.v1.RetrieveIdentityResponse\"\x85\x03\xbaG\xd1\x02\n" +
 	"\n" +
 	"Identities\x12\x14Retrieve an identity\x1aqRetrieves detailed information about a specific identity using their identity ID or external ID from your system.*\x10RetrieveIdentityj!\n" +
 	"\x11x-speakeasy-group\x12\f\x12\n" +
@@ -1113,9 +1183,10 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"identitiesj\x18\n" +
 	"\n" +
 	"x-cli-name\x12\n" +
-	"\x12\bretrieve\x8a\xb5\x18\x11\n" +
-	"\ridentity.view\x10\x02\x82\xd3\xe4\x93\x02\x15\x12\x13/v2/identities/{id}\x12\xbc\x03\n" +
-	"\x0eUpdateIdentity\x12&.orq.platform.v1.UpdateIdentityRequest\x1a'.orq.platform.v1.UpdateIdentityResponse\"\xd8\x02\xbaG\x9f\x02\n" +
+	"\x12\bretrievej%\n" +
+	"\x12x-cli-help-section\x12\x0f\x12\rObservability\x8a\xb5\x18\x11\n" +
+	"\ridentity.view\x10\x03\x82\xd3\xe4\x93\x02\x15\x12\x13/v2/identities/{id}\x12\xe3\x03\n" +
+	"\x0eUpdateIdentity\x12&.orq.platform.v1.UpdateIdentityRequest\x1a'.orq.platform.v1.UpdateIdentityResponse\"\xff\x02\xbaG\xc6\x02\n" +
 	"\n" +
 	"Identities\x12\x12Update an identity\x1anUpdates specific fields of an existing identity. Only the fields provided in the request body will be updated.*\x0eUpdateIdentityj!\n" +
 	"\x11x-speakeasy-group\x12\f\x12\n" +
@@ -1124,9 +1195,10 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\vx-cli-group\x12\f\x12\n" +
 	"identitiesj\x16\n" +
 	"\n" +
-	"x-cli-name\x12\b\x12\x06update\x8a\xb5\x18\x13\n" +
-	"\x0fidentity.update\x10\x02\x82\xd3\xe4\x93\x02\x18:\x01*2\x13/v2/identities/{id}\x12\xae\x03\n" +
-	"\x0eDeleteIdentity\x12&.orq.platform.v1.DeleteIdentityRequest\x1a'.orq.platform.v1.DeleteIdentityResponse\"\xca\x02\xbaG\x94\x02\n" +
+	"x-cli-name\x12\b\x12\x06updatej%\n" +
+	"\x12x-cli-help-section\x12\x0f\x12\rObservability\x8a\xb5\x18\x13\n" +
+	"\x0fidentity.update\x10\x03\x82\xd3\xe4\x93\x02\x18:\x01*2\x13/v2/identities/{id}\x12\xd5\x03\n" +
+	"\x0eDeleteIdentity\x12&.orq.platform.v1.DeleteIdentityRequest\x1a'.orq.platform.v1.DeleteIdentityResponse\"\xf1\x02\xbaG\xbb\x02\n" +
 	"\n" +
 	"Identities\x12\x12Delete an identity\x1acPermanently deletes an identity from your workspace and cleans up associated budget configurations.*\x0eDeleteIdentityj!\n" +
 	"\x11x-speakeasy-group\x12\f\x12\n" +
@@ -1135,8 +1207,9 @@ const file_orq_platform_v1_identities_proto_rawDesc = "" +
 	"\vx-cli-group\x12\f\x12\n" +
 	"identitiesj\x16\n" +
 	"\n" +
-	"x-cli-name\x12\b\x12\x06delete\x8a\xb5\x18\x13\n" +
-	"\x0fidentity.delete\x10\x02\x82\xd3\xe4\x93\x02\x15*\x13/v2/identities/{id}B\xbb\x02\xbaGb:`\n" +
+	"x-cli-name\x12\b\x12\x06deletej%\n" +
+	"\x12x-cli-help-section\x12\x0f\x12\rObservability\x8a\xb5\x18\x13\n" +
+	"\x0fidentity.delete\x10\x03\x82\xd3\xe4\x93\x02\x15*\x13/v2/identities/{id}B\xbb\x02\xbaGb:`\n" +
 	"\n" +
 	"Identities\x12RIdentities represent end users from your system for usage and engagement tracking.\n" +
 	"\x13com.orq.platform.v1B\x0fIdentitiesProtoP\x01ZPgithub.com/orq-ai/terraform-provider-orq/internal/gen/orq/platform/v1;platformv1\xa2\x02\x03OPX\xaa\x02\x0fOrq.Platform.V1\xca\x02\x0fOrq\\Platform\\V1\xe2\x02\x1bOrq\\Platform\\V1\\GPBMetadata\xea\x02\x11Orq::Platform::V1b\x06proto3"
@@ -1153,53 +1226,55 @@ func file_orq_platform_v1_identities_proto_rawDescGZIP() []byte {
 	return file_orq_platform_v1_identities_proto_rawDescData
 }
 
-var file_orq_platform_v1_identities_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_orq_platform_v1_identities_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_orq_platform_v1_identities_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_orq_platform_v1_identities_proto_goTypes = []any{
-	(IdentitySortField)(0),           // 0: orq.platform.v1.IdentitySortField
-	(*Identity)(nil),                 // 1: orq.platform.v1.Identity
-	(*IdentityMetrics)(nil),          // 2: orq.platform.v1.IdentityMetrics
-	(*IdentityFilter)(nil),           // 3: orq.platform.v1.IdentityFilter
-	(*CreateIdentityRequest)(nil),    // 4: orq.platform.v1.CreateIdentityRequest
-	(*CreateIdentityResponse)(nil),   // 5: orq.platform.v1.CreateIdentityResponse
-	(*ListIdentitiesRequest)(nil),    // 6: orq.platform.v1.ListIdentitiesRequest
-	(*ListIdentitiesResponse)(nil),   // 7: orq.platform.v1.ListIdentitiesResponse
-	(*RetrieveIdentityRequest)(nil),  // 8: orq.platform.v1.RetrieveIdentityRequest
-	(*RetrieveIdentityResponse)(nil), // 9: orq.platform.v1.RetrieveIdentityResponse
-	(*UpdateIdentityRequest)(nil),    // 10: orq.platform.v1.UpdateIdentityRequest
-	(*UpdateIdentityResponse)(nil),   // 11: orq.platform.v1.UpdateIdentityResponse
-	(*DeleteIdentityRequest)(nil),    // 12: orq.platform.v1.DeleteIdentityRequest
-	(*DeleteIdentityResponse)(nil),   // 13: orq.platform.v1.DeleteIdentityResponse
-	(*structpb.Struct)(nil),          // 14: google.protobuf.Struct
-	(*Budget)(nil),                   // 15: orq.platform.v1.Budget
+	(IdentitySource)(0),              // 0: orq.platform.v1.IdentitySource
+	(IdentitySortField)(0),           // 1: orq.platform.v1.IdentitySortField
+	(*Identity)(nil),                 // 2: orq.platform.v1.Identity
+	(*IdentityMetrics)(nil),          // 3: orq.platform.v1.IdentityMetrics
+	(*IdentityFilter)(nil),           // 4: orq.platform.v1.IdentityFilter
+	(*CreateIdentityRequest)(nil),    // 5: orq.platform.v1.CreateIdentityRequest
+	(*CreateIdentityResponse)(nil),   // 6: orq.platform.v1.CreateIdentityResponse
+	(*ListIdentitiesRequest)(nil),    // 7: orq.platform.v1.ListIdentitiesRequest
+	(*ListIdentitiesResponse)(nil),   // 8: orq.platform.v1.ListIdentitiesResponse
+	(*RetrieveIdentityRequest)(nil),  // 9: orq.platform.v1.RetrieveIdentityRequest
+	(*RetrieveIdentityResponse)(nil), // 10: orq.platform.v1.RetrieveIdentityResponse
+	(*UpdateIdentityRequest)(nil),    // 11: orq.platform.v1.UpdateIdentityRequest
+	(*UpdateIdentityResponse)(nil),   // 12: orq.platform.v1.UpdateIdentityResponse
+	(*DeleteIdentityRequest)(nil),    // 13: orq.platform.v1.DeleteIdentityRequest
+	(*DeleteIdentityResponse)(nil),   // 14: orq.platform.v1.DeleteIdentityResponse
+	(*structpb.Struct)(nil),          // 15: google.protobuf.Struct
+	(*Budget)(nil),                   // 16: orq.platform.v1.Budget
 }
 var file_orq_platform_v1_identities_proto_depIdxs = []int32{
-	14, // 0: orq.platform.v1.Identity.metadata:type_name -> google.protobuf.Struct
-	2,  // 1: orq.platform.v1.Identity.metrics:type_name -> orq.platform.v1.IdentityMetrics
-	15, // 2: orq.platform.v1.Identity.budget:type_name -> orq.platform.v1.Budget
-	14, // 3: orq.platform.v1.CreateIdentityRequest.metadata:type_name -> google.protobuf.Struct
-	1,  // 4: orq.platform.v1.CreateIdentityResponse.identity:type_name -> orq.platform.v1.Identity
-	3,  // 5: orq.platform.v1.ListIdentitiesRequest.filter_by:type_name -> orq.platform.v1.IdentityFilter
-	0,  // 6: orq.platform.v1.ListIdentitiesRequest.sort_by:type_name -> orq.platform.v1.IdentitySortField
-	1,  // 7: orq.platform.v1.ListIdentitiesResponse.data:type_name -> orq.platform.v1.Identity
-	1,  // 8: orq.platform.v1.RetrieveIdentityResponse.identity:type_name -> orq.platform.v1.Identity
-	14, // 9: orq.platform.v1.UpdateIdentityRequest.metadata:type_name -> google.protobuf.Struct
-	1,  // 10: orq.platform.v1.UpdateIdentityResponse.identity:type_name -> orq.platform.v1.Identity
-	4,  // 11: orq.platform.v1.IdentitiesService.CreateIdentity:input_type -> orq.platform.v1.CreateIdentityRequest
-	6,  // 12: orq.platform.v1.IdentitiesService.ListIdentities:input_type -> orq.platform.v1.ListIdentitiesRequest
-	8,  // 13: orq.platform.v1.IdentitiesService.RetrieveIdentity:input_type -> orq.platform.v1.RetrieveIdentityRequest
-	10, // 14: orq.platform.v1.IdentitiesService.UpdateIdentity:input_type -> orq.platform.v1.UpdateIdentityRequest
-	12, // 15: orq.platform.v1.IdentitiesService.DeleteIdentity:input_type -> orq.platform.v1.DeleteIdentityRequest
-	5,  // 16: orq.platform.v1.IdentitiesService.CreateIdentity:output_type -> orq.platform.v1.CreateIdentityResponse
-	7,  // 17: orq.platform.v1.IdentitiesService.ListIdentities:output_type -> orq.platform.v1.ListIdentitiesResponse
-	9,  // 18: orq.platform.v1.IdentitiesService.RetrieveIdentity:output_type -> orq.platform.v1.RetrieveIdentityResponse
-	11, // 19: orq.platform.v1.IdentitiesService.UpdateIdentity:output_type -> orq.platform.v1.UpdateIdentityResponse
-	13, // 20: orq.platform.v1.IdentitiesService.DeleteIdentity:output_type -> orq.platform.v1.DeleteIdentityResponse
-	16, // [16:21] is the sub-list for method output_type
-	11, // [11:16] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	15, // 0: orq.platform.v1.Identity.metadata:type_name -> google.protobuf.Struct
+	3,  // 1: orq.platform.v1.Identity.metrics:type_name -> orq.platform.v1.IdentityMetrics
+	16, // 2: orq.platform.v1.Identity.budget:type_name -> orq.platform.v1.Budget
+	0,  // 3: orq.platform.v1.IdentityFilter.source:type_name -> orq.platform.v1.IdentitySource
+	15, // 4: orq.platform.v1.CreateIdentityRequest.metadata:type_name -> google.protobuf.Struct
+	2,  // 5: orq.platform.v1.CreateIdentityResponse.identity:type_name -> orq.platform.v1.Identity
+	4,  // 6: orq.platform.v1.ListIdentitiesRequest.filter_by:type_name -> orq.platform.v1.IdentityFilter
+	1,  // 7: orq.platform.v1.ListIdentitiesRequest.sort_by:type_name -> orq.platform.v1.IdentitySortField
+	2,  // 8: orq.platform.v1.ListIdentitiesResponse.data:type_name -> orq.platform.v1.Identity
+	2,  // 9: orq.platform.v1.RetrieveIdentityResponse.identity:type_name -> orq.platform.v1.Identity
+	15, // 10: orq.platform.v1.UpdateIdentityRequest.metadata:type_name -> google.protobuf.Struct
+	2,  // 11: orq.platform.v1.UpdateIdentityResponse.identity:type_name -> orq.platform.v1.Identity
+	5,  // 12: orq.platform.v1.IdentitiesService.CreateIdentity:input_type -> orq.platform.v1.CreateIdentityRequest
+	7,  // 13: orq.platform.v1.IdentitiesService.ListIdentities:input_type -> orq.platform.v1.ListIdentitiesRequest
+	9,  // 14: orq.platform.v1.IdentitiesService.RetrieveIdentity:input_type -> orq.platform.v1.RetrieveIdentityRequest
+	11, // 15: orq.platform.v1.IdentitiesService.UpdateIdentity:input_type -> orq.platform.v1.UpdateIdentityRequest
+	13, // 16: orq.platform.v1.IdentitiesService.DeleteIdentity:input_type -> orq.platform.v1.DeleteIdentityRequest
+	6,  // 17: orq.platform.v1.IdentitiesService.CreateIdentity:output_type -> orq.platform.v1.CreateIdentityResponse
+	8,  // 18: orq.platform.v1.IdentitiesService.ListIdentities:output_type -> orq.platform.v1.ListIdentitiesResponse
+	10, // 19: orq.platform.v1.IdentitiesService.RetrieveIdentity:output_type -> orq.platform.v1.RetrieveIdentityResponse
+	12, // 20: orq.platform.v1.IdentitiesService.UpdateIdentity:output_type -> orq.platform.v1.UpdateIdentityResponse
+	14, // 21: orq.platform.v1.IdentitiesService.DeleteIdentity:output_type -> orq.platform.v1.DeleteIdentityResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_orq_platform_v1_identities_proto_init() }
@@ -1217,7 +1292,7 @@ func file_orq_platform_v1_identities_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orq_platform_v1_identities_proto_rawDesc), len(file_orq_platform_v1_identities_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,

@@ -22,6 +22,13 @@ enum AuthzScope {
   // the request carries a project id — that project must fall inside
   // the caller's project scope.
   AUTHZ_SCOPE_PROJECT = 3;
+
+  // Account-scoped surface. The caller must be an authenticated user
+  // session (workspace on the token is optional) or a workspace-scoped
+  // credential. Project-pinned api keys are rejected. Used for RPCs that
+  // exist before a tenant is selected (workspace create, key check, get)
+  // or that list every workspace the account can access.
+  AUTHZ_SCOPE_ACCOUNT = 4;
 }
 
 // AuthzRule is attached to an RPC via the `authz` method option. It is

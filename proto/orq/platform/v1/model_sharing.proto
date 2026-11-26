@@ -31,7 +31,10 @@ service ModelSharingService {
       summary: "Set a model's sharing config"
       description: "Persists the project sharing config for a workspace model. Exactly one sharing mode must be set (all_projects / selected)."
       operation_id: "ModelSharingSet"
-      tags: ["Model Sharing"]
+      tags: [
+        "Model Sharing",
+        "private"
+      ]
       specification_extension: [
         {
           name: "x-speakeasy-group"

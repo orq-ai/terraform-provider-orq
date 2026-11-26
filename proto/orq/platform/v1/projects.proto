@@ -77,7 +77,7 @@ service ProjectsService {
     };
     option (openapi.v3.operation) = {
       summary: "Create a new project"
-      description: "Creates a project in the current workspace. Projects are workspace-level containers for resources such as skills, deployments, datasets, rules, and related team access."
+      description: "Creates a project in the current workspace. Projects are workspace-level containers for resources such as skills, deployments, datasets, rules, and related team access. Requires a workspace-scoped management key or API key with Projects write access, or an admin session. Project-scoped API keys cannot be granted Projects access."
       operation_id: "ProjectCreate"
       tags: ["Projects"]
       specification_extension: [
@@ -88,6 +88,18 @@ service ProjectsService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "create"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "create"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Administration"}
         }
       ]
     };
@@ -101,7 +113,7 @@ service ProjectsService {
     option (google.api.http) = {get: "/v2/projects"};
     option (openapi.v3.operation) = {
       summary: "List all projects"
-      description: "Returns projects visible to the current workspace, ordered by creation time with the newest project first. Use `starting_after` or `ending_before` to page through large collections."
+      description: "Returns projects visible to the current workspace, ordered by creation time with the newest project first. Use `starting_after` or `ending_before` to page through large collections; the two cursors are mutually exclusive."
       operation_id: "ProjectList"
       tags: ["Projects"]
       specification_extension: [
@@ -112,6 +124,18 @@ service ProjectsService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "list"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "list"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Administration"}
         }
       ]
     };
@@ -120,7 +144,7 @@ service ProjectsService {
   rpc GetProject(GetProjectRequest) returns (GetProjectResponse) {
     option (orq.authz.v1.authz) = {
       verb: "project.view"
-      scope: AUTHZ_SCOPE_WORKSPACE
+      scope: AUTHZ_SCOPE_PROJECT
     };
     option (google.api.http) = {get: "/v2/projects/{project_id}"};
     option (openapi.v3.operation) = {
@@ -136,6 +160,18 @@ service ProjectsService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "get"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "get"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Administration"}
         }
       ]
     };
@@ -152,7 +188,7 @@ service ProjectsService {
     };
     option (openapi.v3.operation) = {
       summary: "Update a project"
-      description: "Updates the specified project by setting the values of the parameters passed."
+      description: "Updates the specified project by setting the values of the parameters passed. Requires a workspace-scoped management key or API key with Projects write access, or an admin session. Project-scoped API keys cannot be granted Projects access."
       operation_id: "ProjectUpdate"
       tags: ["Projects"]
       specification_extension: [
@@ -163,6 +199,18 @@ service ProjectsService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "update"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "update"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Administration"}
         }
       ]
     };
@@ -176,7 +224,7 @@ service ProjectsService {
     option (google.api.http) = {delete: "/v2/projects/{project_id}"};
     option (openapi.v3.operation) = {
       summary: "Delete a project"
-      description: "Deletes a project from the workspace. The response body is empty when the delete succeeds."
+      description: "Deletes a project from the workspace. The response body is empty when the delete succeeds. Requires a workspace-scoped management key or API key with Projects write access, or an admin session. Project-scoped API keys cannot be granted Projects access."
       operation_id: "ProjectDelete"
       tags: ["Projects"]
       specification_extension: [
@@ -187,6 +235,18 @@ service ProjectsService {
         {
           name: "x-speakeasy-name-override"
           value: {yaml: "delete"}
+        },
+        {
+          name: "x-cli-group"
+          value: {yaml: "projects"}
+        },
+        {
+          name: "x-cli-name"
+          value: {yaml: "delete"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Administration"}
         }
       ]
     };
@@ -213,8 +273,7 @@ message Project {
   string project_id = 1;
   // Human-readable project name.
   string name = 2;
-  // Stable project key generated from the name and used by internal
-  // workspace navigation.
+  // Stable project key generated from the name.
   string key = 3;
   // Workspace that owns the project. Hidden from the public OpenAPI
   // schema because workspace scope is inferred from authentication.
@@ -282,10 +341,10 @@ message ListProjectsRequest {
     (buf.validate.field).int32.lte = 200
   ];
   // Cursor for forward pagination. Set to the `project_id` of the last
-  // item from the previous page.
+  // item from the previous page. Mutually exclusive with `ending_before`.
   string starting_after = 2;
   // Cursor for backward pagination. Set to the `project_id` of the first
-  // item from the previous page.
+  // item from the previous page. Mutually exclusive with `starting_after`.
   string ending_before = 3;
 }
 

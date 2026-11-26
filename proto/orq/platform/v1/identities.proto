@@ -22,7 +22,7 @@ service IdentitiesService {
   rpc CreateIdentity(CreateIdentityRequest) returns (CreateIdentityResponse) {
     option (orq.authz.v1.authz) = {
       verb: "identity.create"
-      scope: AUTHZ_SCOPE_WORKSPACE
+      scope: AUTHZ_SCOPE_PROJECT
     };
     option (google.api.http) = {
       post: "/v2/identities"
@@ -40,6 +40,19 @@ service IdentitiesService {
             value: {
               response: {
                 description: "Identity created successfully."
+                headers: {
+                  additional_properties: [
+                    {
+                      name: "Location"
+                      value: {
+                        header: {
+                          description: "Relative URI of the created identity."
+                          schema: {schema: {type: "string"}}
+                        }
+                      }
+                    }
+                  ]
+                }
                 content: {
                   additional_properties: [
                     {
@@ -73,6 +86,10 @@ service IdentitiesService {
         {
           name: "x-cli-name"
           value: {yaml: "create"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Observability"}
         }
       ]
     };
@@ -81,7 +98,7 @@ service IdentitiesService {
   rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse) {
     option (orq.authz.v1.authz) = {
       verb: "identity.list"
-      scope: AUTHZ_SCOPE_WORKSPACE
+      scope: AUTHZ_SCOPE_PROJECT
     };
     option (google.api.http) = {get: "/v2/identities"};
     option (openapi.v3.operation) = {
@@ -105,6 +122,10 @@ service IdentitiesService {
         {
           name: "x-cli-name"
           value: {yaml: "list"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Observability"}
         }
       ]
     };
@@ -113,7 +134,7 @@ service IdentitiesService {
   rpc RetrieveIdentity(RetrieveIdentityRequest) returns (RetrieveIdentityResponse) {
     option (orq.authz.v1.authz) = {
       verb: "identity.view"
-      scope: AUTHZ_SCOPE_WORKSPACE
+      scope: AUTHZ_SCOPE_PROJECT
     };
     option (google.api.http) = {get: "/v2/identities/{id}"};
     option (openapi.v3.operation) = {
@@ -137,6 +158,10 @@ service IdentitiesService {
         {
           name: "x-cli-name"
           value: {yaml: "retrieve"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Observability"}
         }
       ]
     };
@@ -145,7 +170,7 @@ service IdentitiesService {
   rpc UpdateIdentity(UpdateIdentityRequest) returns (UpdateIdentityResponse) {
     option (orq.authz.v1.authz) = {
       verb: "identity.update"
-      scope: AUTHZ_SCOPE_WORKSPACE
+      scope: AUTHZ_SCOPE_PROJECT
     };
     option (google.api.http) = {
       patch: "/v2/identities/{id}"
@@ -172,6 +197,10 @@ service IdentitiesService {
         {
           name: "x-cli-name"
           value: {yaml: "update"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Observability"}
         }
       ]
     };
@@ -180,7 +209,7 @@ service IdentitiesService {
   rpc DeleteIdentity(DeleteIdentityRequest) returns (DeleteIdentityResponse) {
     option (orq.authz.v1.authz) = {
       verb: "identity.delete"
-      scope: AUTHZ_SCOPE_WORKSPACE
+      scope: AUTHZ_SCOPE_PROJECT
     };
     option (google.api.http) = {delete: "/v2/identities/{id}"};
     option (openapi.v3.operation) = {
@@ -204,6 +233,10 @@ service IdentitiesService {
         {
           name: "x-cli-name"
           value: {yaml: "delete"}
+        },
+        {
+          name: "x-cli-help-section"
+          value: {yaml: "Observability"}
         }
       ]
     };
@@ -280,8 +313,18 @@ message IdentityMetrics {
 }
 
 message IdentityFilter {
-  // Return only identities that have at least one of these tags.
+  // Return only identities that have all of these tags.
   repeated string tags = 1;
+  IdentitySource source = 2 [
+    (buf.validate.field).enum.defined_only = true,
+    (openapi.v3.property) = {description: "Filter by identity source. ORQ matches the ORQ source marker, and External includes identities with another source or without a source marker."}
+  ];
+}
+
+enum IdentitySource {
+  IDENTITY_SOURCE_UNSPECIFIED = 0;
+  IDENTITY_SOURCE_ORQ = 1;
+  IDENTITY_SOURCE_EXTERNAL = 2;
 }
 
 enum IdentitySortField {
@@ -399,8 +442,12 @@ message UpdateIdentityRequest {
   string id = 1 [(buf.validate.field).string.min_len = 1];
   // New display name. Omit to keep the current display name.
   optional string display_name = 2;
-  // New email address. Omit to keep the current email.
-  optional string email = 3 [(buf.validate.field).string.email = true];
+  // New email address. Omit to keep the current email, or send an empty string to clear it.
+  optional string email = 3 [(buf.validate.field).cel = {
+    id: "identity.update.email"
+    message: "must be empty or a valid email address"
+    expression: "this == '' || this.isEmail()"
+  }];
   // New avatar image URL. Omit to keep the current avatar URL.
   optional string avatar_url = 4 [(buf.validate.field).string.uri = true];
   // Replacement tag list. Leave empty to clear tags.

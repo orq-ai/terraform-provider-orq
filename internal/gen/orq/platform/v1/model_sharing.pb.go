@@ -140,10 +140,11 @@ const file_orq_platform_v1_model_sharing_proto_rawDesc = "" +
 	"\asharing\x18\x02 \x01(\v2\x18.orq.platform.v1.SharingB\x06\xbaH\x03\xc8\x01\x01R\asharing\"h\n" +
 	"\x17SetModelSharingResponse\x12\x19\n" +
 	"\bmodel_id\x18\x01 \x01(\tR\amodelId\x122\n" +
-	"\asharing\x18\x02 \x01(\v2\x18.orq.platform.v1.SharingR\asharing2\x88\x04\n" +
-	"\x13ModelSharingService\x12\xf0\x03\n" +
-	"\x0fSetModelSharing\x12'.orq.platform.v1.SetModelSharingRequest\x1a(.orq.platform.v1.SetModelSharingResponse\"\x89\x03\xbaG\xb9\x02\n" +
-	"\rModel Sharing\x12\x1cSet a model's sharing config\x1azPersists the project sharing config for a workspace model. Exactly one sharing mode must be set (all_projects / selected).*\x0fModelSharingSetj#\n" +
+	"\asharing\x18\x02 \x01(\v2\x18.orq.platform.v1.SharingR\asharing2\x91\x04\n" +
+	"\x13ModelSharingService\x12\xf9\x03\n" +
+	"\x0fSetModelSharing\x12'.orq.platform.v1.SetModelSharingRequest\x1a(.orq.platform.v1.SetModelSharingResponse\"\x92\x03\xbaG\xc2\x02\n" +
+	"\rModel Sharing\n" +
+	"\aprivate\x12\x1cSet a model's sharing config\x1azPersists the project sharing config for a workspace model. Exactly one sharing mode must be set (all_projects / selected).*\x0fModelSharingSetj#\n" +
 	"\x11x-speakeasy-group\x12\x0e\x12\fmodelSharingj\"\n" +
 	"\x19x-speakeasy-name-override\x12\x05\x12\x03setj\x16\n" +
 	"\fx-cli-hidden\x12\x06\x12\x04truej\x1c\n" +
