@@ -59,6 +59,8 @@ type Client struct {
 	guardrailRules  GuardrailRulesAPI
 	workspaceModels WorkspaceModelsAPI
 	routingRules    RoutingRulesAPI
+	smartRouters    SmartRoutersAPI
+	modelFusions    ModelFusionsAPI
 	apiKeys         APIKeysAPI
 	managementKeys  ManagementKeysAPI
 	models          ModelsAPI
@@ -175,6 +177,8 @@ func New(cfg Config) (*Client, error) {
 	teamsClient := platformv1connect.NewTeamsServiceClient(connectHTTP, connectURL, connectOpts)
 	environmentsClient := platformv1connect.NewEnvironmentsServiceClient(connectHTTP, connectURL, connectOpts)
 	mcpGatewayClient := platformv1connect.NewMcpGatewayServiceClient(connectHTTP, connectURL, connectOpts)
+	smartRoutersClient := platformv1connect.NewSmartRoutersServiceClient(connectHTTP, connectURL, connectOpts)
+	modelFusionsClient := platformv1connect.NewModelFusionsServiceClient(connectHTTP, connectURL, connectOpts)
 
 	// REST transport: shared token injected via an origin-scoped bearer
 	// round-tripper, with the same redirect policy as the Connect client.
@@ -195,6 +199,8 @@ func New(cfg Config) (*Client, error) {
 		guardrailRules:  &connectGuardrailRules{c: guardrailRulesClient},
 		workspaceModels: &workspaceModels{rest: rest, sharing: modelSharingClient},
 		routingRules:    &connectRoutingRules{c: routingRulesClient},
+		smartRouters:    &connectSmartRouters{c: smartRoutersClient},
+		modelFusions:    &connectModelFusions{c: modelFusionsClient},
 		apiKeys:         &connectAPIKeys{c: apiKeysClient},
 		managementKeys:  &connectManagementKeys{c: managementKeysClient},
 		models:          &restModels{c: rest},
@@ -232,6 +238,12 @@ func (c *Client) WorkspaceModels() WorkspaceModelsAPI { return c.workspaceModels
 
 // RoutingRules returns the transport-agnostic routing-rules API (Connect-backed).
 func (c *Client) RoutingRules() RoutingRulesAPI { return c.routingRules }
+
+// SmartRouters returns the transport-agnostic smart-routers API (Connect-backed).
+func (c *Client) SmartRouters() SmartRoutersAPI { return c.smartRouters }
+
+// ModelFusions returns the transport-agnostic model-fusions API (Connect-backed).
+func (c *Client) ModelFusions() ModelFusionsAPI { return c.modelFusions }
 
 // APIKeys returns the transport-agnostic api-keys API (Connect-backed).
 func (c *Client) APIKeys() APIKeysAPI { return c.apiKeys }
